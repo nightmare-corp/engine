@@ -1,0 +1,15 @@
+[package]
+name = "ne_editor"
+version = "0.1.0"
+edition = "2021"
+description = "State of the art"
+keywords = ["game", "nightmare", "engine", "gamedev", "graphics" ] 
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+# ne_minimum = {path = "../crates/ne_minimum"}
+nightmare_engine = {path = "../" }
+# L = {path = "../crates/ne_log"} #, features = ["release_max_level_off"] 
+tracing = "0.1.35"
+ne = {path = "../crates/ne"}

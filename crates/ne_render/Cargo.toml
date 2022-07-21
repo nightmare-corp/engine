@@ -1,0 +1,33 @@
+[package]
+name = "ne_render"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+ne = {path = "../ne"}
+ne_files = {path = "../ne_files"}
+
+tracing = "0.1.35"
+# wgpu
+cfg-if = "1"
+winit = "0.26"
+env_logger = "0.9"
+log = "0.4"
+wgpu = "0.13"
+pollster = "0.2"
+
+# wasm32 not tested yet.
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+console_error_panic_hook = "0.1.6"
+console_log = "0.2.0"
+wgpu = { version = "0.13", features = ["webgl"]}
+wasm-bindgen = "0.2.76"
+wasm-bindgen-futures = "0.4.30"
+web-sys = { version = "0.3.53", features = [
+    "Document",
+    "Window",
+    "Element",
+]}
+
+[lib]
+path = "src/ne_render.rs" 

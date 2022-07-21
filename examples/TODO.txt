@@ -1,0 +1,6 @@
+maps contain:
+{filepath, transform, c++ func?}
+
+How would I for example place a player character with move functionality inside of a scene?
+obviously the character's location needs to be remembered somewhere...
+and the code can either be compiled as a dll or inside the binary. probably just inside the binary but uh... kinda weird. 
