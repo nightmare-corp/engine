@@ -1,4 +1,4 @@
-  <h1>nightmare_editor - a top secret game engine</h1>
+  <h1>Nightmare_Engine - a top secret game engine</h1>
 
 
   
