@@ -1,24 +1,20 @@
 use std::{env, path::PathBuf};
 use ne::*;
 //honestly not sure how to implement this...
-pub fn GetExecDir() -> String
+pub fn get_exec_dir() -> String
 {
     let cwd = env::current_dir().unwrap().into_os_string().into_string().unwrap();
-    // L::error!(cwd);
-    cwd
-    // match path 
-    // {
-    //     PathBuf => PathBuf.into_os_string().into_string(),
-    //     Error => {
-    //         L::warn!("Initialized logging [WARN]");
-    //         ""
-    //     }
-    // }
+    cwd + "/"
 }
-
-pub fn GetAssets() -> &'static str
+pub fn get_asset_dir() -> String
 {
-
-    ""
+    get_exec_dir()+"assets/"
 }
-
+pub fn get_shaders_dir() -> String
+{
+    get_asset_dir()+"shaders/"
+}
+pub fn get_shader(shader_name:&str) -> String
+{
+    get_shaders_dir()+shader_name
+}
