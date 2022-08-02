@@ -1,11 +1,15 @@
-mod consts;
-use ne::*;
+pub mod prelude;
+use prelude::*;
+// TODO replace with something better:
+// TODO move to ne_editor...
+// I want a file of cfgs but I don't know how it works.
+pub const CONF_UI: bool = false;
 
 /// tracing::Level::INFO, tracing::Level::ERROR, tracing::Level::WARN
 pub fn run_engine(log_level: tracing::Level, title:&str)
 {
     init_log!(log_level);
-    if consts::CONF_UI {
+    if CONF_UI {
         info!("UI enabled");
     }
     else {
@@ -13,4 +17,31 @@ pub fn run_engine(log_level: tracing::Level, title:&str)
     }
     //initialize renderer, NOTE: hasn't been tested for wasm32
     pollster::block_on(ne_render::init_renderer(title));
+}
+
+#[allow(non_camel_case_types)]
+pub struct nightmare_engine
+{
+}
+//TODO Is this needed?
+// impl Default for nightmare_engine
+// {
+//     // fn default() -> Self {
+//     // }
+// }
+impl nightmare_engine
+{
+    pub fn new() -> nightmare_engine
+    {
+        // nightmare_engine::default()
+        nightmare_engine::empty()
+    }
+    pub fn empty() -> nightmare_engine {
+        Self {
+        }
+    }
+    pub fn add_plugin(self) -> nightmare_engine {
+
+        self
+    }
 }

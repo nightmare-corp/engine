@@ -1,13 +1,8 @@
 [package]
-name = "ne"
+name = "ne_plugin_parent"
 version = "0.1.0"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-ne_log = {path = "../ne_log"}
-# ne_files = {path = "../ne_files"}
-
-[lib]
-path = "src/ne.rs"
