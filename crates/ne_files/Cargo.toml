@@ -9,9 +9,7 @@ edition = "2021"
 ne = {path = "../ne"}
 #TODO should only be activated when testing all dirs
 # [target.'cfg(MACROTEST)'.dependencies]
-syn = "1.0.98"
-quote = "1.0.20"
 
 [lib]
 path = "src/ne_files.rs" 
-proc-macro = true
+

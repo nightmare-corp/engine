@@ -45,3 +45,14 @@ impl nightmare_engine
         self
     }
 }
+
+
+#[macro_export]
+macro_rules! get_engine_assets_dir{
+    () =>
+    {
+        // find_file!(concat!(env!("CARGO_MANIFEST_DIR"), "/assets")
+        // concat!(env!("CARGO_MANIFEST_DIR"), "/assets")
+        todo!();
+    }
+}

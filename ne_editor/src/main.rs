@@ -1,8 +1,7 @@
 use ne_files::*;
-//TODO
-// use nightmare_engine::prelude::*;
-// use std::path::{Path, PathBuf};
-// use std::env;
+
+
+// use nightmare_engine::get_engine_assets_dir;
 
 
 // fn get_cwd() -> PathBuf {
@@ -25,37 +24,16 @@ fn main() {
     // env::set_var("RUST_BACKTRACE", "1");
     //todo
     // nightmare_engine::new();
+
+    // include_bytes!("../cargo.toml");
+    find_file!("../cargo.toml");
+
     // nightmare_engine::run_engine( 
     //     tracing::Level::INFO,
     //      "Nightmare_Editor");
+         
     
-    //TODO is this file there? create file besides it
-    // Create a `Path` from an `&'static str`
-
-    // let mut path = env::current_dir().unwrap();
-    // println!("{}", path.display());
-
-    // path = path.join("assets");
-    // path = path.join("models");
-    // // assert!(path.is_file());
-    // assert!(path.is_dir());
-
-    // println!("{}", path.display());
-    // let path = Path::new(".");
-    // let path_d = path.display();
-    // // path+="models/cube.obj";
-    // println!("{}", path_d);
-
-    //TODO
     // find_file!(get_asset_dir(), "models",
     //  "cube.obj");
-
-    print!("hello ");
-    
-    my_proc_macro!(" da ");
-
-    print!("world");
-    println!();
-
-
 }
+

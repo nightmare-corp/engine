@@ -35,7 +35,6 @@ pub async fn load_string(file_name: &str) -> anyhow::Result<String> {
     Ok(txt)
 }
 
-
 pub async fn load_binary(file_name: &str) -> anyhow::Result<Vec<u8>> {
     cfg_if! {
         if #[cfg(target_arch = "wasm32")] {
@@ -70,6 +69,8 @@ pub async fn load_texture(
     let data = load_binary(file_name).await?;
     texture::Texture::from_bytes(device, queue, &data, file_name)
 }
+
+//yeah a little difficult
 //TODO TURN INTO A MACRO SO THAT WE CAN IMMEDIATLY SEE IF THE FILE EXISTS
 pub async fn load_model(
     file_name: &str,
@@ -77,6 +78,8 @@ pub async fn load_model(
     queue: &wgpu::Queue,
     layout: &wgpu::BindGroupLayout,
 ) -> anyhow::Result<model::Model> {
+    todo!();
+
     let obj_text = load_string(file_name).await?;
     let obj_cursor = Cursor::new(obj_text);
     let mut obj_reader = BufReader::new(obj_cursor);

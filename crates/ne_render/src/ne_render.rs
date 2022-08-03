@@ -16,6 +16,7 @@ mod texture;
 mod vertex;
 
 use vertex::Vertex;
+use ne_files::find_file;
 //-------------------------------------------------------------------------------------------
 //globals
 //-------------------------------------------------------------------------------------------
@@ -257,12 +258,15 @@ struct State {
     camera_bind_group: wgpu::BindGroup,
     camera_controller: CameraController,
 
+    //todo
     #[allow(dead_code)]
     diffuse_texture: texture::Texture,
     diffuse_bind_group: wgpu::BindGroup,
     #[allow(dead_code)]
     challenge_texture: texture::Texture,
+    #[allow(dead_code)]
     challenge_bind_group: wgpu::BindGroup,
+    #[allow(dead_code)]
     is_space_pressed: bool,
 
     depth_texture: texture::Texture,
@@ -584,6 +588,7 @@ impl State {
             texture::Texture::create_depth_texture(&device, &config, "depth_texture");
 
         //Loading model shouldnt be here...
+        //TODO option to search file from this point.
         let obj_model =
             resources::load_model("models/cube.obj", &device, &queue, &texture_bind_group_layout)
                 .await
