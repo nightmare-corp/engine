@@ -1,3 +1,5 @@
+use std::env;
+
 mod projectmacros;
 // use nightmare_engine::get_engine_assets_dir;
 
@@ -19,7 +21,7 @@ mod projectmacros;
 //     ""
 // }
 fn main() {
-    // env::set_var("RUST_BACKTRACE", "1");
+    env::set_var("RUST_BACKTRACE", "1");
     //todo
     // nightmare_engine::new();
 
@@ -31,8 +33,5 @@ fn main() {
     nightmare_engine::run_engine( 
         tracing::Level::INFO,
          "Nightmare_Editor");
-         
-    // find_file!("../../Cargo.toml");
-    //  "cube.obj");
 }
 
