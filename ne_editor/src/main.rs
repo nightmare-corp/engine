@@ -1,29 +1,11 @@
 use std::env;
 
 mod projectmacros;
-// use nightmare_engine::get_engine_assets_dir;
+use nightmare_engine::*;
 
-
-// fn get_cwd() -> PathBuf {
-
-//     env::current_dir().unwrap()
-// }
-// fn get_asset_dir() -> PathBuf
-// {
-//     get_cwd().join("assets")
-// }
-// fn file(s:&str) -> &str
-// {
-//     // find_file!(s);
-//     // s
-//     my_proc_macro!("da");
-
-//     ""
-// }
 fn main() {
     env::set_var("RUST_BACKTRACE", "1");
     //todo
-    // nightmare_engine::new();
 
     // include_bytes!("../cargo.toml");
     // find_file!("../cargo.toml");
@@ -33,5 +15,13 @@ fn main() {
     nightmare_engine::run_engine( 
         tracing::Level::INFO,
          "Nightmare_Editor");
+
+
+         //TODO why is it not found??
+    // let t = nightmare_engine::new();
+
+    //TODO how to remove this??1
+    app::nightmare_engine::new();
+
 }
 

@@ -650,7 +650,9 @@ impl State {
 
         log::warn!("Load model");
         let obj_model = resources::load_model(
-            "cube.obj",
+
+            //TODO Other models.
+            "trapeprism2.obj",
             &device,
             &queue,
             &texture_bind_group_layout,
