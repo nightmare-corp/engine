@@ -15,5 +15,5 @@ tracing = "0.1.35"
 ne = {path = "../crates/ne"}
 ne_files = {path = "../crates/ne_files"}
 
-[features]
-default = ["path_checker"]
+# [features]
+# default = ["path_checker"]

@@ -26,14 +26,16 @@ fn main() {
     // nightmare_engine::new();
 
     // include_bytes!("../cargo.toml");
-    find_file!("../cargo.toml");
+    // find_file!("../cargo.toml");
 
-    // nightmare_engine::run_engine( 
-    //     tracing::Level::INFO,
-    //      "Nightmare_Editor");
+    find_asset!();
+
+    nightmare_engine::run_engine( 
+        tracing::Level::INFO,
+         "Nightmare_Editor");
          
     
-    // find_file!(get_asset_dir(), "models",
+    // find_file!("../../Cargo.toml");
     //  "cube.obj");
 }
 

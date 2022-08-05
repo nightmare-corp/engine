@@ -1,10 +1,11 @@
-use std::{io::{BufReader, Cursor}, env};
+use std::io::{BufReader, Cursor};
 
 use cfg_if::cfg_if;
 use wgpu::util::DeviceExt;
 
-use crate::{model, texture, vertex};
+use crate::{model, texture};
 
+//TODO path isnt right
 #[cfg(target_arch = "wasm32")]
 fn format_url(file_name: &str) -> reqwest::Url {
     let window = web_sys::window().unwrap();
@@ -13,7 +14,8 @@ fn format_url(file_name: &str) -> reqwest::Url {
         "{}/{}/",
         location.origin().unwrap(),
         option_env!("RES_PATH").unwrap_or("res"),
-    )).unwrap();
+    ))
+    .unwrap();
     base.join(file_name).unwrap()
 }
 
@@ -26,12 +28,19 @@ pub async fn load_string(file_name: &str) -> anyhow::Result<String> {
                 .text()
                 .await?;
         } else {
-            //TODO
-            let mut path:String = "../../../assets/".to_owned();
-            path+=file_name;
+
+            //TODO what to do for path here?
+            //What is this path now?
+            let s = env!("CARGO_MANIFEST_DIR").to_owned()+"/../../assets";
+            println!("{}", s);
+            let path = std::path::Path::new(&s)
+                .join(file_name);
+
+                println!("{}", path.display());
             let txt = std::fs::read_to_string(path)?;
         }
     }
+
     Ok(txt)
 }
 
@@ -45,22 +54,16 @@ pub async fn load_binary(file_name: &str) -> anyhow::Result<Vec<u8>> {
                 .await?
                 .to_vec();
         } else {
-            //TODO
-            let mut path = env::current_dir().unwrap();
-
-            //WHY?
-            let temp = include_str!("../../../assets/models/cube.obj");
-            path.join(file_name);
-            println!("{}", path.display());
-
+            let s = env!("CARGO_MANIFEST_DIR").to_owned()+"/../../assets";
+            let path = std::path::Path::new(&s)
+                .join(file_name);
             let data = std::fs::read(path)?;
-            
-            // let tempstring:String = "../../../assets/shaders/shader.wgsl".to_owned();
-            // include_str!(tempstring).into();
         }
     }
+
     Ok(data)
 }
+
 pub async fn load_texture(
     file_name: &str,
     device: &wgpu::Device,
@@ -70,16 +73,12 @@ pub async fn load_texture(
     texture::Texture::from_bytes(device, queue, &data, file_name)
 }
 
-//yeah a little difficult
-//TODO TURN INTO A MACRO SO THAT WE CAN IMMEDIATLY SEE IF THE FILE EXISTS
 pub async fn load_model(
     file_name: &str,
     device: &wgpu::Device,
     queue: &wgpu::Queue,
     layout: &wgpu::BindGroupLayout,
 ) -> anyhow::Result<model::Model> {
-    todo!();
-
     let obj_text = load_string(file_name).await?;
     let obj_cursor = Cursor::new(obj_text);
     let mut obj_reader = BufReader::new(obj_cursor);
@@ -127,7 +126,7 @@ pub async fn load_model(
         .into_iter()
         .map(|m| {
             let vertices = (0..m.mesh.positions.len() / 3)
-                .map(|i| vertex::ModelVertex {
+                .map(|i| model::ModelVertex {
                     position: [
                         m.mesh.positions[i * 3],
                         m.mesh.positions[i * 3 + 1],
