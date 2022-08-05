@@ -1,6 +1,4 @@
-use ne_files::*;
-
-
+mod projectmacros;
 // use nightmare_engine::get_engine_assets_dir;
 
 
@@ -34,7 +32,6 @@ fn main() {
         tracing::Level::INFO,
          "Nightmare_Editor");
          
-    
     // find_file!("../../Cargo.toml");
     //  "cube.obj");
 }
