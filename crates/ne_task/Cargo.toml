@@ -1,12 +1,12 @@
 [package]
-name = "ne_task"
+name = "ne_Plugin"
 version = "0.1.0"
 edition = "2021"
-description = "State of the art task scheduler"
+description = "State of the art Plugin scheduler"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 
 [lib]
-path = "src/ne_task.rs" 
+path = "src/ne_Plugin.rs" 

@@ -286,8 +286,9 @@ pub const OPENGL_TO_WGPU_MATRIX: cgmath::Matrix4<f32> = cgmath::Matrix4::new(
     0.0, 0.0, 0.5, 1.0,
 );
 
-const NUM_INSTANCES_PER_ROW: u32 = 10;
+const NUM_INSTANCES_PER_ROW: u32 = 3;
 
+//TODO camera
 struct Camera {
     eye: cgmath::Point3<f32>,
     target: cgmath::Point3<f32>,
@@ -650,7 +651,6 @@ impl State {
 
         log::warn!("Load model");
         let obj_model = resources::load_model(
-
             //TODO Other models.
             "trapeprism2.obj",
             &device,
@@ -807,11 +807,22 @@ impl State {
 
             render_pass.set_vertex_buffer(1, self.instance_buffer.slice(..));
             render_pass.set_pipeline(&self.render_pipeline);
-            render_pass.draw_model_instanced(
+
+
+            //TODO BIG 
+            //UNDERSTAD how is this rendererd
+            // understand how transforms work
+            // understand how locations work?
+
+                        // render_pass.draw_model_instanced(
+            //     &self.obj_model,
+            //     0..self.instances.len() as u32,
+            //     &self.camera_bind_group,
+            // );
+
+            render_pass.draw_model(
                 &self.obj_model,
-                0..self.instances.len() as u32,
-                &self.camera_bind_group,
-            );
+            &self.camera_bind_group);
         }
 
         self.queue.submit(iter::once(encoder.finish()));

@@ -1,6 +1,6 @@
 pub mod prelude;
-use prelude::*;
-pub mod app;
+
+pub use ne::*;
 // TODO replace with something better:
 // TODO move to ne_editor...
 // I want a file of cfgs but I don't know how it works.
@@ -9,9 +9,6 @@ pub const CONF_UI: bool = false;
 /// tracing::Level::INFO, tracing::Level::ERROR, tracing::Level::WARN
 pub fn run_engine(log_level: tracing::Level, title:&str)
 {
-    //TODO it doesn't print "UI disabled!"
-    L::init_log!(log_level);
-    
     warn!("UI disabled!");
 
     if CONF_UI {
@@ -34,3 +31,53 @@ macro_rules! get_engine_assets_dir{
     }
 }
 
+pub struct App
+{
+
+}
+//TODO Is this needed?
+// impl Default for app
+// {
+//     // fn default() -> Self {
+//     // }
+// }
+impl App
+{
+    pub fn new() -> App
+    {
+        
+        // App::default()
+        App::empty()
+        
+    }
+    pub fn empty() -> App {
+
+        //todo
+        Self {
+        }
+    }
+    pub fn add_setup<T>(&mut self, plugin: T) -> &mut Self
+    where
+        T: Plugin,
+    {
+        debug!("Initializing: {}", plugin.name());
+        plugin.setup(self);
+        self
+    }
+    
+    //===========================================================
+    // pub fn add_startup_system<Params>(
+    //     &mut self,
+    //     system: impl IntoSystemDescriptor<Params>,
+    // ) -> &mut Self {
+    //     self.add_startup_system_to_stage(StartupStage::Startup, system)
+    // }
+}
+pub trait Plugin: /* Any + Send + Sync */ {
+    /// Configures the [`App`] to which this plugin is added.
+    fn setup(&self, app: &mut App);
+    /// Configures a name for the [`Plugin`] which is primarily used for debugging.
+    fn name(&self) -> &str {
+        std::any::type_name::<Self>()
+    }
+}

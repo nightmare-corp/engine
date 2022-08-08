@@ -12,6 +12,7 @@ keywords = ["game", "nightmare", "engine", "gamedev", "graphics" ]
 nightmare_engine = {path = "../" }
 # L = {path = "../crates/ne_log"} #, features = ["release_max_level_off"] 
 tracing = "0.1.35"
+tracing-subscriber = "0.3.14"
 ne = {path = "../crates/ne"}
 ne_files = {path = "../crates/ne_files"}
 
