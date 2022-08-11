@@ -1,4 +1,7 @@
+//Thanks bevy!
+
 pub mod prelude;
+use bevy_ecs::{schedule::{IntoSystemDescriptor}};
 
 pub use ne::*;
 // TODO replace with something better:
@@ -56,7 +59,7 @@ impl App
         Self {
         }
     }
-    pub fn add_setup<T>(&mut self, plugin: T) -> &mut Self
+    pub fn add_plugin<T>(&mut self, plugin: T) -> &mut Self
     where
         T: Plugin,
     {
@@ -64,7 +67,26 @@ impl App
         plugin.setup(self);
         self
     }
+    // pub fn run_constructor()
+    // {
+
+    // }
+        /// Adds a system to the [startup stage](Self::add_default_stages) of the app's [`Schedule`].
+    ///
+    /// * For adding a system that runs every frame, see [`add_system`](Self::add_system).
+    /// * For adding a system to a specific stage, see [`add_system_to_stage`](Self::add_system_to_stage).
+    pub fn add_startup_func<Params>(
+        &mut self,
+        system: impl IntoSystemDescriptor<Params>,
+    ) -> &mut Self {
+        self.add_startup_system_to_stage(StartupStage::Startup, system)
+    }
     
+    pub fn add_running_func(&mut self,) -> &mut Self 
+    {
+        
+    }
+
     //===========================================================
     // pub fn add_startup_system<Params>(
     //     &mut self,

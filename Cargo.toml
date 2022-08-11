@@ -6,14 +6,17 @@ edition = "2021"
 channel = "nightly"
 
 [dependencies]
+
 # logging
 tracing = "0.1.35"
 tracing-subscriber = "0.3.14"
-# tracing-appender = "0.2.2"
 pollster = "0.2"
+bevy_ecs = "0.8.0"
 
 ne = {path = "crates/ne"}
 ne_render = {path = "crates/ne_render"}
+
+
 # ne_files = {path = "crates/ne_files"}
 # egui-wgpu = "0.18.0"
 

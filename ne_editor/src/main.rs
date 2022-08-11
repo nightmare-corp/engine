@@ -11,17 +11,24 @@ fn main() {
     run_engine( 
         tracing::Level::INFO,
          "Nightmare_Editor");
-
-
-    // App::new();
+    
+    App::new()
+    .add_func(test_run)
+    .add_plugin(renderer)
+    .run();
 }
 
-// pub struct Logger;
-// impl Plugin for Logger {
-//     fn setup(&self, &mut App) {
+fn test_run()
+{
+    println!("test success");
+}
+
+pub struct Logger;
+impl Plugin for Logger {
+    fn setup(&self, &mut App) {
         
-//     }
-// }
+    }
+}
 
 //TODO return two variables so that logging can continue.
 //problem logging stops once certain object are out of scope.
