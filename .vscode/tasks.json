@@ -1,0 +1,15 @@
+{
+    "version": "2.0.0",
+        "tasks": [
+            {
+                "label": "run_editor",
+                "command": "cargo run -p ne_editor",
+                "type": "shell",
+                "problemMatcher": [],
+                "group": {
+                    "kind": "build",
+                    "isDefault": true
+                }
+            }
+        ]
+}
