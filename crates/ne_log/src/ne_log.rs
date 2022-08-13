@@ -1,9 +1,7 @@
 
 //cfg to only use during debug and remove when using release mode. Will decrease size by a bit? TODO measure
 pub use tracing as tracing;
-pub use tracing::{info,debug,trace,warn};
 pub use tracing_appender::rolling::RollingFileAppender;
-
 // pub use tracing_subscriber as tracing_subscriber;
 pub use tracing_appender as tracing_appender;
 //TODO cfg to use println! instead of tracing during release?
@@ -73,6 +71,8 @@ init_log {
             .with_writer(non_blocking)
             .init();
         }
+        pub use tracing::{info,debug,trace,warn};
+
         trace!("Initialized logging [TRACE]");
         debug!("Initialized logging [DEBUG]");
         info!("Initialized logging [INFO]");
@@ -90,6 +90,5 @@ init_log {
     //         .init();
     //     }
     warn!("aaaaaaaaaaaaaaaaaaaaaaa!");
-
     };
 }
