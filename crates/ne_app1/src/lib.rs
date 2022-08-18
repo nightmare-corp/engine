@@ -6,11 +6,6 @@ use std::collections::HashMap;
 use bevy_ecs::{world::World, schedule::{IntoSystemDescriptor, StageLabel, Schedule, Stage, SystemStage, ShouldRun}, system::{IntoExclusiveSystem, Resource}};
 pub use ne::*;
 
-// TODO REMOVE
-// I want a file of cfgs
-pub const CONF_UI: bool = false;
-
-
     //================================================================
     //TODO Make this my own code
     //================================================================
@@ -126,22 +121,6 @@ use bevy_utils::tracing::info_span;
 //================================================================
 //^^^TODO Make this my own code^^^
 //================================================================
-
-/// tracing::Level::INFO, tracing::Level::ERROR, tracing::Level::WARN
-pub fn run_engine(log_level: tracing::Level, title:&str)
-{
-    warn!("UI disabled!");
-
-    if CONF_UI {
-        info!("UI enabled");
-    }
-    else {
-        info!("UI disabled!");
-    }
-    //initialize renderer, NOTE: hasn't been tested for wasm32
-    pollster::block_on(ne_render::init_renderer(title));
-}
-
 #[macro_export]
 macro_rules! get_engine_assets_dir{
     () =>
@@ -223,6 +202,11 @@ impl App
             sub_apps: HashMap::default(),
         }
     }
+    pub fn add_thread(&mut self, func: fn()) -> &mut Self
+    {
+        
+        self
+    }
     pub fn add_plugin<T>(&mut self, plugin: T) -> &mut Self
     where
         T: Plugin,
@@ -231,6 +215,8 @@ impl App
         plugin.setup(self);
         self
     }
+
+    //immediately calls function
     pub fn add_startup_func/* <Params> */
     (
         &mut self,

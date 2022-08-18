@@ -1,14 +1,8 @@
-pub fn add(left: usize, right: usize) -> usize {
-    left + right
-}
+mod thread_pool;
 
-#[cfg(test)]
-mod tests {
-    use super::*;
 
-    #[test]
-    fn it_works() {
-        let result = add(2, 2);
-        assert_eq!(result, 4);
-    }
-}
+
+//idea?
+//is it posisble to make multiple pools and make some of them exclusive for certain pipelines?
+//so add_task(task, enum::graphics) Maybe it shares the same variables also? 
+//o prevent double variabels changes 

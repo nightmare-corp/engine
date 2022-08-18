@@ -10,11 +10,11 @@ channel = "nightly"
 # logging
 tracing = "0.1.35"
 tracing-subscriber = "0.3.14"
-pollster = "0.2"
-bevy_ecs = "0.8.0"
 
 ne = {path = "crates/ne"}
 ne_render = {path = "crates/ne_render"}
+
+pollster = "0.2"
 
 
 # ne_files = {path = "crates/ne_files"}
