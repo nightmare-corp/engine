@@ -2,6 +2,7 @@
 use std::iter;
 
 use cgmath::prelude::*;
+use ne_app1::{Plugin, App};
 use wgpu::util::DeviceExt;
 use winit::{
     event::*,
@@ -573,15 +574,14 @@ impl State {
 
 #[cfg_attr(target_arch="wasm32", wasm_bindgen(start))]
 pub async fn init_renderer(title:&str) {
-
-    cfg_if::cfg_if! {
-        if #[cfg(target_arch = "wasm32")] {
-            std::panic::set_hook(Box::new(console_error_panic_hook::hook));
-            console_log::init_with_level(log::Level::Warn).expect("Could't initialize logger");
-        } else {
-            // env_logger::init(); //already inited
-        }
-    }
+    // cfg_if::cfg_if! {
+    //     if #[cfg(target_arch = "wasm32")] {
+    //         std::panic::set_hook(Box::new(console_error_panic_hook::hook));
+    //         console_log::init_with_level(log::Level::Warn).expect("Could't initialize logger");
+    //     } else {
+    //         // env_logger::init(); //already inited
+    //     }
+    // }
 
     let event_loop = EventLoop::new();
     let window = winit::window::WindowBuilder::new()
@@ -658,3 +658,48 @@ pub async fn init_renderer(title:&str) {
         }
     });
 }
+
+#[derive(Default)]
+pub struct Renderer;
+
+
+//TODO!
+#[derive(Debug, Default)]
+pub struct WinitWindows {
+    // pub windows: HashMap<winit::window::WindowId, winit::window::Window>,
+    // pub window_id_to_winit: HashMap<WindowId, winit::window::WindowId>,
+    // pub winit_to_window_id: HashMap<winit::window::WindowId, WindowId>,
+    // // Some winit functions, such as `set_window_icon` can only be used from the main thread. If
+    // // they are used in another thread, the app will hang. This marker ensures `WinitWindows` is
+    // // only ever accessed with bevy's non-send functions and in NonSend systems.
+    // _not_send_sync: core::marker::PhantomData<*const ()>,
+}
+
+//TODO APP SHOULD COME WITH PLUGIN LOGIC TOGETHER
+impl Plugin for Renderer {
+    fn setup(&self, app: &mut App) {
+        app.init_non_send_resource::<WinitWindows>();
+    }
+    /*fn setup(&self, app: &mut App) {
+
+        //SO YOU CAN ADD VARIABLES HERE THAT WILL BE USED DURING RUN
+        app.init_non_send_resource::<WinitWindows>()
+            .init_resource::<WinitSettings>()
+            .set_runner(winit_runner)
+            .add_system_to_stage(CoreStage::PostUpdate, change_window.label(ModifiesWindows));
+        #[cfg(target_arch = "wasm32")]
+        app.add_plugin(web_resize::CanvasParentResizePlugin);
+        let event_loop = EventLoop::new();
+        #[cfg(not(target_os = "android"))]
+        let mut create_window_reader = WinitCreateWindowReader::default();
+        #[cfg(target_os = "android")]
+        let create_window_reader = WinitCreateWindowReader::default();
+        // Note that we create a window here "early" because WASM/WebGL requires the window to exist prior to initializing
+        // the renderer.
+        #[cfg(not(target_os = "android"))]
+        handle_create_window_events(&mut app.world, &event_loop, &mut create_window_reader.0);
+        app.insert_resource(create_window_reader)
+            .insert_non_send_resource(event_loop);
+    }*/
+}
+
