@@ -3,7 +3,7 @@
 use std::collections::HashMap;
 
 // use bevy_ecs::schedule::IntoSystemDescriptor;
-use bevy_ecs::{world::World, schedule::{IntoSystemDescriptor, StageLabel, Schedule, Stage, SystemStage, ShouldRun}, system::{IntoExclusiveSystem, Resource}};
+use bevy_ecs::{world::{World, FromWorld}, schedule::{IntoSystemDescriptor, StageLabel, Schedule, Stage, SystemStage, ShouldRun}, system::{IntoExclusiveSystem, Resource}};
 pub use ne::*;
 
     //================================================================
@@ -229,6 +229,28 @@ impl App
 
         self
     }
+    /// Inserts a non-send resource to the app.
+    ///
+    /// You usually want to use [`insert_resource`](Self::insert_resource),
+    /// but there are some special cases when a resource cannot be sent across threads.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use bevy_app::prelude::*;
+    /// # use bevy_ecs::prelude::*;
+    /// #
+    /// struct MyCounter {
+    ///     counter: usize,
+    /// }
+    ///
+    /// App::new()
+    ///     .insert_non_send_resource(MyCounter { counter: 0 });
+    /// ```
+    pub fn insert_non_send_resource<R: 'static>(&mut self, resource: R) -> &mut Self {
+        self.world.insert_non_send_resource(resource);
+        self
+    }
 
     //================================================================
     //TODO Make this code my own
@@ -388,6 +410,15 @@ impl App
         for sub_app in self.sub_apps.values_mut() {
             (sub_app.runner)(&mut self.world, &mut sub_app.app);
         }
+    }
+    /// Initialize a non-send [`Resource`] with standard starting values by adding it to the [`World`].
+    ///
+    /// The [`Resource`] must implement the [`FromWorld`] trait.
+    /// If the [`Default`] trait is implemented, the [`FromWorld`] trait will use
+    /// the [`Default::default`] method to initialize the [`Resource`].
+    pub fn init_non_send_resource<R: 'static + FromWorld>(&mut self) -> &mut Self {
+        self.world.init_non_send_resource::<R>();
+        self
     }
     /// Inserts a [`Resource`] to the current [`App`] and overwrites any [`Resource`] previously added of the same type.
     ///
