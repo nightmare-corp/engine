@@ -1,12 +1,12 @@
 // use std::env;
 //TODO cleanup dependencies remove tracing_subscriber
 
-use std::time;
+use std::{time, thread};
 use chrono::Utc;
 //TODO I want this moved to nightmare_engine prelude somehow?
 //This does feel confusing but it is unacceptable to rename ne_log to L
 //I want it to automatically be included as L everywhere!
-use ne::{L, warn, info};
+
 // mod projectmacros;
 use ne_app1::{App, Plugin};
 
@@ -58,15 +58,27 @@ fn main() {
 fn main() {
     // env::set_var("RUST_BACKTRACE", "1");
     // nightmare_engine::run_engine(tracing::Level::INFO, "ne_editor");
+    //I want this shortened? or inside of the nightmare_engine::run_engine function
+
+    //TODO simplify&shorten layout
+    nightmare_engine::L::init_log!(tracing::Level::INFO);
 
     //We are always gonna use as many threads as we can?
     //Nah that sounds dangerous... minimum of 3 threads.
     //after that it's using total threads -2.
 
-    App::new()
-    .add_plugin(renderer)
+    //This will be the new system that initializes engine functionality from program source.
+    //somehow run the renderer on another thread, but maybe initialize it on main thread first?
+    //I don't know how... lets have a look at bevy source code...
 
-    //TODO call every 2 seconds
+    nightmare_engine::run_engine( "ne_editor");
+
+    App::new()
+    //TODO
+    .add_plugin(Logger)
+    //TODO
+    .add_plugin(Renderer)
+    //future TODO call every 2 seconds
     .add_running(test_running)
 
     .run();
@@ -80,24 +92,39 @@ fn test_running()
     // std::thread::sleep(time::Duration::from_secs(2));
 }
 
-struct renderer;
-impl Plugin for renderer
+struct Renderer;
+impl Plugin for Renderer
 {
     fn setup(&self, app: &mut App) {
         fn l1() {
             //how to do this? 
             //We need to initalize the renderer
-            //And then render once per tick.
+            //And then render once per tick...
+            //but that's hard so for now just throw everything on its own thread. 
+            //okay this doesnt work;.
 
-            nightmare_engine::run_engine(tracing::Level::INFO, "ne_editor");
+            // nightmare_engine::run_engine(tracing::Level::INFO, "ne_editor");
 
-            
-        }
+            // nightmare_engine::init_renderer(tracing::Level::INFO, "ne_editor");
+            // nightmare_engine::render_frame();
+
+            //this doesnt work becuase wwe cannot initalize window n another thread?
+                thread::spawn(|| {
+                    nightmare_engine::run_engine("ne_editor");
+                });
+            }
         app.add_running(l1);
-
         //for now add this as a seconds tick thread.
-
         // nightmare_engine::app1::run_engine(tracing::Level::INFO, "ne_editor");
+    }
+}
+
+struct Logger;
+impl Plugin for Logger
+{
+    fn setup(&self, app: &mut App)
+    {
+        //this is annoying... because we neeed certain variablesss to outlive this function inside main..?
     }
 }
 //----------------------------------------------------------------------------------

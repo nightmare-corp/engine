@@ -1,13 +1,14 @@
 pub mod prelude;
 
 pub use ne::*;
+pub use ne::{L, warn, info};
 
 // TODO REMOVE
 // I want a file of cfgs
 pub const CONF_UI: bool = false;
 
 /// tracing::Level::INFO, tracing::Level::ERROR, tracing::Level::WARN
-pub fn run_engine(log_level: tracing::Level, title:&str)
+pub fn run_engine(title:&str)
 {
     warn!("UI disabled!");
 
