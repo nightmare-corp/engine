@@ -6,6 +6,7 @@ edition = "2021"
 [dependencies]
 ne = {path = "../ne"}
 ne_files = {path = "../ne_files"}
+ne_app1 = {path = "../ne_app1"}
 
 tracing = "0.1.35"
 # wgpu
