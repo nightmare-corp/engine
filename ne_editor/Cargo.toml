@@ -8,13 +8,18 @@ keywords = ["game", "nightmare", "engine", "gamedev", "graphics" ]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-# ne_minimum = {path = "../crates/ne_minimum"}
 nightmare_engine = {path = "../" }
+
+ne = {path = "../crates/ne"}
+ne_files = {path = "../crates/ne_files"}
+ne_app1 = {path = "../crates/ne_app1"}
+bevy_ecs = "0.8.0"
+
+# ne_minimum = {path = "../crates/ne_minimum"}
 # L = {path = "../crates/ne_log"} #, features = ["release_max_level_off"] 
 tracing = "0.1.35"
 tracing-subscriber = "0.3.14"
-ne = {path = "../crates/ne"}
-ne_files = {path = "../crates/ne_files"}
 
+chrono = "0.4.22"
 # [features]
 # default = ["path_checker"]
