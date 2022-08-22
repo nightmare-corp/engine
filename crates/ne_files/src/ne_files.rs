@@ -3,7 +3,6 @@
 // TODO I want this as a string literal
 // const asset_path:
 
-
 // TODO CFG only. To decrease compile time.
 ///example
 ///let x = find_file!("C:/git/tools/nightmare_engine", "/Cargo.toml");
@@ -12,14 +11,12 @@
 ///$path either absolute or relative from your_crate/src
 #[macro_export]
 macro_rules! find_file {
-    ($path:literal) => {
-        {
-            //opportunity for improvement
-            let _ = include_bytes!($path);
-            let r = $path;
-            r
-        }
-    };
+    ($path:literal) => {{
+        //opportunity for improvement
+        let _ = include_bytes!($path);
+        let r = $path;
+        r
+    }};
 
     //TODO
     // #[cfg(not(feature="path_checker"))]

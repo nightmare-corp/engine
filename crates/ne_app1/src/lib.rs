@@ -3,42 +3,46 @@
 use std::collections::HashMap;
 
 // use bevy_ecs::schedule::IntoSystemDescriptor;
-use bevy_ecs::{world::{World, FromWorld}, schedule::{IntoSystemDescriptor, StageLabel, Schedule, Stage, SystemStage, ShouldRun}, system::{IntoExclusiveSystem, Resource}};
+use bevy_ecs::{
+    schedule::{IntoSystemDescriptor, Schedule, ShouldRun, Stage, StageLabel, SystemStage},
+    system::{IntoExclusiveSystem, Resource},
+    world::{FromWorld, World},
+};
 pub use ne::*;
 
-    //================================================================
-    //TODO Make this my own code
-    //================================================================
-    #[derive(Debug, Hash, PartialEq, Eq, Clone, StageLabel)]
-    pub enum CoreStage {
-        /// The [`Stage`](bevy_ecs::schedule::Stage) that runs before all other app stages.
-        First,
-        /// The [`Stage`](bevy_ecs::schedule::Stage) that runs before [`CoreStage::Update`].
-        PreUpdate,
-        /// The [`Stage`](bevy_ecs::schedule::Stage) responsible for doing most app logic. Systems should be registered here by default.
-        Update,
-        /// The [`Stage`](bevy_ecs::schedule::Stage) that runs after [`CoreStage::Update`].
-        PostUpdate,
-        /// The [`Stage`](bevy_ecs::schedule::Stage) that runs after all other app stages.
-        Last,
-    }
-    /// The names of the default [`App`] startup stages.
-    #[derive(Debug, Hash, PartialEq, Eq, Clone, StageLabel)]
-    pub enum StartupStage {
-        /// The [`Stage`](bevy_ecs::schedule::Stage) that runs once before [`StartupStage::Startup`].
-        PreStartup,
-        /// The [`Stage`](bevy_ecs::schedule::Stage) that runs once when an [`App`] starts up.
-        Startup,
-        /// The [`Stage`](bevy_ecs::schedule::Stage) that runs once after [`StartupStage::Startup`].
-        PostStartup,
-    }
-    /// The label for the startup [`Schedule`](bevy_ecs::schedule::Schedule),
-    /// which runs once at the beginning of the [`App`].
-    ///
-    /// When targeting a [`Stage`](bevy_ecs::schedule::Stage) inside this [`Schedule`](bevy_ecs::schedule::Schedule),
-    /// you need to use [`StartupStage`] instead.
-    #[derive(Debug, Hash, PartialEq, Eq, Clone, StageLabel)]
-    pub struct StartupSchedule;
+//================================================================
+//TODO Make this my own code
+//================================================================
+#[derive(Debug, Hash, PartialEq, Eq, Clone, StageLabel)]
+pub enum CoreStage {
+    /// The [`Stage`](bevy_ecs::schedule::Stage) that runs before all other app stages.
+    First,
+    /// The [`Stage`](bevy_ecs::schedule::Stage) that runs before [`CoreStage::Update`].
+    PreUpdate,
+    /// The [`Stage`](bevy_ecs::schedule::Stage) responsible for doing most app logic. Systems should be registered here by default.
+    Update,
+    /// The [`Stage`](bevy_ecs::schedule::Stage) that runs after [`CoreStage::Update`].
+    PostUpdate,
+    /// The [`Stage`](bevy_ecs::schedule::Stage) that runs after all other app stages.
+    Last,
+}
+/// The names of the default [`App`] startup stages.
+#[derive(Debug, Hash, PartialEq, Eq, Clone, StageLabel)]
+pub enum StartupStage {
+    /// The [`Stage`](bevy_ecs::schedule::Stage) that runs once before [`StartupStage::Startup`].
+    PreStartup,
+    /// The [`Stage`](bevy_ecs::schedule::Stage) that runs once when an [`App`] starts up.
+    Startup,
+    /// The [`Stage`](bevy_ecs::schedule::Stage) that runs once after [`StartupStage::Startup`].
+    PostStartup,
+}
+/// The label for the startup [`Schedule`](bevy_ecs::schedule::Schedule),
+/// which runs once at the beginning of the [`App`].
+///
+/// When targeting a [`Stage`](bevy_ecs::schedule::Stage) inside this [`Schedule`](bevy_ecs::schedule::Schedule),
+/// you need to use [`StartupStage`] instead.
+#[derive(Debug, Hash, PartialEq, Eq, Clone, StageLabel)]
+pub struct StartupSchedule;
 
 /// Macro to define a new label trait
 ///
@@ -110,9 +114,9 @@ macro_rules! define_label {
         }
     };
 }
-    #[cfg(feature = "trace")]
+#[cfg(feature = "trace")]
 use bevy_utils::tracing::info_span;
-    define_label!(
+define_label!(
     /// A strongly-typed class of labels used to identify an [`App`].
     AppLabel,
     /// A strongly-typed identifier for an [`AppLabel`].
@@ -122,18 +126,15 @@ use bevy_utils::tracing::info_span;
 //^^^TODO Make this my own code^^^
 //================================================================
 #[macro_export]
-macro_rules! get_engine_assets_dir{
-    () =>
-    {
+macro_rules! get_engine_assets_dir {
+    () => {
         // find_file!(concat!(env!("CARGO_MANIFEST_DIR"), "/assets")
         // concat!(env!("CARGO_MANIFEST_DIR"), "/assets")
         todo!();
-    }
+    };
 }
 
-pub struct App
-{
-
+pub struct App {
     //================================================================
     //TODO Make this code my own
     //================================================================
@@ -168,8 +169,7 @@ impl Default for App {
         app.init_resource::<bevy_reflect::TypeRegistryArc>();
 
         app.add_default_stages()
-
-        //TODO
+            //TODO
             // .add_event::<AppExit>()
             .add_system_to_stage(CoreStage::Last, World::clear_trackers.exclusive_system());
 
@@ -187,10 +187,8 @@ impl Default for App {
 //     // fn default() -> Self {
 //     // }
 // }
-impl App
-{
-    pub fn new() -> App
-    {
+impl App {
+    pub fn new() -> App {
         // App::default()
         App::default()
     }
@@ -202,9 +200,7 @@ impl App
             sub_apps: HashMap::default(),
         }
     }
-    pub fn add_thread(&mut self, func: fn()) -> &mut Self
-    {
-        
+    pub fn add_thread(&mut self, func: fn()) -> &mut Self {
         self
     }
     pub fn add_plugin<T>(&mut self, plugin: T) -> &mut Self
@@ -218,12 +214,7 @@ impl App
 
     //immediately calls function
     //TODO maybe call it later
-    pub fn add_startup_func/* <Params> */
-    (
-        &mut self,
-        func: fn(),
-    ) -> &mut Self {
-        
+    pub fn add_startup_func(&mut self, func: fn()) -> &mut Self {
         // self.add_startup_system_to_stage(StartupStage::Startup, system)
         // system.into_descriptor();
         func();
@@ -259,7 +250,6 @@ impl App
     /// The names of the default [`App`] stages.
     ///
     /// The relative [`Stages`](bevy_ecs::schedule::Stage) are added by [`App::add_default_stages`].
-
 
     /// Adds a system to the [update stage](Self::add_default_stages) of the app's [`Schedule`].
     ///
@@ -307,7 +297,7 @@ impl App
         self
     }
 
-        /// Sets the function that will be called when the app is run.
+    /// Sets the function that will be called when the app is run.
     ///
     /// The runner function `run_fn` is called only once by [`App::run`]. If the
     /// presence of a main loop in the app is desired, it is the responsibility of the runner
@@ -337,17 +327,14 @@ impl App
     }
 
     //TODO this should initialize the job scheduler. And maybe return self
-    pub fn run(&mut self)
-    {
+    pub fn run(&mut self) {
         println!("run");
-        while true
-        {
+        while true {
             self.schedule.run(&mut self.world);
 
-            
             // #[cfg(feature = "trace")]
             // let _bevy_app_run_span = info_span!("bevy_app").entered();
-    
+
             //Calls the apps runner funtion! Self::set_runner
             let mut app = std::mem::replace(self, App::empty());
             let runner = std::mem::replace(&mut app.runner, Box::new(run_once));
@@ -429,7 +416,6 @@ impl App
     //     self.add_startup_system_to_stage(StartupStage::Startup, system)
     // }
 
-
     /// Advances the execution of the [`Schedule`] by one cycle.
     ///
     /// This method also updates sub apps.
@@ -475,9 +461,8 @@ impl App
         self.world.insert_resource(resource);
         self
     }
-
 }
-pub trait Plugin: /* Any + Send + Sync */ {
+pub trait Plugin /* Any + Send + Sync */ {
     /// Configures the [`App`] to which this plugin is added.
     fn setup(&self, app: &mut App);
     /// Configures a name for the [`Plugin`] which is primarily used for debugging.
@@ -485,7 +470,6 @@ pub trait Plugin: /* Any + Send + Sync */ {
         std::any::type_name::<Self>()
     }
 }
-
 
 fn run_once(mut app: App) {
     app.update();
