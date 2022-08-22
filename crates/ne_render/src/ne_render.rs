@@ -2,19 +2,19 @@
 use std::iter;
 
 use cgmath::prelude::*;
-use ne_app1::{Plugin, App};
+use ne_app1::{App, Plugin};
+#[cfg(target_arch = "wasm32")]
+use wasm_bindgen::prelude::*;
 use wgpu::util::DeviceExt;
 use winit::{
     event::*,
     event_loop::{ControlFlow, EventLoop},
     window::Window,
 };
-#[cfg(target_arch="wasm32")]
-use wasm_bindgen::prelude::*;
 
 mod model;
-mod texture;
 mod resources;
+mod texture;
 
 use model::{DrawModel, Vertex};
 
@@ -396,7 +396,9 @@ impl State {
             &device,
             &queue,
             &texture_bind_group_layout,
-        ).await.unwrap();
+        )
+        .await
+        .unwrap();
 
         let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("shader.wgsl"),
@@ -548,21 +550,18 @@ impl State {
             render_pass.set_vertex_buffer(1, self.instance_buffer.slice(..));
             render_pass.set_pipeline(&self.render_pipeline);
 
-
-            //TODO BIG 
+            //TODO BIG
             //UNDERSTAD how is this rendererd
             // understand how transforms work
             // understand how locations work?
 
-                        // render_pass.draw_model_instanced(
+            // render_pass.draw_model_instanced(
             //     &self.obj_model,
             //     0..self.instances.len() as u32,
             //     &self.camera_bind_group,
             // );
 
-            render_pass.draw_model(
-                &self.obj_model,
-            &self.camera_bind_group);
+            render_pass.draw_model(&self.obj_model, &self.camera_bind_group);
         }
 
         self.queue.submit(iter::once(encoder.finish()));
@@ -572,8 +571,8 @@ impl State {
     }
 }
 
-#[cfg_attr(target_arch="wasm32", wasm_bindgen(start))]
-pub async fn init_renderer(title:&str) {
+#[cfg_attr(target_arch = "wasm32", wasm_bindgen(start))]
+pub async fn init_renderer(title: &str) {
     // cfg_if::cfg_if! {
     //     if #[cfg(target_arch = "wasm32")] {
     //         std::panic::set_hook(Box::new(console_error_panic_hook::hook));
@@ -589,14 +588,13 @@ pub async fn init_renderer(title:&str) {
         .build(&event_loop)
         .unwrap();
 
-    
-    #[cfg(target_arch = "wasm32")]
+/*     #[cfg(target_arch = "wasm32")]
     {
         // Winit prevents sizing with CSS, so we have to set
         // the size manually when on web.
         use winit::dpi::PhysicalSize;
         window.set_inner_size(PhysicalSize::new(450, 400));
-        
+
         use winit::platform::web::WindowExtWebSys;
         web_sys::window()
             .and_then(|win| win.document())
@@ -608,7 +606,8 @@ pub async fn init_renderer(title:&str) {
             })
             .expect("Couldn't append canvas to document body.");
     }
-
+ */
+    
     // State::new uses async code, so we're going to wait for it to finish
     let mut state = State::new(&window).await;
 
@@ -647,7 +646,9 @@ pub async fn init_renderer(title:&str) {
                 match state.render() {
                     Ok(_) => {}
                     // Reconfigure the surface if it's lost or outdated
-                    Err(wgpu::SurfaceError::Lost | wgpu::SurfaceError::Outdated) => state.resize(state.size),
+                    Err(wgpu::SurfaceError::Lost | wgpu::SurfaceError::Outdated) => {
+                        state.resize(state.size)
+                    }
                     // The system is out of memory, we should probably quit
                     Err(wgpu::SurfaceError::OutOfMemory) => *control_flow = ControlFlow::Exit,
                     // We're ignoring timeouts
@@ -661,7 +662,6 @@ pub async fn init_renderer(title:&str) {
 
 #[derive(Default)]
 pub struct Renderer;
-
 
 //TODO!
 #[derive(Debug, Default)]
@@ -702,4 +702,3 @@ impl Plugin for Renderer {
             .insert_non_send_resource(event_loop);
     }*/
 }
-

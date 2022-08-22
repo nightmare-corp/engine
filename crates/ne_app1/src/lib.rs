@@ -217,6 +217,7 @@ impl App
     }
 
     //immediately calls function
+    //TODO maybe call it later
     pub fn add_startup_func/* <Params> */
     (
         &mut self,
@@ -306,6 +307,35 @@ impl App
         self
     }
 
+        /// Sets the function that will be called when the app is run.
+    ///
+    /// The runner function `run_fn` is called only once by [`App::run`]. If the
+    /// presence of a main loop in the app is desired, it is the responsibility of the runner
+    /// function to provide it.
+    ///
+    /// The runner function is usually not set manually, but by Bevy integrated plugins
+    /// (e.g. `WinitPlugin`).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use bevy_app::prelude::*;
+    /// #
+    /// fn my_runner(mut app: App) {
+    ///     loop {
+    ///         println!("In main loop");
+    ///         app.update();
+    ///     }
+    /// }
+    ///
+    /// App::new()
+    ///     .set_runner(my_runner);
+    /// ```
+    pub fn set_runner(&mut self, run_fn: impl Fn(App) + 'static) -> &mut Self {
+        self.runner = Box::new(run_fn);
+        self
+    }
+
     //TODO this should initialize the job scheduler. And maybe return self
     pub fn run(&mut self)
     {
@@ -314,12 +344,14 @@ impl App
         {
             self.schedule.run(&mut self.world);
 
+            
             // #[cfg(feature = "trace")]
             // let _bevy_app_run_span = info_span!("bevy_app").entered();
     
-            // let mut app = std::mem::replace(self, App::empty());
-            // let runner = std::mem::replace(&mut app.runner, Box::new(run_once));
-            // (runner)(app);
+            //Calls the apps runner funtion! Self::set_runner
+            let mut app = std::mem::replace(self, App::empty());
+            let runner = std::mem::replace(&mut app.runner, Box::new(run_once));
+            (runner)(app);
         }
     }
 
