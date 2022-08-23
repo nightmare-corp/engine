@@ -326,7 +326,6 @@ impl App {
         self
     }
 
-    //TODO this should initialize the job scheduler. And maybe return self
     pub fn run(&mut self) {
         println!("run");
         while true {
@@ -337,7 +336,8 @@ impl App {
 
             //Calls the apps runner funtion! Self::set_runner
             let mut app = std::mem::replace(self, App::empty());
-            let runner = std::mem::replace(&mut app.runner, Box::new(run_once));
+            let runner =
+                std::mem::replace(&mut app.runner, Box::new(run_once));
             (runner)(app);
         }
     }

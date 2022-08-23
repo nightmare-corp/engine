@@ -48,6 +48,7 @@ macro_rules! log {
 //TODO change the log format into [time]: [type] [message]
 //And a debug version [time]: [where] [type] [message]
 //TODO move to ne_log
+/// tracing::Level::INFO, tracing::Level::ERROR, tracing::Level::WARN
 #[macro_export]
 macro_rules!
 init_log {
