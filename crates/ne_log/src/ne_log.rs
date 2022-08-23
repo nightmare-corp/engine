@@ -1,9 +1,8 @@
-
 //cfg to only use during debug and remove when using release mode. Will decrease size by a bit? TODO measure
-pub use tracing as tracing;
+pub use tracing;
 pub use tracing_appender::rolling::RollingFileAppender;
 // pub use tracing_subscriber as tracing_subscriber;
-pub use tracing_appender as tracing_appender;
+pub use tracing_appender;
 //TODO cfg to use println! instead of tracing during release?
 #[macro_export]
 macro_rules! err {
@@ -28,27 +27,28 @@ macro_rules! err {
 }
 
 /* }
-    /// Legacy code:
-    #[macro_export]
-    macro_rules! log {
-        ($($args:expr),*) => {
-            let mut result: String = String::from("");
-            $(
-                let tempstr: String = format!("{}", format_args!("{}", $args));
-                result.push_str(&tempstr[..]);
-            )*
-            println!("{}", result);
-        };
-    } */
+/// Legacy code:
+#[macro_export]
+macro_rules! log {
+    ($($args:expr),*) => {
+        let mut result: String = String::from("");
+        $(
+            let tempstr: String = format!("{}", format_args!("{}", $args));
+            result.push_str(&tempstr[..]);
+        )*
+        println!("{}", result);
+    };
+} */
 //TODO
 // struct Logger
 // {
-    
+
 // }
 
-    //TODO change the log format into [time]: [type] [message]
+//TODO change the log format into [time]: [type] [message]
 //And a debug version [time]: [where] [type] [message]
 //TODO move to ne_log
+/// tracing::Level::INFO, tracing::Level::ERROR, tracing::Level::WARN
 #[macro_export]
 macro_rules!
 init_log {

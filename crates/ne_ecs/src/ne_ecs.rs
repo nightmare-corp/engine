@@ -17,21 +17,19 @@ impl World {
         self.health_components.push(health);
         self.name_components.push(name);
     }
-
 }
 
-fn iterator()
-{
+fn iterator() {
     let zip = world
-    .health_components
-    .iter()
-    .zip(world.name_components.iter());
+        .health_components
+        .iter()
+        .zip(world.name_components.iter());
 
     //filter out entities that don't have both health, name
     let with_health_and_name =
-    zip.filter_map(|(health, name): (&Option<Health>, &Option<Name>)| {
-        Some((health.as_ref()?, name.as_ref()?))
-    });
+        zip.filter_map(|(health, name): (&Option<Health>, &Option<Name>)| {
+            Some((health.as_ref()?, name.as_ref()?))
+        });
 
     for (health, name) in with_health_and_name {
         if health.0 < 0 {
@@ -40,17 +38,14 @@ fn iterator()
             println!("{} is still healthy", name.0);
         }
     }
-    
 }
 
-fn run ()
-{
+fn run() {
     let mut world = World::new();
     // Icarus's health is *not* looking good.
-    world.new_entity(Some(Health(-10)), Some(Name("Icarus"))); 
+    world.new_entity(Some(Health(-10)), Some(Name("Icarus")));
     // Prometheus is very healthy.
-    world.new_entity(Some(Health(100)), Some(Name("Prometheus"))); 
+    world.new_entity(Some(Health(100)), Some(Name("Prometheus")));
     // Note that Zeus does not have a `Health` component.
-    world.new_entity(None, Some(Name("Zeus"))); 
+    world.new_entity(None, Some(Name("Zeus")));
 }
-

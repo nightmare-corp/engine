@@ -13,7 +13,10 @@ nightmare_engine = {path = "../" }
 ne = {path = "../crates/ne"}
 ne_files = {path = "../crates/ne_files"}
 ne_app1 = {path = "../crates/ne_app1"}
+ne_render = {path = "../crates/ne_render"}
+
 bevy_ecs = "0.8.0"
+
 
 # ne_minimum = {path = "../crates/ne_minimum"}
 # L = {path = "../crates/ne_log"} #, features = ["release_max_level_off"] 
