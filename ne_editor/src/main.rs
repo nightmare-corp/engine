@@ -2,12 +2,19 @@ use chrono::Utc;
 use nightmare_engine::*;
 
 use ne_app1::{App, Plugin};
-use ne_render::Renderer;
+use ne_render::{Renderer, WindowSettings};
 fn main() {
     // env::set_var("RUST_BACKTRACE", "1");
     L::init_log!(tracing::Level::INFO);
     //how do I simply run a function over and over again on the main thread? ``non-send``
     App::new()
+        .insert_resource(WindowSettings {
+            title: "Nightmare_Editor".to_string(),
+            width: 500.,
+            height: 500.,
+            // present_mode: PresentMode::AutoVsync,
+            // ..default()
+        })
         //TODO
         // .add_plugin(Logger)
         .add_plugin(Renderer)
@@ -19,7 +26,7 @@ fn main() {
          .add_plugin(TimePlugin)
          .add_plugin(AssetPlugin)
          .add_plugin(RenderPlugin) */
-        .add_running(test_running)
+        // .add_running(test_running)
         .run();
 }
 

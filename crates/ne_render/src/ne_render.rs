@@ -571,12 +571,6 @@ impl State {
     }
 }
 
-fn main_loop(mut app: App) {
-    //move name into app... from main.rs
-    let name = "ne_editor";
-    pollster::block_on(init_renderer(name,app));
-}
-
 //TODO why #[derive(Default)]
 #[derive(Default)]
 pub struct Renderer;
@@ -586,6 +580,15 @@ impl Plugin for Renderer {
     }
 }
 
+//TODO HOW TO SHORTEN THIS?
+fn main_loop(app: App) {
+    let s = if let Some(settings) = app.world.get_resource::<WindowSettings>() {
+        settings.title.clone()
+    } else {
+        "application".to_string()
+    };
+    pollster::block_on(init_renderer(&s, app));
+}
 #[cfg_attr(target_arch = "wasm32", wasm_bindgen(start))]
 async fn init_renderer(title: &str, mut app: App) {
     // cfg_if::cfg_if! {
@@ -629,7 +632,6 @@ async fn init_renderer(title: &str, mut app: App) {
     //This
     event_loop.run(move |event, _, control_flow| {
         *control_flow = ControlFlow::Poll;
-
 
         //update app
         app.update();
@@ -680,23 +682,101 @@ async fn init_renderer(title: &str, mut app: App) {
         }
     });
 }
-
-
-
-//TODO!
-#[derive(Debug, Default)]
-pub struct WinitWindows {
-    // pub windows: HashMap<winit::window::WindowId, winit::window::Window>,
-    // pub window_id_to_winit: HashMap<WindowId, winit::window::WindowId>,
-    // pub winit_to_window_id: HashMap<winit::window::WindowId, WindowId>,
-    // // Some winit functions, such as `set_window_icon` can only be used from the main thread. If
-    // // they are used in another thread, the app will hang. This marker ensures `WinitWindows` is
-    // // only ever accessed with bevy's non-send functions and in NonSend systems.
-    // _not_send_sync: core::marker::PhantomData<*const ()>,
+/// Describes the information needed for creating a window.
+///
+/// This should be set up before adding the [`WindowPlugin`](crate::WindowPlugin).
+/// Most of these settings can also later be configured through the [`Window`](crate::Window) resource.
+///
+/// See [`examples/window/window_settings.rs`] for usage.
+///
+/// [`examples/window/window_settings.rs`]: https://github.com/bevyengine/bevy/blob/latest/examples/window/window_settings.rs
+#[derive(Debug, Clone)]
+pub struct WindowSettings {
+    /// Sets the title that displays on the window top bar, on the system task bar and other OS specific places.
+    ///
+    /// ## Platform-specific
+    /// - Web: Unsupported.
+    pub title: String,
+    /// The requested logical width of the window's client area.
+    ///
+    /// May vary from the physical width due to different pixel density on different monitors.
+    pub width: f32,
+    /// The requested logical height of the window's client area.
+    ///
+    /// May vary from the physical height due to different pixel density on different monitors.
+    pub height: f32,
+    /*     /// The position on the screen that the window will be placed at.
+    pub position: WindowPosition,
+    /// Sets minimum and maximum resize limits.
+    pub resize_constraints: WindowResizeConstraints,
+    /// Overrides the window's ratio of physical pixels to logical pixels.
+    ///
+    /// If there are some scaling problems on X11 try to set this option to `Some(1.0)`.
+    pub scale_factor_override: Option<f64>, */
+    /*/// Controls when a frame is presented to the screen.
+     #[doc(alias = "vsync")]
+    /// The window's [`PresentMode`].
+    ///
+    /// Used to select whether or not VSync is used
+    pub present_mode: PresentMode,
+    /// Sets whether the window is resizable.
+    ///
+    /// ## Platform-specific
+    /// - iOS / Android / Web: Unsupported.
+    pub resizable: bool,
+    /// Sets whether the window should have borders and bars.
+    pub decorations: bool,
+    /// Sets whether the cursor is visible when the window has focus.
+    pub cursor_visible: bool,
+    /// Sets whether the window locks the cursor inside its borders when the window has focus.
+    pub cursor_locked: bool,
+    /// Sets the [`WindowMode`](crate::WindowMode).
+    pub mode: WindowMode,
+    /// Sets whether the background of the window should be transparent.
+    ///
+    /// ## Platform-specific
+    /// - iOS / Android / Web: Unsupported.
+    /// - macOS X: Not working as expected.
+    /// - Windows 11: Not working as expected
+    /// macOS X transparent works with winit out of the box, so this issue might be related to: <https://github.com/gfx-rs/wgpu/issues/687>
+    /// Windows 11 is related to <https://github.com/rust-windowing/winit/issues/2082>
+    pub transparent: bool,
+    /// The "html canvas" element selector.
+    ///
+    /// If set, this selector will be used to find a matching html canvas element,
+    /// rather than creating a new one.
+    /// Uses the [CSS selector format](https://developer.mozilla.org/en-US/docs/Web/API/Document/querySelector).
+    ///
+    /// This value has no effect on non-web platforms.
+    pub canvas: Option<String>,
+    /// Whether or not to fit the canvas element's size to its parent element's size.
+    ///
+    /// **Warning**: this will not behave as expected for parents that set their size according to the size of their
+    /// children. This creates a "feedback loop" that will result in the canvas growing on each resize. When using this
+    /// feature, ensure the parent's size is not affected by its children.
+    ///
+    /// This value has no effect on non-web platforms.
+    pub fit_canvas_to_parent: bool, */
 }
-fn winit_runner(mut app: App) {
-    loop {
-        //This needs to be in winit loop!
-        app.update();
+
+impl Default for WindowSettings {
+    fn default() -> Self {
+        WindowSettings {
+            title: "app".to_string(),
+            width: 1280.,
+            height: 720.,
+            /*             position: WindowPosition::Automatic,
+            resize_constraints: WindowResizeConstraints::default(),
+            scale_factor_override: None,
+            present_mode: PresentMode::Fifo,
+            resizable: true,
+            decorations: true,
+            cursor_locked: false,
+            cursor_visible: true,
+            mode: WindowMode::Windowed,
+            transparent: false,
+            canvas: None,
+            fit_canvas_to_parent: false, */
+        }
     }
 }

@@ -474,3 +474,4 @@ pub trait Plugin /* Any + Send + Sync */ {
 fn run_once(mut app: App) {
     app.update();
 }
+
