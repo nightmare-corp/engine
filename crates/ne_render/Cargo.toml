@@ -11,7 +11,7 @@ ne_app1 = {path = "../ne_app1"}
 tracing = "0.1.35"
 # wgpu
 cfg-if = "1"
-
+glam = "0.21.3"
 image = "0.23"
 cgmath = "0.18"
 winit = "0.26"

@@ -1,4 +1,3 @@
-use chrono::Utc;
 use nightmare_engine::*;
 
 use ne_app1::{App, Plugin};
@@ -13,7 +12,7 @@ fn main() {
             width: 500.,
             height: 500.,
             // present_mode: PresentMode::AutoVsync,
-            // ..default()
+            ..WindowSettings::default()
         })
         //TODO
         // .add_plugin(Logger)
@@ -30,12 +29,7 @@ fn main() {
         .run();
 }
 
-//WOW it works
-fn test_running() {
-    let t = Utc::now().time();
-    println!("{:?}", t);
-}
-
+//TODO
 struct Logger;
 impl Plugin for Logger {
     fn setup(&self, app: &mut App) {
