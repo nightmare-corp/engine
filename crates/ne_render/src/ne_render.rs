@@ -3,6 +3,7 @@ use std::iter;
 
 use cgmath::prelude::*;
 use glam::Vec2;
+use instant::Duration;
 use ne::warn;
 use ne_app1::{App, Plugin};
 #[cfg(target_arch = "wasm32")]
@@ -13,15 +14,13 @@ use winit::{
     event_loop::{ControlFlow, EventLoop},
     window::Window, dpi::PhysicalSize,
 };
+use model::{DrawModel, Vertex};
+use crate::camera::CameraFields;
 
 mod camera;
 mod model;
 mod resources;
 mod texture;
-
-use model::{DrawModel, Vertex};
-
-use crate::camera::CameraFields;
 
 const NUM_INSTANCES_PER_ROW: u32 = 100;
 
@@ -357,9 +356,9 @@ impl State {
         self.camera_controller.process_events(event)
     }
 
-    fn update(&mut self) {
+    fn update(&mut self, dt:Duration) {
         //updates camera, can be cleaner/faster/moved into camera.rs
-        self.camera_controller.update_camera(&mut self.camera);
+        self.camera_controller.update_camera(&mut self.camera,dt);
         self.camera_uniform.update_view_proj(&self.camera);
         self.queue.write_buffer(
             &self.camera_buffer,
@@ -446,6 +445,8 @@ async fn init_renderer(mut app: App) {
             // env_logger::init(); //already inited
         }
     } */
+    let mut last_render_time = instant::Instant::now();
+
     let event_loop = EventLoop::new();
     //TODO can this code be shrinked?
     let win_settings =  app.world.get_resource::<WindowSettings>()
@@ -507,7 +508,14 @@ async fn init_renderer(mut app: App) {
                 }
             }
             Event::RedrawRequested(window_id) if window_id == window.id() => {
-                state.update();
+                //NPP
+                let now = instant::Instant::now();
+                //TODO move to global/ne_time (new crate) if it's ever needed.
+                let delta_time:Duration = now - last_render_time;
+                last_render_time = now;
+                
+                state.update(delta_time);
+
                 match state.render() {
                     Ok(_) => {}
                     // Reconfigure the surface if it's lost or outdated

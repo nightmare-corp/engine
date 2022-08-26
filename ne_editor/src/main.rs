@@ -1,6 +1,6 @@
 use nightmare_engine::*;
 
-use ne_app1::{App, Plugin};
+use ne_app1::{App};
 use ne_render::{Renderer, WindowSettings};
 fn main() {
     // env::set_var("RUST_BACKTRACE", "1");

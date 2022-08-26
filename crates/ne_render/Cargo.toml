@@ -8,6 +8,7 @@ ne = {path = "../ne"}
 ne_files = {path = "../ne_files"}
 ne_app1 = {path = "../ne_app1"}
 
+instant = "0.1"
 tracing = "0.1.35"
 # wgpu
 cfg-if = "1"
