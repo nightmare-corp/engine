@@ -7,6 +7,7 @@ edition = "2021"
 ne = {path = "../ne"}
 ne_files = {path = "../ne_files"}
 ne_app1 = {path = "../ne_app1"}
+ne_window = {path = "../ne_window"}
 
 instant = "0.1"
 tracing = "0.1.35"

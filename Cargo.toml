@@ -37,7 +37,7 @@ web-sys = { version = "0.3", features = [
 resolver = "2" # can remove
 members = [
     "ne_editor",
-    "crates/ne_files"
+    "crates/*",
 ]
 
 

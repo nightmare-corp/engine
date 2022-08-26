@@ -1,4 +1,4 @@
-use cgmath::{InnerSpace, SquareMatrix};
+use cgmath::{InnerSpace, SquareMatrix, Rad, Matrix4, perspective};
 use winit::event::{ElementState, KeyboardInput, VirtualKeyCode, WindowEvent};
 
 #[rustfmt::skip]
@@ -49,7 +49,6 @@ pub struct Camera {
     znear: f32,
     zfar: f32,
 }
-
 impl Camera {
     pub fn new(camera_fields: CameraFields) -> Self {
         Self { pos: camera_fields.pos, target: camera_fields.target, up: camera_fields.up,
@@ -65,7 +64,39 @@ impl Camera {
         self.aspect = aspect;
     }
 }
+//TODO separate projection
+/* pub struct Projection {
+    aspect: f32,
+    fovy: f32,
+    znear: f32,
+    zfar: f32,
+}
 
+//split projection from camera
+impl Projection {
+    pub fn new(
+        width: u32,
+        height: u32,
+        //TODO fovy ->F
+        fovy: f32,
+        znear: f32,
+        zfar: f32,
+    ) -> Self {
+        Self {
+            aspect: width as f32 / height as f32,
+            fovy: fovy.into(),
+            znear,
+            zfar,
+        }
+    }
+
+    pub fn resize(&mut self, width: u32, height: u32) {
+        self.aspect = width as f32 / height as f32;
+    }
+    pub fn set_aspect(&mut self, aspect: f32) {
+        self.aspect = aspect;
+    }
+} */
 #[repr(C)]
 #[derive(Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct CameraUniform {

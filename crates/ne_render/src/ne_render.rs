@@ -356,8 +356,8 @@ impl State {
         self.camera_controller.process_events(event)
     }
 
+    //updates camera, can be cleaner/faster/moved into camera.rs
     fn update(&mut self, dt:Duration) {
-        //updates camera, can be cleaner/faster/moved into camera.rs
         self.camera_controller.update_camera(&mut self.camera,dt);
         self.camera_uniform.update_view_proj(&self.camera);
         self.queue.write_buffer(
@@ -514,6 +514,9 @@ async fn init_renderer(mut app: App) {
                 let delta_time:Duration = now - last_render_time;
                 last_render_time = now;
                 
+
+                //TODO This is interesting... can we replace it by a placeholder to inject stuff in? Then again hard coded isn't bad..? 
+                //But bevy_ecs does have something convenient here
                 state.update(delta_time);
 
                 match state.render() {
@@ -534,12 +537,37 @@ async fn init_renderer(mut app: App) {
 }
 
 // #[derive(Default)]
-pub struct Renderer;
-impl Plugin for Renderer {
+pub struct RenderPlugin;
+impl Plugin for RenderPlugin {
     fn setup(&self, app: &mut App) {
-        app.set_runner(main_loop);
+        app
+/*         .add_event::<WindowResized>()
+        .add_event::<CreateWindow>()
+        .add_event::<WindowCreated>()
+        .add_event::<WindowClosed>()
+        .add_event::<WindowCloseRequested>()
+        .add_event::<RequestRedraw>()
+        .add_event::<CursorMoved>()
+        .add_event::<CursorEntered>()
+        .add_event::<CursorLeft>()
+        .add_event::<ReceivedCharacter>()
+        .add_event::<WindowFocused>()
+        .add_event::<WindowScaleFactorChanged>()
+        .add_event::<WindowBackendScaleFactorChanged>()
+        .add_event::<FileDragAndDrop>()
+        .add_event::<WindowMoved>() */
+        // .init_resource::<Windows>()
+        
+        .set_runner(main_loop);
+
+
     }
 }
+/// ================================================================================================
+/// Events
+/// ================================================================================================
+
+
 
 /// ================================================================================================
 /// Window functionality

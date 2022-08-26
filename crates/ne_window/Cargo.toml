@@ -6,3 +6,9 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+ne_app1 = {path = "../ne_app1"}
+ne_utils = {path = "../ne_utils"}
+uuid = "1.1.2"
+
+[lib]
+path = "src/ne_window.rs" 
