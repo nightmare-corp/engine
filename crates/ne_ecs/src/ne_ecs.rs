@@ -1,4 +1,4 @@
-struct Health(i32);
+/* struct Health(i32);
 struct Name(&'static str);
 
 //stores ECS data
@@ -49,3 +49,4 @@ fn run() {
     // Note that Zeus does not have a `Health` component.
     world.new_entity(None, Some(Name("Zeus")));
 }
+ */

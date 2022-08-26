@@ -13,11 +13,8 @@ struct thread_pools;
 
 pub fn init_threads()
 {
-
     // count logical cores this process could try to use
     let num = num_cpus::get();
-
-
 }
 pub fn get_pool_count()
 {
@@ -41,7 +38,7 @@ pub fn add_task_package()
 //These will be assigned together in the same thread, with shared resources.
 struct task_package
 {
-    id:vec<task>,
+    // id:vec<task>,
 }
 
 //I don't actually like this, the priority and id aren't use continiously.
