@@ -15,10 +15,8 @@ pub struct Camera {
     yaw: Rad<f32>,
     pitch: Rad<f32>,
 }
-
  */
-
-pub struct Camera {
+pub struct CameraFields {
     pub pos: cgmath::Point3<f32>,
     pub target: cgmath::Point3<f32>,
     pub up: cgmath::Vector3<f32>,
@@ -28,9 +26,9 @@ pub struct Camera {
     pub zfar: f32,
 }
 //TODO1 Why this NOT? :?
-impl Default for Camera {
+impl Default for CameraFields {
     fn default() -> Self {
-        Camera {
+        CameraFields {
             pos: (0.0, 30.0, 10.0).into(),
             target: (0.0, 0.0, 0.0).into(),
             up: (0.0, 1.0, 0.0).into(),
@@ -41,12 +39,32 @@ impl Default for Camera {
         }
     }
 }
+pub struct Camera {
+    pos: cgmath::Point3<f32>,
+    target: cgmath::Point3<f32>,
+    up: cgmath::Vector3<f32>,
+    aspect: f32,
+    fovy: f32,
+    znear: f32,
+    zfar: f32,
+}
 
 impl Camera {
+    pub fn new(camera_fields: CameraFields) -> Self {
+        Self { pos: camera_fields.pos, target: camera_fields.target, up: camera_fields.up,
+             aspect: camera_fields.aspect, fovy: camera_fields.fovy, znear: camera_fields.znear, zfar: camera_fields.zfar }
+    }
+
     fn build_view_projection_matrix(&self) -> cgmath::Matrix4<f32> {
         let view = cgmath::Matrix4::look_at_rh(self.pos, self.target, self.up);
+
+        
         let proj = cgmath::perspective(cgmath::Deg(self.fovy), self.aspect, self.znear, self.zfar);
         proj * view
+    }
+
+    pub fn set_aspect(&mut self, aspect: f32) {
+        self.aspect = aspect;
     }
 }
 
@@ -155,17 +173,27 @@ impl CameraController {
 
         // Redo radius calc in case the up/ down is pressed.
         let forward = camera.target - camera.pos;
-        let forward_mag = forward.magnitude();
 
-        //TODO camera.target needs to change...
+//TODO I know:
+//1. There is a value: model-view-projection(matrix) that gets fed into the shader.
+//2. There is a function that changes the camera paramters on wasd key press.
+// All I need to do is process the model-view-projection variable the right way...
+
         if self.is_right_pressed {
             // Rescale the distance between the target and eye so
             // that it doesn't change. The eye therefore still
             // lies on the circle made by the target and eye.
-            camera.pos = camera.target - (forward + right * self.speed).normalize();
+            camera.pos += right * self.speed;
         }
         if self.is_left_pressed {
-            camera.pos = camera.target - (forward - right * self.speed).normalize();
+            camera.pos -= right * self.speed;
         }
+
+
+    // if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
+    //     cameraPos -= glm::normalize(glm::cross(cameraFront, cameraUp)) * cameraSpeed;
+    // if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
+    //     cameraPos += glm::normalize(glm::cross(cameraFront, cameraUp)) * cameraSpeed;
+
     }
 }

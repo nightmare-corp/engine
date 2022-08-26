@@ -21,6 +21,8 @@ mod texture;
 
 use model::{DrawModel, Vertex};
 
+use crate::camera::CameraFields;
+
 const NUM_INSTANCES_PER_ROW: u32 = 100;
 
 struct Instance {
@@ -174,14 +176,11 @@ impl State {
                 label: Some("texture_bind_group_layout"),
             });
 
-        let camera = camera::Camera {
-            aspect: config.width as f32 / config.height as f32,
-            fovy: 45.0,
-            znear: 0.1,
-            zfar: 100.0,
-            //no associated item named `Default` found for struct `Camera` in the current scope associated item not found in `Camera`
-            ..camera::Camera::default()
-        };
+        let camera = camera::Camera::new(
+            CameraFields{
+            aspect: (config.width as f32 / config.height as f32),
+            fovy: 45.0, znear: 0.1, zfar: 100.0,
+            ..camera::CameraFields::default()});
         let camera_controller = camera::CameraController::new(0.2);
 
         let mut camera_uniform = camera::CameraUniform::new();
@@ -345,7 +344,7 @@ impl State {
 
     fn resize(&mut self, new_size: winit::dpi::PhysicalSize<u32>) {
         if new_size.width > 0 && new_size.height > 0 {
-            self.camera.aspect = self.config.width as f32 / self.config.height as f32;
+            self.camera.set_aspect(self.config.width as f32 / self.config.height as f32);
             self.size = new_size;
             self.config.width = new_size.width;
             self.config.height = new_size.height;
@@ -359,7 +358,7 @@ impl State {
     }
 
     fn update(&mut self) {
-        //updates camera
+        //updates camera, can be cleaner/faster/moved into camera.rs
         self.camera_controller.update_camera(&mut self.camera);
         self.camera_uniform.update_view_proj(&self.camera);
         self.queue.write_buffer(
