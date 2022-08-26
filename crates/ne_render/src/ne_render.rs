@@ -14,157 +14,14 @@ use winit::{
     window::Window, dpi::PhysicalSize,
 };
 
+mod camera;
 mod model;
 mod resources;
 mod texture;
 
 use model::{DrawModel, Vertex};
 
-#[rustfmt::skip]
-pub const OPENGL_TO_WGPU_MATRIX: cgmath::Matrix4<f32> = cgmath::Matrix4::new(
-    1.0, 0.0, 0.0, 0.0,
-    0.0, 1.0, 0.0, 0.0,
-    0.0, 0.0, 0.5, 0.0,
-    0.0, 0.0, 0.5, 1.0,
-);
-
-const NUM_INSTANCES_PER_ROW: u32 = 3;
-
-//TODO camera
-struct Camera {
-    eye: cgmath::Point3<f32>,
-    target: cgmath::Point3<f32>,
-    up: cgmath::Vector3<f32>,
-    aspect: f32,
-    fovy: f32,
-    znear: f32,
-    zfar: f32,
-}
-
-impl Camera {
-    fn build_view_projection_matrix(&self) -> cgmath::Matrix4<f32> {
-        let view = cgmath::Matrix4::look_at_rh(self.eye, self.target, self.up);
-        let proj = cgmath::perspective(cgmath::Deg(self.fovy), self.aspect, self.znear, self.zfar);
-        proj * view
-    }
-}
-
-#[repr(C)]
-#[derive(Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
-struct CameraUniform {
-    view_proj: [[f32; 4]; 4],
-}
-
-impl CameraUniform {
-    fn new() -> Self {
-        Self {
-            view_proj: cgmath::Matrix4::identity().into(),
-        }
-    }
-
-    fn update_view_proj(&mut self, camera: &Camera) {
-        self.view_proj = (OPENGL_TO_WGPU_MATRIX * camera.build_view_projection_matrix()).into();
-    }
-}
-
-struct CameraController {
-    speed: f32,
-    is_up_pressed: bool,
-    is_down_pressed: bool,
-    is_forward_pressed: bool,
-    is_backward_pressed: bool,
-    is_left_pressed: bool,
-    is_right_pressed: bool,
-}
-
-impl CameraController {
-    fn new(speed: f32) -> Self {
-        Self {
-            speed,
-            is_up_pressed: false,
-            is_down_pressed: false,
-            is_forward_pressed: false,
-            is_backward_pressed: false,
-            is_left_pressed: false,
-            is_right_pressed: false,
-        }
-    }
-
-    fn process_events(&mut self, event: &WindowEvent) -> bool {
-        match event {
-            WindowEvent::KeyboardInput {
-                input:
-                    KeyboardInput {
-                        state,
-                        virtual_keycode: Some(keycode),
-                        ..
-                    },
-                ..
-            } => {
-                let is_pressed = *state == ElementState::Pressed;
-                match keycode {
-                    VirtualKeyCode::Space => {
-                        self.is_up_pressed = is_pressed;
-                        true
-                    }
-                    VirtualKeyCode::LShift => {
-                        self.is_down_pressed = is_pressed;
-                        true
-                    }
-                    VirtualKeyCode::W | VirtualKeyCode::Up => {
-                        self.is_forward_pressed = is_pressed;
-                        true
-                    }
-                    VirtualKeyCode::A | VirtualKeyCode::Left => {
-                        self.is_left_pressed = is_pressed;
-                        true
-                    }
-                    VirtualKeyCode::S | VirtualKeyCode::Down => {
-                        self.is_backward_pressed = is_pressed;
-                        true
-                    }
-                    VirtualKeyCode::D | VirtualKeyCode::Right => {
-                        self.is_right_pressed = is_pressed;
-                        true
-                    }
-                    _ => false,
-                }
-            }
-            _ => false,
-        }
-    }
-
-    fn update_camera(&self, camera: &mut Camera) {
-        let forward = camera.target - camera.eye;
-        let forward_norm = forward.normalize();
-        let forward_mag = forward.magnitude();
-
-        // Prevents glitching when camera gets too close to the
-        // center of the scene.
-        if self.is_forward_pressed && forward_mag > self.speed {
-            camera.eye += forward_norm * self.speed;
-        }
-        if self.is_backward_pressed {
-            camera.eye -= forward_norm * self.speed;
-        }
-
-        let right = forward_norm.cross(camera.up);
-
-        // Redo radius calc in case the up/ down is pressed.
-        let forward = camera.target - camera.eye;
-        let forward_mag = forward.magnitude();
-
-        if self.is_right_pressed {
-            // Rescale the distance between the target and eye so
-            // that it doesn't change. The eye therefore still
-            // lies on the circle made by the target and eye.
-            camera.eye = camera.target - (forward + right * self.speed).normalize() * forward_mag;
-        }
-        if self.is_left_pressed {
-            camera.eye = camera.target - (forward - right * self.speed).normalize() * forward_mag;
-        }
-    }
-}
+const NUM_INSTANCES_PER_ROW: u32 = 100;
 
 struct Instance {
     position: cgmath::Vector3<f32>,
@@ -235,12 +92,12 @@ struct State {
     size: winit::dpi::PhysicalSize<u32>,
     render_pipeline: wgpu::RenderPipeline,
     obj_model: model::Model,
-    camera: Camera,
-    camera_controller: CameraController,
-    camera_uniform: CameraUniform,
+    camera: camera::Camera,
+    camera_controller: camera::CameraController,
+    camera_uniform: camera::CameraUniform,
     camera_buffer: wgpu::Buffer,
     camera_bind_group: wgpu::BindGroup,
-    // instances: Vec<Instance>,
+    instances: Vec<Instance>,
     // #[allow(dead_code)]
     instance_buffer: wgpu::Buffer,
     depth_texture: texture::Texture,
@@ -289,7 +146,7 @@ impl State {
             format: surface.get_supported_formats(&adapter)[0],
             width: size.width,
             height: size.height,
-            present_mode: window_settings.present_mode/* wgpu::PresentMode::Fifo */,
+            present_mode: window_settings.present_mode,
         };
 
         surface.configure(&device, &config);
@@ -317,20 +174,20 @@ impl State {
                 label: Some("texture_bind_group_layout"),
             });
 
-        let camera = Camera {
-            eye: (0.0, 5.0, -10.0).into(),
-            target: (0.0, 0.0, 0.0).into(),
-            up: cgmath::Vector3::unit_y(),
+        let camera = camera::Camera {
             aspect: config.width as f32 / config.height as f32,
             fovy: 45.0,
             znear: 0.1,
             zfar: 100.0,
+            //no associated item named `Default` found for struct `Camera` in the current scope associated item not found in `Camera`
+            ..camera::Camera::default()
         };
-        let camera_controller = CameraController::new(0.2);
+        let camera_controller = camera::CameraController::new(0.2);
 
-        let mut camera_uniform = CameraUniform::new();
+        let mut camera_uniform = camera::CameraUniform::new();
         camera_uniform.update_view_proj(&camera);
 
+        //Buffer that will put camera-vpm-matrix into shader
         let camera_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Camera Buffer"),
             contents: bytemuck::cast_slice(&[camera_uniform]),
@@ -480,7 +337,7 @@ impl State {
             camera_buffer,
             camera_bind_group,
             camera_uniform,
-            // instances,
+            instances,
             instance_buffer,
             depth_texture,
         }
@@ -502,6 +359,7 @@ impl State {
     }
 
     fn update(&mut self) {
+        //updates camera
         self.camera_controller.update_camera(&mut self.camera);
         self.camera_uniform.update_view_proj(&self.camera);
         self.queue.write_buffer(
@@ -557,13 +415,15 @@ impl State {
             // understand how transforms work
             // understand how locations work?
 
-            // render_pass.draw_model_instanced(
-            //     &self.obj_model,
-            //     0..self.instances.len() as u32,
-            //     &self.camera_bind_group,
-            // );
 
-            render_pass.draw_model(&self.obj_model, &self.camera_bind_group);
+            //Is instanced draw just better..?
+            render_pass.draw_model_instanced(
+                &self.obj_model,
+                0..self.instances.len() as u32,
+                &self.camera_bind_group,
+            );
+
+            // render_pass.draw_model(&self.obj_model, &self.camera_bind_group);
         }
 
         self.queue.submit(iter::once(encoder.finish()));

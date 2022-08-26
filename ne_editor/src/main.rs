@@ -9,8 +9,8 @@ fn main() {
     App::new()
         .insert_resource(WindowSettings {
             title: "Nightmare_Editor".to_string(),
-            width: 500.,
-            height: 500.,
+            width: 1600.,
+            height: 900.,
             // present_mode: PresentMode::AutoVsync,
             ..WindowSettings::default()
         })
@@ -30,11 +30,11 @@ fn main() {
 }
 
 //TODO
-struct Logger;
-impl Plugin for Logger {
-    fn setup(&self, app: &mut App) {
-        //this is annoying... because we neeed certain variablesss to outlive this function inside main..?
-        //So we have to simply add resources! This is very much possible and easy even
-    }
-}
+// struct Logger;
+// impl Plugin for Logger {
+//     fn setup(&self, app: &mut App) {
+//         //this is annoying... because we neeed certain variablesss to outlive this function inside main..?
+//         //So we have to simply add resources! This is very much possible and easy even
+//     }
+// }
 //----------------------------------------------------------------------------------
