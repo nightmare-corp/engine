@@ -1,7 +1,7 @@
 //thank you https://github.com/sotrh/learn-wgpu
 use std::iter;
 
-use cgmath::prelude::*;
+use cgmath::{Zero, Rotation3, InnerSpace};
 use glam::Vec2;
 use instant::Duration;
 use ne::warn;
@@ -18,6 +18,7 @@ use model::{DrawModel, Vertex};
 use crate::camera::CameraFields;
 
 mod camera;
+mod my_camera;
 mod model;
 mod resources;
 mod texture;
@@ -93,11 +94,13 @@ struct State {
     size: winit::dpi::PhysicalSize<u32>,
     render_pipeline: wgpu::RenderPipeline,
     obj_model: model::Model,
+    
     camera: camera::Camera,
     camera_controller: camera::CameraController,
     camera_uniform: camera::CameraUniform,
     camera_buffer: wgpu::Buffer,
     camera_bind_group: wgpu::BindGroup,
+
     instances: Vec<Instance>,
     // #[allow(dead_code)]
     instance_buffer: wgpu::Buffer,
@@ -110,7 +113,7 @@ impl State {
 
         // The instance is a handle to our GPU
         // BackendBit::PRIMARY => Vulkan + Metal + DX12 + Browser WebGPU
-        log::warn!("WGPU setup");
+        warn!("WGPU setup");
         let instance = wgpu::Instance::new(wgpu::Backends::all());
         let surface = unsafe { instance.create_surface(window) };
         let adapter = instance
@@ -121,7 +124,7 @@ impl State {
             })
             .await
             .unwrap();
-        log::warn!("device and queue");
+        warn!("device and queue");
         let (device, queue) = adapter
             .request_device(
                 &wgpu::DeviceDescriptor {
@@ -141,7 +144,7 @@ impl State {
             .await
             .unwrap();
 
-        log::warn!("Surface");
+        warn!("Surface");
         let config = wgpu::SurfaceConfiguration {
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
             format: surface.get_supported_formats(&adapter)[0],
@@ -246,7 +249,7 @@ impl State {
             label: Some("camera_bind_group"),
         });
 
-        log::warn!("Load model");
+        warn!("Load model");
         let obj_model = resources::load_model(
             //TODO Other models.
             "trapeprism2.obj",
@@ -559,8 +562,6 @@ impl Plugin for RenderPlugin {
         // .init_resource::<Windows>()
         
         .set_runner(main_loop);
-
-
     }
 }
 /// ================================================================================================
@@ -793,412 +794,3 @@ impl WindowResizeConstraints {
     }
 }
 
-//TODO RUNTIME WINDOW CHANGES
-/* 
-    /// Get the window's [`WindowId`].
-    #[inline]
-    pub fn id(&self) -> WindowId {
-        self.id
-    }
-
-    /// The current logical width of the window's client area.
-    #[inline]
-    pub fn width(&self) -> f32 {
-        (self.physical_width as f64 / self.scale_factor()) as f32
-    }
-
-    /// The current logical height of the window's client area.
-    #[inline]
-    pub fn height(&self) -> f32 {
-        (self.physical_height as f64 / self.scale_factor()) as f32
-    }
-
-    /// The requested window client area width in logical pixels from window
-    /// creation or the last call to [`set_resolution`](Window::set_resolution).
-    ///
-    /// This may differ from the actual width depending on OS size limits and
-    /// the scaling factor for high DPI monitors.
-    #[inline]
-    pub fn requested_width(&self) -> f32 {
-        self.requested_width
-    }
-
-    /// The requested window client area height in logical pixels from window
-    /// creation or the last call to [`set_resolution`](Window::set_resolution).
-    ///
-    /// This may differ from the actual width depending on OS size limits and
-    /// the scaling factor for high DPI monitors.
-    #[inline]
-    pub fn requested_height(&self) -> f32 {
-        self.requested_height
-    }
-
-    /// The window's client area width in physical pixels.
-    #[inline]
-    pub fn physical_width(&self) -> u32 {
-        self.physical_width
-    }
-
-    /// The window's client area height in physical pixels.
-    #[inline]
-    pub fn physical_height(&self) -> u32 {
-        self.physical_height
-    }
-
-    /// The window's client resize constraint in logical pixels.
-    #[inline]
-    pub fn resize_constraints(&self) -> WindowResizeConstraints {
-        self.resize_constraints
-    }
-
-    /// The window's client position in physical pixels.
-    #[inline]
-    pub fn position(&self) -> Option<IVec2> {
-        self.position
-    }
-    /// Set whether or not the window is maximized.
-    #[inline]
-    pub fn set_maximized(&mut self, maximized: bool) {
-        self.command_queue
-            .push(WindowCommand::SetMaximized { maximized });
-    }
-
-    /// Sets the window to minimized or back.
-    ///
-    /// # Platform-specific
-    /// - iOS / Android / Web: Unsupported.
-    /// - Wayland: Un-minimize is unsupported.
-    #[inline]
-    pub fn set_minimized(&mut self, minimized: bool) {
-        self.command_queue
-            .push(WindowCommand::SetMinimized { minimized });
-    }
-
-    /// Modifies the position of the window in physical pixels.
-    ///
-    /// Note that the top-left hand corner of the desktop is not necessarily the same as the screen.
-    /// If the user uses a desktop with multiple monitors, the top-left hand corner of the
-    /// desktop is the top-left hand corner of the monitor at the top-left of the desktop. This
-    /// automatically un-maximizes the window if it's maximized.
-    ///
-    /// # Platform-specific
-    ///
-    /// - iOS: Can only be called on the main thread. Sets the top left coordinates of the window in
-    ///   the screen space coordinate system.
-    /// - Web: Sets the top-left coordinates relative to the viewport.
-    /// - Android / Wayland: Unsupported.
-    #[inline]
-    pub fn set_position(&mut self, position: IVec2) {
-        self.command_queue
-            .push(WindowCommand::SetPosition { position });
-    }
-
-    /// Modifies the position of the window to be in the center of the current monitor
-    ///
-    /// # Platform-specific
-    /// - iOS: Can only be called on the main thread.
-    /// - Web / Android / Wayland: Unsupported.
-    #[inline]
-    pub fn center_window(&mut self, monitor_selection: MonitorSelection) {
-        self.command_queue
-            .push(WindowCommand::Center(monitor_selection));
-    }
-
-    /// Modifies the minimum and maximum window bounds for resizing in logical pixels.
-    #[inline]
-    pub fn set_resize_constraints(&mut self, resize_constraints: WindowResizeConstraints) {
-        self.command_queue
-            .push(WindowCommand::SetResizeConstraints { resize_constraints });
-    }
-
-    /// Request the OS to resize the window such the client area matches the specified
-    /// width and height.
-    #[allow(clippy::float_cmp)]
-    pub fn set_resolution(&mut self, width: f32, height: f32) {
-        if self.requested_width == width && self.requested_height == height {
-            return;
-        }
-
-        self.requested_width = width;
-        self.requested_height = height;
-        self.command_queue.push(WindowCommand::SetResolution {
-            logical_resolution: Vec2::new(self.requested_width, self.requested_height),
-            scale_factor: self.scale_factor(),
-        });
-    }
-
-    /// Override the os-reported scaling factor.
-    #[allow(clippy::float_cmp)]
-    pub fn set_scale_factor_override(&mut self, scale_factor: Option<f64>) {
-        if self.scale_factor_override == scale_factor {
-            return;
-        }
-
-        self.scale_factor_override = scale_factor;
-        self.command_queue.push(WindowCommand::SetScaleFactor {
-            scale_factor: self.scale_factor(),
-        });
-        self.command_queue.push(WindowCommand::SetResolution {
-            logical_resolution: Vec2::new(self.requested_width, self.requested_height),
-            scale_factor: self.scale_factor(),
-        });
-    }
-
-    #[allow(missing_docs)]
-    #[inline]
-    pub fn update_scale_factor_from_backend(&mut self, scale_factor: f64) {
-        self.backend_scale_factor = scale_factor;
-    }
-
-    #[allow(missing_docs)]
-    #[inline]
-    pub fn update_actual_size_from_backend(&mut self, physical_width: u32, physical_height: u32) {
-        self.physical_width = physical_width;
-        self.physical_height = physical_height;
-    }
-
-    #[allow(missing_docs)]
-    #[inline]
-    pub fn update_actual_position_from_backend(&mut self, position: IVec2) {
-        self.position = Some(position);
-    }
-
-    /// The ratio of physical pixels to logical pixels
-    ///
-    /// `physical_pixels = logical_pixels * scale_factor`
-    pub fn scale_factor(&self) -> f64 {
-        self.scale_factor_override
-            .unwrap_or(self.backend_scale_factor)
-    }
-
-    /// The window scale factor as reported by the window backend.
-    ///
-    /// This value is unaffected by [`scale_factor_override`](Window::scale_factor_override).
-    #[inline]
-    pub fn backend_scale_factor(&self) -> f64 {
-        self.backend_scale_factor
-    }
-    /// The scale factor set with [`set_scale_factor_override`](Window::set_scale_factor_override).
-    ///
-    /// This value may be different from the scale factor reported by the window backend.
-    #[inline]
-    pub fn scale_factor_override(&self) -> Option<f64> {
-        self.scale_factor_override
-    }
-    /// Get the window's title.
-    #[inline]
-    pub fn title(&self) -> &str {
-        &self.title
-    }
-    /// Set the window's title.
-    pub fn set_title(&mut self, title: String) {
-        self.title = title.to_string();
-        self.command_queue.push(WindowCommand::SetTitle { title });
-    }
-
-    #[inline]
-    #[doc(alias = "vsync")]
-    /// Get the window's [`PresentMode`].
-    pub fn present_mode(&self) -> PresentMode {
-        self.present_mode
-    }
-
-    #[inline]
-    #[doc(alias = "set_vsync")]
-    /// Set the window's [`PresentMode`].
-    pub fn set_present_mode(&mut self, present_mode: PresentMode) {
-        self.present_mode = present_mode;
-        self.command_queue
-            .push(WindowCommand::SetPresentMode { present_mode });
-    }
-    /// Get whether or not the window is resizable.
-    #[inline]
-    pub fn resizable(&self) -> bool {
-        self.resizable
-    }
-    /// Set whether or not the window is resizable.
-    pub fn set_resizable(&mut self, resizable: bool) {
-        self.resizable = resizable;
-        self.command_queue
-            .push(WindowCommand::SetResizable { resizable });
-    }
-    /// Get whether or not decorations are enabled.
-    ///
-    /// (Decorations are the minimize, maximize, and close buttons on desktop apps)
-    ///
-    /// ## Platform-specific
-    ///
-    /// **`iOS`**, **`Android`**, and the **`Web`** do not have decorations.
-    #[inline]
-    pub fn decorations(&self) -> bool {
-        self.decorations
-    }
-    /// Set whether or not decorations are enabled.
-    ///
-    /// (Decorations are the minimize, maximize, and close buttons on desktop apps)
-    ///
-    /// ## Platform-specific
-    ///
-    /// **`iOS`**, **`Android`**, and the **`Web`** do not have decorations.
-    pub fn set_decorations(&mut self, decorations: bool) {
-        self.decorations = decorations;
-        self.command_queue
-            .push(WindowCommand::SetDecorations { decorations });
-    }
-    /// Get whether or not the cursor is locked.
-    ///
-    /// ## Platform-specific
-    ///
-    /// - **`macOS`** doesn't support cursor lock, but most windowing plugins can emulate it. See [issue #4875](https://github.com/bevyengine/bevy/issues/4875#issuecomment-1153977546) for more information.
-    /// - **`iOS/Android`** don't have cursors.
-    #[inline]
-    pub fn cursor_locked(&self) -> bool {
-        self.cursor_locked
-    }
-    /// Set whether or not the cursor is locked.
-    ///
-    /// This doesn't hide the cursor. For that, use [`set_cursor_visibility`](Window::set_cursor_visibility)
-    ///
-    /// ## Platform-specific
-    ///
-    /// - **`macOS`** doesn't support cursor lock, but most windowing plugins can emulate it. See [issue #4875](https://github.com/bevyengine/bevy/issues/4875#issuecomment-1153977546) for more information.
-    /// - **`iOS/Android`** don't have cursors.
-    pub fn set_cursor_lock_mode(&mut self, lock_mode: bool) {
-        self.cursor_locked = lock_mode;
-        self.command_queue
-            .push(WindowCommand::SetCursorLockMode { locked: lock_mode });
-    }
-    /// Get whether or not the cursor is visible.
-    ///
-    /// ## Platform-specific
-    ///
-    /// - **`Windows`**, **`X11`**, and **`Wayland`**: The cursor is hidden only when inside the window. To stop the cursor from leaving the window, use [`set_cursor_lock_mode`](Window::set_cursor_lock_mode).
-    /// - **`macOS`**: The cursor is hidden only when the window is focused.
-    /// - **`iOS`** and **`Android`** do not have cursors
-    #[inline]
-    pub fn cursor_visible(&self) -> bool {
-        self.cursor_visible
-    }
-    /// Set whether or not the cursor is visible.
-    ///
-    /// ## Platform-specific
-    ///
-    /// - **`Windows`**, **`X11`**, and **`Wayland`**: The cursor is hidden only when inside the window. To stop the cursor from leaving the window, use [`set_cursor_lock_mode`](Window::set_cursor_lock_mode).
-    /// - **`macOS`**: The cursor is hidden only when the window is focused.
-    /// - **`iOS`** and **`Android`** do not have cursors
-    pub fn set_cursor_visibility(&mut self, visible_mode: bool) {
-        self.cursor_visible = visible_mode;
-        self.command_queue.push(WindowCommand::SetCursorVisibility {
-            visible: visible_mode,
-        });
-    }
-    /// Get the current [`CursorIcon`]
-    #[inline]
-    pub fn cursor_icon(&self) -> CursorIcon {
-        self.cursor_icon
-    }
-    /// Set the [`CursorIcon`]
-    pub fn set_cursor_icon(&mut self, icon: CursorIcon) {
-        self.command_queue
-            .push(WindowCommand::SetCursorIcon { icon });
-    }
-
-    /// The current mouse position, in physical pixels.
-    #[inline]
-    pub fn physical_cursor_position(&self) -> Option<DVec2> {
-        self.physical_cursor_position
-    }
-
-    /// The current mouse position, in logical pixels, taking into account the screen scale factor.
-    #[inline]
-    #[doc(alias = "mouse position")]
-    pub fn cursor_position(&self) -> Option<Vec2> {
-        self.physical_cursor_position
-            .map(|p| (p / self.scale_factor()).as_vec2())
-    }
-    /// Set the cursor's position
-    pub fn set_cursor_position(&mut self, position: Vec2) {
-        self.command_queue
-            .push(WindowCommand::SetCursorPosition { position });
-    }
-
-    #[allow(missing_docs)]
-    #[inline]
-    pub fn update_focused_status_from_backend(&mut self, focused: bool) {
-        self.focused = focused;
-    }
-
-    #[allow(missing_docs)]
-    #[inline]
-    pub fn update_cursor_physical_position_from_backend(&mut self, cursor_position: Option<DVec2>) {
-        self.physical_cursor_position = cursor_position;
-    }
-    /// Get the window's [`WindowMode`]
-    #[inline]
-    pub fn mode(&self) -> WindowMode {
-        self.mode
-    }
-    /// Set the window's [`WindowMode`]
-    pub fn set_mode(&mut self, mode: WindowMode) {
-        self.mode = mode;
-        self.command_queue.push(WindowCommand::SetWindowMode {
-            mode,
-            resolution: UVec2::new(self.physical_width, self.physical_height),
-        });
-    }
-    /// Close the operating system window corresponding to this [`Window`].
-    ///  
-    /// This will also lead to this [`Window`] being removed from the
-    /// [`Windows`] resource.
-    ///
-    /// If the default [`WindowPlugin`] is used, when no windows are
-    /// open, the [app will exit](bevy_app::AppExit).  
-    /// To disable this behaviour, set `exit_on_all_closed` on the [`WindowPlugin`]
-    /// to `false`
-    ///
-    /// [`Windows`]: crate::Windows
-    /// [`WindowPlugin`]: crate::WindowPlugin
-    pub fn close(&mut self) {
-        self.command_queue.push(WindowCommand::Close);
-    }
-    #[inline]
-    pub fn drain_commands(&mut self) -> impl Iterator<Item = WindowCommand> + '_ {
-        self.command_queue.drain(..)
-    }
-    /// Get whether or not the window has focus.
-    ///
-    /// A window loses focus when the user switches to another window, and regains focus when the user uses the window again
-    #[inline]
-    pub fn is_focused(&self) -> bool {
-        self.focused
-    }
-    /// Get the [`RawWindowHandleWrapper`] corresponding to this window
-    pub fn raw_window_handle(&self) -> RawWindowHandleWrapper {
-        self.raw_window_handle.clone()
-    }
-
-    /// The "html canvas" element selector.
-    ///
-    /// If set, this selector will be used to find a matching html canvas element,
-    /// rather than creating a new one.   
-    /// Uses the [CSS selector format](https://developer.mozilla.org/en-US/docs/Web/API/Document/querySelector).
-    ///
-    /// This value has no effect on non-web platforms.
-    #[inline]
-    pub fn canvas(&self) -> Option<&str> {
-        self.canvas.as_deref()
-    }
-
-    /// Whether or not to fit the canvas element's size to its parent element's size.
-    ///
-    /// **Warning**: this will not behave as expected for parents that set their size according to the size of their
-    /// children. This creates a "feedback loop" that will result in the canvas growing on each resize. When using this
-    /// feature, ensure the parent's size is not affected by its children.
-    ///
-    /// This value has no effect on non-web platforms.
-    #[inline]
-    pub fn fit_canvas_to_parent(&self) -> bool {
-        self.fit_canvas_to_parent
-    }
-}
-*/

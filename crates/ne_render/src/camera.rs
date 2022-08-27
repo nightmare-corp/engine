@@ -1,4 +1,4 @@
-use cgmath::{InnerSpace, SquareMatrix, Rad, Matrix4, perspective};
+use cgmath::{InnerSpace, SquareMatrix, perspective};
 use winit::event::{ElementState, KeyboardInput, VirtualKeyCode, WindowEvent};
 
 #[rustfmt::skip]

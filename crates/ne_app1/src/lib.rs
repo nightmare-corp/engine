@@ -200,9 +200,9 @@ impl App {
             sub_apps: HashMap::default(),
         }
     }
-    pub fn add_thread(&mut self, func: fn()) -> &mut Self {
-        self
-    }
+    // pub fn add_thread(&mut self, func: fn()) -> &mut Self {
+    //     self
+    // }
     pub fn add_plugin<T>(&mut self, plugin: T) -> &mut Self
     where
         T: Plugin,
@@ -327,8 +327,8 @@ impl App {
     }
 
     pub fn run(&mut self) {
-        println!("run");
-        while true {
+        error!("default run activated not sure what's going to happen");
+        loop {
             self.schedule.run(&mut self.world);
 
             // #[cfg(feature = "trace")]
