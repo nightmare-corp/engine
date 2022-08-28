@@ -1,8 +1,7 @@
 //thank you https://github.com/sotrh/learn-wgpu
 use std::iter;
 
-use cgmath::{Zero, Rotation3, InnerSpace};
-use glam::Vec2;
+use ne_math::{Vec2, Vec3, Quat, Mat4};
 use instant::Duration;
 use ne::warn;
 use ne_app1::{App, Plugin};
@@ -26,16 +25,16 @@ mod texture;
 const NUM_INSTANCES_PER_ROW: u32 = 100;
 
 struct Instance {
-    position: cgmath::Vector3<f32>,
-    rotation: cgmath::Quaternion<f32>,
+    position: Vec3,
+    rotation: Quat,
 }
 
 impl Instance {
     fn to_raw(&self) -> InstanceRaw {
         InstanceRaw {
-            model: (cgmath::Matrix4::from_translation(self.position)
-                * cgmath::Matrix4::from(self.rotation))
-            .into(),
+            model: (Mat4::from_translation(self.position)
+                * Mat4::from_quat(self.rotation))
+            .to_cols_array_2d(),
         }
     }
 }
@@ -202,17 +201,14 @@ impl State {
                     let x = SPACE_BETWEEN * (x as f32 - NUM_INSTANCES_PER_ROW as f32 / 2.0);
                     let z = SPACE_BETWEEN * (z as f32 - NUM_INSTANCES_PER_ROW as f32 / 2.0);
 
-                    let position = cgmath::Vector3 { x, y: 0.0, z };
+                    let position = Vec3 { x, y: 0.0, z };
 
-                    let rotation = if position.is_zero() {
-                        cgmath::Quaternion::from_axis_angle(
-                            cgmath::Vector3::unit_z(),
-                            cgmath::Deg(0.0),
-                        )
+                    //How to know if position is zero???
+                    let rotation = if let Some(pos) = position.try_normalize() {
+                        Quat::from_axis_angle(pos, ne_math::to_radians(45.0))
                     } else {
-                        cgmath::Quaternion::from_axis_angle(position.normalize(), cgmath::Deg(45.0))
+                        Quat::from_axis_angle(Vec3::Z, 0.0)
                     };
-
                     Instance { position, rotation }
                 })
             })

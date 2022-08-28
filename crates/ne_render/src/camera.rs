@@ -1,25 +1,18 @@
-use cgmath::{InnerSpace, SquareMatrix, perspective};
+use ne_math::{Mat4, vec4};
 use winit::event::{ElementState, KeyboardInput, VirtualKeyCode, WindowEvent};
 
 #[rustfmt::skip]
-pub const OPENGL_TO_WGPU_MATRIX: cgmath::Matrix4<f32> = cgmath::Matrix4::new(
-    1.0, 0.0, 0.0, 0.0,
-    0.0, 1.0, 0.0, 0.0,
-    0.0, 0.0, 0.5, 0.0,
-    0.0, 0.0, 0.5, 1.0,
+pub const OPENGL_TO_WGPU_MATRIX: Mat4 = Mat4::from_cols(
+    vec4(1.0, 0.0, 0.0, 0.0,),
+    vec4(0.0, 1.0, 0.0, 0.0,),
+    vec4(0.0, 0.0, 0.5, 0.0,),
+    vec4(0.0, 0.0, 0.5, 1.0,),
 );
-// TODO redesign
-/* #[derive(Debug)]
-pub struct Camera {
-    pub position: Point3<f32>,
-    yaw: Rad<f32>,
-    pitch: Rad<f32>,
-}
- */
+
 pub struct CameraFields {
-    pub pos: cgmath::Point3<f32>,
-    pub target: cgmath::Point3<f32>,
-    pub up: cgmath::Vector3<f32>,
+    pub pos: ne_math::Vec3,
+    pub target: ne_math::Vec3,
+    pub up: ne_math::Vec3,
     pub aspect: f32,
     pub fovy: f32,
     pub znear: f32,
@@ -41,9 +34,9 @@ impl Default for CameraFields {
 }
 pub struct Camera {
     //location of camera
-    pos: cgmath::Point3<f32>,
-    target: cgmath::Point3<f32>,
-    up: cgmath::Vector3<f32>,
+    pos: ne_math::Vec3,
+    target: ne_math::Vec3,
+    up: ne_math::Vec3,
     aspect: f32,
     fovy: f32,
     znear: f32,
@@ -54,10 +47,10 @@ impl Camera {
         Self { pos: camera_fields.pos, target: camera_fields.target, up: camera_fields.up,
              aspect: camera_fields.aspect, fovy: camera_fields.fovy, znear: camera_fields.znear, zfar: camera_fields.zfar }
     }
-    fn build_view_projection_matrix(&self) -> cgmath::Matrix4<f32> {
-        let view = cgmath::Matrix4::look_at_rh(self.pos, self.target, self.up);
-
-        let proj = cgmath::perspective(cgmath::Deg(self.fovy), self.aspect, self.znear, self.zfar);
+    fn build_view_projection_matrix(&self) -> Mat4 {
+        //TODO rh->lh
+        let view = ne_math::Mat4::look_at_rh(self.pos, self.target, self.up);
+        let proj = ne_math::Mat4::perspective_rh(self.fovy, self.aspect, self.znear, self.zfar);
         proj * view
     }
     pub fn set_aspect(&mut self, aspect: f32) {
@@ -106,11 +99,11 @@ pub struct CameraUniform {
 impl CameraUniform {
     pub fn new() -> Self {
         Self {
-            view_proj: cgmath::Matrix4::identity().into(),
+            view_proj: Mat4::IDENTITY.to_cols_array_2d(),
         }
     }
     pub fn update_view_proj(&mut self, camera: &Camera) {
-        self.view_proj = (OPENGL_TO_WGPU_MATRIX * camera.build_view_projection_matrix()).into();
+        self.view_proj = (OPENGL_TO_WGPU_MATRIX * camera.build_view_projection_matrix()).to_cols_array_2d();
     }
 }
 
@@ -230,7 +223,7 @@ impl CameraController {
 
         let forward = camera.target - camera.pos;
         let forward_norm = forward.normalize();
-        let forward_mag = forward.magnitude();
+        let forward_mag = forward.length();
 
         // Prevents glitching when camera gets too close to the
         // center of the scene.

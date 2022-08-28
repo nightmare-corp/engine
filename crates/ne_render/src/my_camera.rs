@@ -1,4 +1,4 @@
-// use glam::Vec3;
+// use ne_math::Vec3;
 
 // use crate::camera::Camera;
 
@@ -43,7 +43,7 @@
 //     }
 // }
 // impl Camera{
-//     fn get_view_matrix() -> glam::Mat4
+//     fn get_view_matrix() -> ne_math::Mat4
 //     {
 
 //     }
