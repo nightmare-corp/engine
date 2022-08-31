@@ -13,6 +13,7 @@ fn main() {
             width: 1600.,
             height: 900.,
             // present_mode: PresentMode::AutoVsync,
+            window_mode: ne_render::WindowMode::Windowed,
             ..WindowSettings::default()
         })
         //TODO currently working on a windowplugin
@@ -32,6 +33,15 @@ fn main() {
         // .add_running(test_running)
         .run();
 }
+
+
+//TODO important!
+//struct editor_camera;
+// fn setup(&self, app: &mut App)
+// {
+//   app.add_events(... WASD, MOUSE, SCROLLWHEEL, );
+//
+// }
 
 //TODO
 // struct Logger;

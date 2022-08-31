@@ -3,7 +3,7 @@ use std::iter;
 
 use ne_math::{Vec2, Vec3, Quat, Mat4};
 use instant::Duration;
-use ne::warn;
+use ne::{warn, info};
 use ne_app1::{App, Plugin};
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
@@ -11,13 +11,12 @@ use wgpu::util::DeviceExt;
 use winit::{
     event::*,
     event_loop::{ControlFlow, EventLoop},
-    window::Window, dpi::PhysicalSize,
+    window::{Window, Fullscreen}, dpi::PhysicalSize, monitor,
 };
 use model::{DrawModel, Vertex};
-use crate::camera::CameraFields;
+use crate::cameras::{look_at_camera::{CameraFields, self}};
 
-mod camera;
-mod my_camera;
+mod cameras;
 mod model;
 mod resources;
 mod texture;
@@ -94,9 +93,9 @@ struct State {
     render_pipeline: wgpu::RenderPipeline,
     obj_model: model::Model,
     
-    camera: camera::Camera,
-    camera_controller: camera::CameraController,
-    camera_uniform: camera::CameraUniform,
+    camera: look_at_camera::Camera,
+    camera_controller: look_at_camera::CameraController,
+    camera_uniform: look_at_camera::CameraUniform,
     camera_buffer: wgpu::Buffer,
     camera_bind_group: wgpu::BindGroup,
 
@@ -104,6 +103,9 @@ struct State {
     // #[allow(dead_code)]
     instance_buffer: wgpu::Buffer,
     depth_texture: texture::Texture,
+
+    is_right_mouse_pressed:bool,
+
 }
 
 impl State {
@@ -177,14 +179,14 @@ impl State {
                 label: Some("texture_bind_group_layout"),
             });
 
-        let camera = camera::Camera::new(
+        let camera = look_at_camera::Camera::new(
             CameraFields{
             aspect: (config.width as f32 / config.height as f32),
             fovy: 45.0, znear: 0.1, zfar: 100.0,
-            ..camera::CameraFields::default()});
-        let camera_controller = camera::CameraController::new(0.2);
+            ..look_at_camera::CameraFields::default()});
+        let camera_controller = look_at_camera::CameraController::new(7.0);
 
-        let mut camera_uniform = camera::CameraUniform::new();
+        let mut camera_uniform = look_at_camera::CameraUniform::new();
         camera_uniform.update_view_proj(&camera);
 
         //Buffer that will put camera-vpm-matrix into shader
@@ -337,6 +339,8 @@ impl State {
             instances,
             instance_buffer,
             depth_texture,
+
+            is_right_mouse_pressed: false,
         }
     }
 
@@ -352,7 +356,34 @@ impl State {
         }
     }
     fn input(&mut self, event: &WindowEvent) -> bool {
-        self.camera_controller.process_events(event)
+        match event {
+            WindowEvent::KeyboardInput {
+                input:
+                    KeyboardInput {
+                        virtual_keycode: Some(key),
+                        state,
+                        ..
+                    },
+                ..
+            } => self.camera_controller.process_events(event),
+            WindowEvent::MouseWheel { delta, .. } => {
+                self.camera_controller.process_scroll(delta);
+                true
+            }
+            WindowEvent::MouseInput {
+                button: MouseButton::Right,
+                state,
+                ..
+            } => {
+                self.is_right_mouse_pressed = *state == ElementState::Pressed;
+                true
+            }
+            _ => false,
+        }
+
+
+
+        
     }
 
     //updates camera, can be cleaner/faster/moved into camera.rs
@@ -506,6 +537,12 @@ async fn init_renderer(mut app: App) {
                     }
                 }
             }
+            Event::DeviceEvent {
+                event: DeviceEvent::MouseMotion{ delta, },
+                .. // We're not using device_id currently
+            } => if state.is_right_mouse_pressed {
+                state.camera_controller.process_mouse(delta.0, delta.1)
+            }
             Event::RedrawRequested(window_id) if window_id == window.id() => {
                 //NPP
                 let now = instant::Instant::now();
@@ -527,7 +564,7 @@ async fn init_renderer(mut app: App) {
                     // The system is out of memory, we should probably quit
                     Err(wgpu::SurfaceError::OutOfMemory) => *control_flow = ControlFlow::Exit,
                     // We're ignoring timeouts
-                    Err(wgpu::SurfaceError::Timeout) => log::warn!("Surface timeout"),
+                    Err(wgpu::SurfaceError::Timeout) => warn!("Surface timeout"),
                 }
             }
             _ => {}
@@ -563,8 +600,6 @@ impl Plugin for RenderPlugin {
 /// ================================================================================================
 /// Events
 /// ================================================================================================
-
-
 
 /// ================================================================================================
 /// Window functionality
@@ -634,7 +669,7 @@ pub struct WindowSettings {
     /// Sets whether the window is resizable.
     /// ## Platform-specific
     /// Sets the [`WindowMode`](crate::WindowMode).
-    pub mode: WindowMode,
+    pub window_mode: WindowMode,
     /// The "html canvas" element selector.
     /// If set, this selector will be used to find a matching html canvas element,
     /// rather than creating a new one.
@@ -655,26 +690,92 @@ impl Default for WindowSettings {
             cursor_visible: true,
             transparent: false,
             fit_canvas_to_parent: false,
-            present_mode: wgpu::PresentMode::Fifo,
+            present_mode: wgpu::PresentMode::Immediate,
                         
             //TODO THESE NEED TO BE ENABLED ON STARTUP
             position: WindowPosition::Automatic,
             resize_constraints: WindowResizeConstraints::default(),
             scale_factor_override: None,
 
-            mode: WindowMode::Windowed,
+            window_mode: WindowMode::Windowed,
             canvas: None,
         }
     }
 }
+
+//window
+pub fn get_fitting_videomode(
+    monitor: &winit::monitor::MonitorHandle,
+    width: u32,
+    height: u32,
+) -> winit::monitor::VideoMode {
+    let mut modes = monitor.video_modes().collect::<Vec<_>>();
+
+    fn abs_diff(a: u32, b: u32) -> u32 {
+        if a > b {
+            return a - b;
+        }
+        b - a
+    }
+
+    modes.sort_by(|a, b| {
+        use std::cmp::Ordering::*;
+        match abs_diff(a.size().width, width).cmp(&abs_diff(b.size().width, width)) {
+            Equal => {
+                match abs_diff(a.size().height, height).cmp(&abs_diff(b.size().height, height)) {
+                    Equal => b.refresh_rate().cmp(&a.refresh_rate()),
+                    default => default,
+                }
+            }
+            default => default,
+        }
+    });
+
+    modes.first().unwrap().clone()
+}
+
 fn create_window(win_settings: &WindowSettings, event_loop: &EventLoop<()>) -> Window
 {
-    let wind = winit::window::WindowBuilder::new()
+
+
+    let mut wind = winit::window::WindowBuilder::new()
     .with_title(win_settings.title.clone())
     .with_inner_size(PhysicalSize::new(win_settings.width, win_settings.height))
     .with_transparent(win_settings.transparent)
     .with_resizable(win_settings.resizable)
     .with_decorations(win_settings.decorations);
+
+    match win_settings.window_mode
+    {
+        //incomplete 
+        WindowMode::Windowed => {},
+        WindowMode::BorderlessFullscreen => {
+            // let mut monitor_index = 0; //todo
+            let mut monitor = event_loop
+            .available_monitors()
+            .next()
+            .expect("no monitor found!");
+            let fullscreen = Some(Fullscreen::Borderless(Some(monitor.clone())));
+            info!("Setting mode: {:?}", fullscreen);
+            wind = wind.with_fullscreen(fullscreen);
+        },
+        WindowMode::SizedFullscreen => todo!(),
+        WindowMode::Fullscreen => {
+            // let mut monitor_index = 0; //todo
+            let mut monitor = event_loop
+            .available_monitors()
+            .next()
+            .expect("no monitor found!");
+            let fullscreen = Some(Fullscreen::Exclusive(get_fitting_videomode(
+                &monitor,
+                win_settings.width as u32,
+                win_settings.height as u32,
+            )),);
+            info!("Setting mode: {:?}", fullscreen);
+            wind = wind.with_fullscreen(fullscreen);
+        },
+    }
+
     //TODO ...
     // match (win_settings.mode)
     // {
