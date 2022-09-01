@@ -14,7 +14,6 @@ pub mod prelude {
         UVec4, Vec2, Vec3, Vec4,
     };
 }
-
 pub use glam::*;
 
 pub fn to_radians(deg: f32) -> f32
