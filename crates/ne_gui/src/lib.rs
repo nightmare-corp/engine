@@ -1,4 +1,4 @@
-/// The `bevy_math` prelude.
+/// Thank you people at Fyrox
 pub mod prelude {
     #[doc(hidden)]
     pub use crate::{
@@ -17,5 +17,4 @@ pub mod prelude {
         BuildContext, UiNode, UserInterface, VerticalAlignment,
     };
 }
-
 pub use fyrox_ui::*;
