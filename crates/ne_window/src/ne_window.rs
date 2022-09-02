@@ -1,4 +1,4 @@
-/* use ne_app1::{Plugin, App};
+/* use ne_app::{Plugin, App};
 
 mod events;
 mod window;

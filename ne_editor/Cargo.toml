@@ -18,9 +18,11 @@ nightmare_engine = {path = "../" }
 
 ne = {path = "../crates/ne"}
 ne_files = {path = "../crates/ne_files"}
-ne_app1 = {path = "../crates/ne_app1"}
+ne_app = {path = "../crates/ne_app"}
 ne_window = {path = "../crates/ne_window"}
 ne_render = {path = "../crates/ne_render"}
+ne_gui = {path = "../crates/ne_gui"}
+
 
 # Bevy
 bevy_ecs = "0.8.1"

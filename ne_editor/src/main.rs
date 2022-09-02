@@ -1,7 +1,10 @@
 use nightmare_engine::*;
 
-use ne_app1::{App};
+use ne_app::{App};
 use ne_render::{RenderPlugin, WindowSettings};
+
+mod interface;
+
 // use ne_window::WindowPlugin;
 fn main() {
     // env::set_var("RUST_BACKTRACE", "1");
