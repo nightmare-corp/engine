@@ -4,14 +4,14 @@ use std::iter;
 use ne_math::{Vec2, Vec3, Quat, Mat4};
 use instant::Duration;
 use ne::{warn, info};
-use ne_app1::{App, Plugin};
+use ne_app::{App, Plugin, Events};
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
 use wgpu::util::DeviceExt;
 use winit::{
     event::*,
     event_loop::{ControlFlow, EventLoop},
-    window::{Window, Fullscreen}, dpi::PhysicalSize, monitor,
+    window::{Window, Fullscreen, WindowId}, dpi::PhysicalSize, monitor,
 };
 use model::{DrawModel, Vertex};
 use crate::cameras::{look_at_camera::{CameraFields, self}};
@@ -21,7 +21,7 @@ mod model;
 mod resources;
 mod texture;
 
-const NUM_INSTANCES_PER_ROW: u32 = 100;
+const NUM_INSTANCES_PER_ROW: u32 = 50;
 
 struct Instance {
     position: Vec3,
@@ -381,9 +381,6 @@ impl State {
             _ => false,
         }
 
-
-
-        
     }
 
     //updates camera, can be cleaner/faster/moved into camera.rs
@@ -443,7 +440,6 @@ impl State {
             // understand how transforms work
             // understand how locations work?
 
-
             //Is instanced draw just better..?
             render_pass.draw_model_instanced(
                 &self.obj_model,
@@ -463,58 +459,47 @@ impl State {
 
 //TODO HOW TO SHORTEN THIS?
 fn main_loop(app: App) {
+
+    //is this async implementation any good?
     pollster::block_on(init_renderer(app));
 }
 #[cfg_attr(target_arch = "wasm32", wasm_bindgen(start))]
 async fn init_renderer(mut app: App) {
-/*     cfg_if::cfg_if! {
-        if #[cfg(target_arch = "wasm32")] {
-            std::panic::set_hook(Box::new(console_error_panic_hook::hook));
-            console_log::init_with_level(log::Level::Warn).expect("Could't initialize logger");
-        } else {
-            // env_logger::init(); //already inited
-        }
-    } */
     let mut last_render_time = instant::Instant::now();
 
     let event_loop = EventLoop::new();
+
+    //the bevy way
+    /*     let mut event_loop = app
+        .world
+        .remove_non_send_resource::<EventLoop<()>>()
+        .unwrap(); */
+
     //TODO can this code be shrinked?
     let win_settings =  app.world.get_resource::<WindowSettings>()
         .cloned().unwrap_or_default();
     let window = create_window(&win_settings, &event_loop);
-    /*     #[cfg(target_arch = "wasm32")]
 
-       {
-           // Winit prevents sizing with CSS, so we have to set
-           // the size manually when on web.
-           use winit::dpi::PhysicalSize;
-           window.set_inner_size(PhysicalSize::new(450, 400));
-
-           use winit::platform::web::WindowExtWebSys;
-           web_sys::window()
-               .and_then(|win| win.document())
-               .and_then(|doc| {
-                   let dst = doc.get_element_by_id("wasm-example")?;
-                   let canvas = web_sys::Element::from(window.canvas());
-                   dst.append_child(&canvas).ok()?;
-                   Some(())
-               })
-               .expect("Couldn't append canvas to document body.");
-       }
-    */
-    // State::new uses async code, so we're going to wait for it to finish
-    
     let mut state = State::new(&window, win_settings).await;
+
+
+    //I need to edit this eventloop to take custom events?
+
+    /* match event {
+            event::Event::WindowResized
+    */
     event_loop.run(move |event, _, control_flow| {
         *control_flow = ControlFlow::Poll;
         //update app
         app.update();
         match event {
-            Event::MainEventsCleared => window.request_redraw(),
-            Event::WindowEvent {
+        event::Event::MainEventsCleared => window.request_redraw(),
+        event::Event::WindowEvent {
                 ref event,
                 window_id,
             } if window_id == window.id() => {
+                let world = app.world.cell();
+
                 if !state.input(event) {
                     match event {
                         WindowEvent::CloseRequested
@@ -528,7 +513,26 @@ async fn init_renderer(mut app: App) {
                             ..
                         } => *control_flow = ControlFlow::Exit,
                         WindowEvent::Resized(physical_size) => {
+
+                            //TODO MOVE TASK: decouple window and renderer
                             state.resize(*physical_size);
+                            
+                            //bevy
+                            /* 
+                            window.update_actual_size_from_backend(size.width, size.height);
+                            let mut resize_events = world.resource_mut::<Events<WindowResized>>();
+                            resize_events.send(WindowResized {
+                                id: window_id,
+                                width: window.width(),
+                                height: window.height(),
+                            });*/
+                            let mut resize_events
+                            = world.resource_mut::<Events<WindowResized>>();
+                            resize_events.send(WindowResized {
+                               id: window_id,
+                               width: window.inner_size().width as f32,
+                               height: window.inner_size().height as f32,
+                           });
                         }
                         WindowEvent::ScaleFactorChanged { new_inner_size, .. } => {
                             state.resize(**new_inner_size);
@@ -537,13 +541,13 @@ async fn init_renderer(mut app: App) {
                     }
                 }
             }
-            Event::DeviceEvent {
+        event::Event::DeviceEvent {
                 event: DeviceEvent::MouseMotion{ delta, },
                 .. // We're not using device_id currently
             } => if state.is_right_mouse_pressed {
                 state.camera_controller.process_mouse(delta.0, delta.1)
             }
-            Event::RedrawRequested(window_id) if window_id == window.id() => {
+        event::Event::RedrawRequested(window_id) if window_id == window.id() => {
                 //NPP
                 let now = instant::Instant::now();
                 //TODO move to global/ne_time (new crate) if it's ever needed.
@@ -572,12 +576,16 @@ async fn init_renderer(mut app: App) {
     });
 }
 
+
 // #[derive(Default)]
+///sets runner using .set_runner()
 pub struct RenderPlugin;
 impl Plugin for RenderPlugin {
     fn setup(&self, app: &mut App) {
         app
-/*         .add_event::<WindowResized>()
+
+        .add_event::<WindowResized>()
+/*     
         .add_event::<CreateWindow>()
         .add_event::<WindowCreated>()
         .add_event::<WindowClosed>()
@@ -597,10 +605,6 @@ impl Plugin for RenderPlugin {
         .set_runner(main_loop);
     }
 }
-/// ================================================================================================
-/// Events
-/// ================================================================================================
-
 /// ================================================================================================
 /// Window functionality
 /// ================================================================================================
@@ -736,8 +740,6 @@ pub fn get_fitting_videomode(
 
 fn create_window(win_settings: &WindowSettings, event_loop: &EventLoop<()>) -> Window
 {
-
-
     let mut wind = winit::window::WindowBuilder::new()
     .with_title(win_settings.title.clone())
     .with_inner_size(PhysicalSize::new(win_settings.width, win_settings.height))

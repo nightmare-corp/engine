@@ -18,3 +18,24 @@ pub mod prelude {
     };
 }
 pub use fyrox_ui::*;
+
+
+pub struct NUserInterface
+{
+    //pub?
+    pub user_interface:UserInterface,
+}
+impl NUserInterface
+{
+    pub fn new(width:f32,height:f32)  -> Self
+    {
+        println!("{}", &width);
+        println!("{}", &height);
+
+        //remove nalgebra...
+        Self{
+            user_interface: UserInterface::new(
+                nalgebra::Vector2::new(width,height))
+        }
+    }
+}

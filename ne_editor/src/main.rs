@@ -1,27 +1,50 @@
+use bevy_ecs::prelude::EventReader;
 use nightmare_engine::*;
 
-use ne_app::{App};
-use ne_render::{RenderPlugin, WindowSettings};
+use ne_app::{App, Plugin};
+use ne_render::{RenderPlugin, WindowSettings, WindowResized};
 
+// User interface allows you to build interface of any kind.
+// use crate::interface::EditorPlugin; //TODO move
 mod interface;
+
+fn gui_event_system()
+{
+
+}
+//on WindowResized
+fn random_system(mut window_resized_events: EventReader<WindowResized>)
+{
+    for event in window_resized_events.iter().rev() {
+        println!("window is resized w: {}, h:{}", event.width, event.height);
+    }
+}
 
 // use ne_window::WindowPlugin;
 fn main() {
     // env::set_var("RUST_BACKTRACE", "1");
     L::init_log!(tracing::Level::INFO);
-    //how do I simply run a function over and over again on the main thread? ``non-send``
+
+  let width = 1600.;
+  let height = 900.;
+
     App::new()
         .insert_resource(WindowSettings {
             title: "Nightmare_Editor".to_string(),
-            width: 1600.,
-            height: 900.,
+            width: width,
+            height: height,
             // present_mode: PresentMode::AutoVsync,
             window_mode: ne_render::WindowMode::Windowed,
             ..WindowSettings::default()
         })
+
         //TODO currently working on a windowplugin
         // .add_plugin(WindowPlugin)
         .add_plugin(RenderPlugin)
+        .add_plugin(interface::RandomPlugin)
+
+        .add_system(random_system)
+        // .add_plugin(EditorPlugin)
 
         /* TODO modular plugins
         CHECK IF REQUIRED PLUGINS ARE ALREADY LOADED
@@ -33,7 +56,7 @@ fn main() {
         .add_plugin(RenderPlugin)
         .add_plugin(Logger)
           */
-        // .add_running(test_running)
+        // .add_system(test_running)
         .run();
 }
 

@@ -7,3 +7,4 @@ edition = "2021"
 
 [dependencies]
 fyrox-ui = "0.18.0"
+nalgebra = "0.31.1"

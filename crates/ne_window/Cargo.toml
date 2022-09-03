@@ -8,7 +8,11 @@ edition = "2021"
 [dependencies]
 ne_app = {path = "../ne_app"}
 ne_utils = {path = "../ne_utils"}
+ne_math = {path = "../ne_math"}
 uuid = "1.1.2"
+winit = "0.26"
+pollster = "0.2"
+instant = "0.1"
 
 [lib]
 path = "src/ne_window.rs" 

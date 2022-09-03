@@ -3,7 +3,8 @@
 use std::collections::HashMap;
 
 // use bevy_ecs::schedule::IntoSystemDescriptor;
-use bevy_ecs::{
+//TODO does pub use make compile times longer?
+pub use bevy_ecs::{
     schedule::{IntoSystemDescriptor, Schedule, ShouldRun, Stage, StageLabel, SystemStage},
     system::{IntoExclusiveSystem, Resource},
     world::{FromWorld, World}, event::{Event, Events},
@@ -267,7 +268,7 @@ impl App {
     /// #
     /// app.add_system(my_system);
     /// ```
-    pub fn add_running<Params>(&mut self, system: impl IntoSystemDescriptor<Params>) -> &mut Self {
+    pub fn add_system<Params>(&mut self, system: impl IntoSystemDescriptor<Params>) -> &mut Self {
         self.add_system_to_stage(CoreStage::Update, system)
     }
     /// Adds a system to the [`Stage`] identified by `stage_label`.
@@ -534,4 +535,3 @@ pub trait Plugin /* Any + Send + Sync */ {
 fn run_once(mut app: App) {
     app.update();
 }
-

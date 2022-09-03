@@ -30,7 +30,6 @@ bevy_ecs = "0.8.1"
 # L = {path = "../crates/ne_log"} #, features = ["release_max_level_off"] 
 tracing = "0.1.35"
 tracing-subscriber = "0.3.14"
-
 chrono = "0.4.22"
 # [features]
 # default = ["path_checker"]

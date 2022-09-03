@@ -10,3 +10,6 @@ bevy_ecs = "0.8.1"
 tracing = "0.1.35"
 ne = { path = "../ne" }
 num_cpus = "1.13.1"
+
+[lib]
+path = "src/ne_app.rs" 
