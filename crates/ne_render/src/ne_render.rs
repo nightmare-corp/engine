@@ -1,8 +1,7 @@
 //thank you https://github.com/sotrh/learn-wgpu
-use std::iter;
+use std::{iter};
 
 use ne_math::{Vec2, Vec3, Quat, Mat4};
-use instant::Duration;
 use ne::{warn, info, trace};
 use ne_app::{App, Plugin, Events};
 #[cfg(target_arch = "wasm32")]
@@ -11,7 +10,7 @@ use wgpu::util::DeviceExt;
 use winit::{
     event::{*, self},
     event_loop::{ControlFlow, EventLoop},
-    window::{Window, Fullscreen, WindowId}, dpi::PhysicalSize, monitor,
+    window::{Window, Fullscreen}, dpi::PhysicalSize,
 };
 use model::{DrawModel, Vertex};
 use crate::cameras::{look_at_camera::{CameraFields, self}};
@@ -108,9 +107,36 @@ struct State {
 
 }
 
-struct fps_data_struct {
-    lowest_average:u32,
-    
+struct FPSData {
+    low:f32, //1%
+    index:f32,
+    // lowest:u32, //.1%
+}
+impl Default for FPSData
+{
+    fn default() -> Self {
+        Self { low: 100_000_000.0, 
+            index: Default::default() }
+    }
+}
+impl FPSData
+{
+    fn get_lowest(&mut self, fps:f32) -> f32
+    {
+        self.index+=1.0;
+        //reset every 100+ frames
+        if self.index>=100.0
+        {
+            self.index = 0.0;
+            self.low = 100_000_000.0;
+        }
+        //set if lower
+        if (fps<self.low)
+        {
+            self.low=fps;
+        }
+        self.low
+    }
 }
 
 impl State {
@@ -471,13 +497,7 @@ fn main_loop(app: App) {
 #[cfg_attr(target_arch = "wasm32", wasm_bindgen(start))]
 async fn init_renderer(mut app: App) {
     let event_loop = EventLoop::new();
-
-    //the bevy way
-    /*     let mut event_loop = app
-        .world
-        .remove_non_send_resource::<EventLoop<()>>()
-        .unwrap(); */
-
+    
     //TODO can this code be shrinked?
     let win_settings =  app.world.get_resource::<WindowSettings>()
         .cloned().unwrap_or_default();
@@ -485,16 +505,15 @@ async fn init_renderer(mut app: App) {
 
     let mut state = State::new(&window, win_settings).await;
 
-
-    //I need to edit this eventloop to take custom events?
-
-    /* match event {
-            event::Event::WindowResized
-    */
     trace!("pre event_loop.run");
-    let start_time = instant::Instant::now();
+
+    //benchmark values.
+    let mut first_draw_time = instant::Instant::now();
+    let mut once_benchmark = true;
     let mut last_render_time = instant::Instant::now();
-    let mut frame_count:u32 = 1;
+    let mut frame_count:u64 = 1;
+
+    let mut fpsd = FPSData::default();
     event_loop.run(move |event, _, control_flow| {
         *control_flow = ControlFlow::Poll;
         //update app
@@ -556,43 +575,29 @@ async fn init_renderer(mut app: App) {
                 state.camera_controller.process_mouse(delta.0, delta.1)
             }
         event::Event::RedrawRequested(window_id) if window_id == window.id() => {
-                
+                //hope this gets optimized somehow
+                if once_benchmark //do once
+                {
+                    first_draw_time = instant::Instant::now();
+                    once_benchmark=false;
+                }
                 //calculate delta time
                 frame_count+=1;
                 let now = instant::Instant::now();
-                //TODO move maybe
+                let delta_time = (now - last_render_time).as_secs_f32();
 
-                //TODO maybe u128 isn't optimal here, u32 is more than enough...
-                //maybe this conversion isn't worth it
-                let delta_time = (now - last_render_time).as_micros() as u32;
-                last_render_time = now;
-                let fps = (1_000_000/delta_time);
-                let mut lowest_fps = 0;
+                //TODO move this to easily enable and disable
                 {
-                    let fps_list:;
-                    //add fps to data structure on the right place (sorted), immediatly calculate average for 1% lowest
-                    fps_list.insert(fps);
-                    //make sure size is under 5000
-                    println!("current size:{}" fps_list.size())
-                    //retrieve the 1% lowest
-                    lowest_fps = fps_list.lowest_average;
-                }
-                let time_passed = (now - start_time).as_micros() as u32;
-                let average_fps = (frame_count*1_000_000/time_passed);
+                    //TODO move maybe
+                    last_render_time = now;
+                    let fps = 1.0/delta_time;
 
-                fn insert_number() {
-                     println!("temppoo");
-                }
-                fn calc_lowest_percentile() {
-                    println!("awooo");
-                }
+                    let time_passed = (now - first_draw_time).as_secs_f32();
+                    let average_fps = frame_count as f32/time_passed;
 
-                // let percentile_fps = ???; //how to calculate efficiently?
-                println!("fps:{:<14}fps | avg:{:<14}fps | 1%LOW:{:<10}fps",fps,average_fps,lowest_fps);
-
-                //TODO This is interesting... can we replace it by a placeholder to inject stuff in? Then again hard coded isn't bad..? 
-                //But bevy_ecs does have something convenient here
-                state.update(delta_time as f32);
+                    println!("fps:{:<14}fps | avg:{:<14}fps | 1%LOW:{:<10}fps",fps,average_fps, fpsd.get_lowest(fps));
+                }
+                state.update((delta_time));
 
                 match state.render() {
                     Ok(_) => {}
