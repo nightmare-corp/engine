@@ -164,11 +164,9 @@ impl CameraController {
             _ => false,
         }
     }
-    pub fn update_camera(&mut self, camera: &mut Camera, dt:instant::Duration) {
+    pub fn update_camera(&mut self, camera: &mut Camera, dt:f32) {
         //TODO CAMERA WASD TO MOVE
         //TODO MOUSE TO ROTATE
-
-        let dt = dt.as_secs_f32();
         //MOUSE
         // calculate yaw and pitch
         camera.yaw += self.rotate_horizontal * self.mouse_sensitivity * dt;

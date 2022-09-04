@@ -3,7 +3,7 @@ use std::iter;
 
 use ne_math::{Vec2, Vec3, Quat, Mat4};
 use instant::Duration;
-use ne::{warn, info};
+use ne::{warn, info, trace};
 use ne_app::{App, Plugin, Events};
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
@@ -106,6 +106,11 @@ struct State {
 
     is_right_mouse_pressed:bool,
 
+}
+
+struct fps_data_struct {
+    lowest_average:u32,
+    
 }
 
 impl State {
@@ -384,7 +389,7 @@ impl State {
     }
 
     //updates camera, can be cleaner/faster/moved into camera.rs
-    fn update(&mut self, dt:Duration) {
+    fn update(&mut self, dt:f32) {
         self.camera_controller.update_camera(&mut self.camera,dt);
         self.camera_uniform.update_view_proj(&self.camera);
         self.queue.write_buffer(
@@ -465,8 +470,6 @@ fn main_loop(app: App) {
 }
 #[cfg_attr(target_arch = "wasm32", wasm_bindgen(start))]
 async fn init_renderer(mut app: App) {
-    let mut last_render_time = instant::Instant::now();
-
     let event_loop = EventLoop::new();
 
     //the bevy way
@@ -488,10 +491,15 @@ async fn init_renderer(mut app: App) {
     /* match event {
             event::Event::WindowResized
     */
+    trace!("pre event_loop.run");
+    let start_time = instant::Instant::now();
+    let mut last_render_time = instant::Instant::now();
+    let mut frame_count:u32 = 1;
     event_loop.run(move |event, _, control_flow| {
         *control_flow = ControlFlow::Poll;
         //update app
         app.update();
+
         match event {
         event::Event::MainEventsCleared => window.request_redraw(),
         event::Event::WindowEvent {
@@ -548,16 +556,43 @@ async fn init_renderer(mut app: App) {
                 state.camera_controller.process_mouse(delta.0, delta.1)
             }
         event::Event::RedrawRequested(window_id) if window_id == window.id() => {
-                //NPP
-                let now = instant::Instant::now();
-                //TODO move to global/ne_time (new crate) if it's ever needed.
-                let delta_time:Duration = now - last_render_time;
-                last_render_time = now;
                 
+                //calculate delta time
+                frame_count+=1;
+                let now = instant::Instant::now();
+                //TODO move maybe
+
+                //TODO maybe u128 isn't optimal here, u32 is more than enough...
+                //maybe this conversion isn't worth it
+                let delta_time = (now - last_render_time).as_micros() as u32;
+                last_render_time = now;
+                let fps = (1_000_000/delta_time);
+                let mut lowest_fps = 0;
+                {
+                    let fps_list:;
+                    //add fps to data structure on the right place (sorted), immediatly calculate average for 1% lowest
+                    fps_list.insert(fps);
+                    //make sure size is under 5000
+                    println!("current size:{}" fps_list.size())
+                    //retrieve the 1% lowest
+                    lowest_fps = fps_list.lowest_average;
+                }
+                let time_passed = (now - start_time).as_micros() as u32;
+                let average_fps = (frame_count*1_000_000/time_passed);
+
+                fn insert_number() {
+                     println!("temppoo");
+                }
+                fn calc_lowest_percentile() {
+                    println!("awooo");
+                }
+
+                // let percentile_fps = ???; //how to calculate efficiently?
+                println!("fps:{:<14}fps | avg:{:<14}fps | 1%LOW:{:<10}fps",fps,average_fps,lowest_fps);
 
                 //TODO This is interesting... can we replace it by a placeholder to inject stuff in? Then again hard coded isn't bad..? 
                 //But bevy_ecs does have something convenient here
-                state.update(delta_time);
+                state.update(delta_time as f32);
 
                 match state.render() {
                     Ok(_) => {}
