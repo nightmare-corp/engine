@@ -39,6 +39,7 @@ resolver = "2" # can remove
 members = [
     "ne_editor",
     "crates/*",
+    "benchmarks/*",
 ]
 
 

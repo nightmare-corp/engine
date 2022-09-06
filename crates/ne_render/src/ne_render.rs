@@ -3,13 +3,15 @@ use std::{iter};
 
 use ne_math::{Vec2, Vec3, Quat, Mat4};
 use ne::{warn, info, trace};
-use ne_app::{App, Plugin, Events};
+use ne_app::{App, Plugin, Events, ManualEventReader};
+#[cfg(feature = "first_frame_time")]
+use ne_app::FIRST_FRAME_TIME;
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
 use wgpu::util::DeviceExt;
 use winit::{
     event::{*, self},
-    event_loop::{ControlFlow, EventLoop},
+    event_loop::{ControlFlow, EventLoop, EventLoopWindowTarget},
     window::{Window, Fullscreen}, dpi::PhysicalSize,
 };
 use model::{DrawModel, Vertex};
@@ -131,7 +133,7 @@ impl FPSData
             self.low = 100_000_000.0;
         }
         //set if lower
-        if (fps<self.low)
+        if fps<self.low
         {
             self.low=fps;
         }
@@ -476,7 +478,7 @@ impl State {
                 &self.obj_model,
                 0..self.instances.len() as u32,
                 &self.camera_bind_group,
-            );
+            );           
 
             // render_pass.draw_model(&self.obj_model, &self.camera_bind_group);
         }
@@ -490,14 +492,31 @@ impl State {
 
 //TODO HOW TO SHORTEN THIS?
 fn main_loop(app: App) {
+    //TODO why is main_loop before exiting??????
+    println!("main_loop");
 
     //is this async implementation any good?
     pollster::block_on(init_renderer(app));
+
+    println!("main_loop done");
+
 }
+pub struct StartTime {
+    start_time:instant::Instant,
+}
+impl Default for StartTime {
+    fn default() -> Self {
+        Self { start_time: instant::Instant::now() }
+    }
+}
+
 #[cfg_attr(target_arch = "wasm32", wasm_bindgen(start))]
 async fn init_renderer(mut app: App) {
+    println!("init_renderer");
+    app.insert_resource::<StartTime>(StartTime::default());
+    // app.update(); //moved}
+
     let event_loop = EventLoop::new();
-    
     //TODO can this code be shrinked?
     let win_settings =  app.world.get_resource::<WindowSettings>()
         .cloned().unwrap_or_default();
@@ -508,123 +527,159 @@ async fn init_renderer(mut app: App) {
     trace!("pre event_loop.run");
 
     //benchmark values.
-    let mut first_draw_time = instant::Instant::now();
+    #[cfg(feature = "first_frame_time")]
     let mut once_benchmark = true;
     let mut last_render_time = instant::Instant::now();
     let mut frame_count:u64 = 1;
+    //exit window event reader
+    let mut app_exit_event_reader = ManualEventReader::<AppExit>::default();
 
+    #[cfg(feature = "print_fps")]
     let mut fpsd = FPSData::default();
-    event_loop.run(move |event, _, control_flow| {
-        *control_flow = ControlFlow::Poll;
-        //update app
-        app.update();
 
+    let event_handler = 
+    move |event: Event<()>,
+        event_loop: &EventLoopWindowTarget<()>,
+        control_flow: &mut ControlFlow| {
         match event {
-        event::Event::MainEventsCleared => window.request_redraw(),
-        event::Event::WindowEvent {
-                ref event,
-                window_id,
-            } if window_id == window.id() => {
-                let world = app.world.cell();
-
-                if !state.input(event) {
-                    match event {
-                        WindowEvent::CloseRequested
-                        | WindowEvent::KeyboardInput {
-                            input:
-                                KeyboardInput {
-                                    state: ElementState::Pressed,
-                                    virtual_keycode: Some(VirtualKeyCode::Escape),
-                                    ..
-                                },
-                            ..
-                        } => *control_flow = ControlFlow::Exit,
-                        WindowEvent::Resized(physical_size) => {
-
-                            //TODO MOVE TASK: decouple window and renderer
-                            state.resize(*physical_size);
-                            
-                            //bevy
-                            /* 
-                            window.update_actual_size_from_backend(size.width, size.height);
-                            let mut resize_events = world.resource_mut::<Events<WindowResized>>();
-                            resize_events.send(WindowResized {
-                                id: window_id,
-                                width: window.width(),
-                                height: window.height(),
-                            });*/
-                            let mut resize_events
-                            = world.resource_mut::<Events<WindowResized>>();
-                            resize_events.send(WindowResized {
-                               id: window_id,
-                               width: window.inner_size().width as f32,
-                               height: window.inner_size().height as f32,
-                           });
+            event::Event::MainEventsCleared => {
+                window.request_redraw();
+                app.update(); //is this supposed to be here?
+            },
+            event::Event::WindowEvent {
+                    ref event,
+                    window_id,
+                } if window_id == window.id() => {
+                    let world = app.world.cell();
+    
+                    if !state.input(event) {
+                        match event {
+                            WindowEvent::CloseRequested
+                            | WindowEvent::KeyboardInput {
+                                input:
+                                    KeyboardInput {
+                                        state: ElementState::Pressed,
+                                        virtual_keycode: Some(VirtualKeyCode::Escape),
+                                        ..
+                                    },
+                                ..
+                            } => *control_flow = ControlFlow::Exit,
+                            WindowEvent::Resized(physical_size) => {
+    
+                                //TODO MOVE TASK: decouple window and renderer
+                                state.resize(*physical_size);
+                                
+                                let mut resize_events
+                                = world.resource_mut::<Events<WindowResized>>();
+                                resize_events.send(WindowResized {
+                                    id: window_id,
+                                    width: window.inner_size().width as f32,
+                                    height: window.inner_size().height as f32,
+                                });
+                            }
+                            WindowEvent::ScaleFactorChanged { new_inner_size, .. } => {
+                                state.resize(**new_inner_size);
+                            }
+                            _ => {}
                         }
-                        WindowEvent::ScaleFactorChanged { new_inner_size, .. } => {
-                            state.resize(**new_inner_size);
-                        }
-                        _ => {}
                     }
                 }
-            }
-        event::Event::DeviceEvent {
-                event: DeviceEvent::MouseMotion{ delta, },
-                .. // We're not using device_id currently
-            } => if state.is_right_mouse_pressed {
-                state.camera_controller.process_mouse(delta.0, delta.1)
-            }
-        event::Event::RedrawRequested(window_id) if window_id == window.id() => {
-                //hope this gets optimized somehow
-                if once_benchmark //do once
-                {
-                    first_draw_time = instant::Instant::now();
-                    once_benchmark=false;
+            event::Event::DeviceEvent {
+                    event: DeviceEvent::MouseMotion{ delta, },
+                    .. // We're not using device_id currently
+                } => if state.is_right_mouse_pressed {
+                    state.camera_controller.process_mouse(delta.0, delta.1)
                 }
-                //calculate delta time
-                frame_count+=1;
-                let now = instant::Instant::now();
-                let delta_time = (now - last_render_time).as_secs_f32();
-
-                //TODO move this to easily enable and disable
-                {
-                    //TODO move maybe
+            event::Event::RedrawRequested(window_id) if window_id == window.id() => {
+                    //hope this gets optimized somehow
+                    #[cfg(feature = "first_frame_time")]
+                    if once_benchmark //do once
+                    {
+                        unsafe{
+                            FIRST_FRAME_TIME = Some(instant::Instant::now());
+                        }
+                        once_benchmark=false;
+                    }
+                    let now = instant::Instant::now();
+                    let delta_time = (now - last_render_time).as_secs_f32();
                     last_render_time = now;
-                    let fps = 1.0/delta_time;
-
-                    let time_passed = (now - first_draw_time).as_secs_f32();
-                    let average_fps = frame_count as f32/time_passed;
-
-                    println!("fps:{:<14}fps | avg:{:<14}fps | 1%LOW:{:<10}fps",fps,average_fps, fpsd.get_lowest(fps));
-                }
-                state.update((delta_time));
-
-                match state.render() {
-                    Ok(_) => {}
-                    // Reconfigure the surface if it's lost or outdated
-                    Err(wgpu::SurfaceError::Lost | wgpu::SurfaceError::Outdated) => {
-                        state.resize(state.size)
+    
+                    #[cfg(feature = "print_fps")]
+                    {
+                        //TODO move maybe
+                        let fps = 1.0/delta_time;
+                        // a little messy
+                        frame_count+=1;
+                        unsafe
+                        {
+                            let time_passed = (now - FIRST_FRAME_TIME.unwrap()).as_secs_f32();
+                            let average_fps = frame_count as f32/time_passed;
+                            
+                            println!("fps:{:<14}fps | avg:{:<14}fps | 1%LOW:{:<10}fps",fps,average_fps, fpsd.get_lowest(fps));
+                        }
                     }
-                    // The system is out of memory, we should probably quit
-                    Err(wgpu::SurfaceError::OutOfMemory) => *control_flow = ControlFlow::Exit,
-                    // We're ignoring timeouts
-                    Err(wgpu::SurfaceError::Timeout) => warn!("Surface timeout"),
+                    state.update(delta_time);
+    
+                    match state.render() {
+                        Ok(_) => {}
+                        // Reconfigure the surface if it's lost or outdated
+                        Err(wgpu::SurfaceError::Lost | wgpu::SurfaceError::Outdated) => {
+                            state.resize(state.size)
+                        }
+                        // The system is out of memory, we should probably quit
+                        Err(wgpu::SurfaceError::OutOfMemory) => *control_flow = ControlFlow::Exit,
+                        // We're ignoring timeouts
+                        Err(wgpu::SurfaceError::Timeout) => warn!("Surface timeout"),
+                    }
+
+                    // //add event right here...
+                    // let redraw_event = app.world.get_resource::<Events<Redraw>>() {
+
+                    // }
+                    //sent an event from here, frame is done!
+                    //TODO remove..?
+                    let world = app.world.cell();
+                    let mut frame_events = world.resource_mut::<Events<FrameEvent>>();
+                    frame_events.send(FrameEvent {});
+
+                }
+                event::Event::RedrawEventsCleared => {
+                    //measure
+                    if let Some(app_exit_events) = 
+                        app.world.get_resource::<Events<AppExit>>() {
+                        if app_exit_event_reader.iter(app_exit_events).last().is_some() {
+                            *control_flow = ControlFlow::Exit;
+                        }
+                    }
+                }
+                _ => 
+                {
+    
                 }
             }
-            _ => {}
-        }
-    });
+    };
+    println!("event loop run");
+    run(event_loop, event_handler);
 }
 
-
+fn run<F>(event_loop: EventLoop<()>, event_handler: F) -> !
+where
+    F: 'static + FnMut(Event<'_, ()>, &EventLoopWindowTarget<()>, &mut ControlFlow),
+{
+    event_loop.run(event_handler)
+}
 // #[derive(Default)]
 ///sets runner using .set_runner()
 pub struct RenderPlugin;
 impl Plugin for RenderPlugin {
     fn setup(&self, app: &mut App) {
-        app
 
+        //TODO what's going onnnnn
+        println!("setup");
+        app
         .add_event::<WindowResized>()
+        .add_event::<AppExit>()
+        .add_event::<FrameEvent>()
 /*     
         .add_event::<CreateWindow>()
         .add_event::<WindowCreated>()
@@ -641,7 +696,6 @@ impl Plugin for RenderPlugin {
         .add_event::<FileDragAndDrop>()
         .add_event::<WindowMoved>() */
         // .init_resource::<Windows>()
-        
         .set_runner(main_loop);
     }
 }
@@ -946,3 +1000,8 @@ pub struct WindowResized {
     /// The new logical height of the window.
     pub height: f32,
 }
+// #[derive(Debug, Clone)]
+/// Reader in loop that will end the event loop.
+pub struct AppExit;
+/// An event that is sent when a frame has been rendered
+pub struct FrameEvent;

@@ -7,9 +7,22 @@ use std::collections::HashMap;
 pub use bevy_ecs::{
     schedule::{IntoSystemDescriptor, Schedule, ShouldRun, Stage, StageLabel, SystemStage},
     system::{IntoExclusiveSystem, Resource},
-    world::{FromWorld, World}, event::{Event, Events},
+    world::{FromWorld, World}, event::{Event, Events, ManualEventReader,},
 };
 pub use ne::*;
+
+//globals
+//TODO replace by some kind of thread safe version.
+//These should not be modified, just read.
+#[cfg(feature = "start_time")]
+pub static mut START_TIME:Option<instant::Instant> = None;
+#[cfg(feature = "first_frame_time")]
+pub static mut FIRST_FRAME_TIME:Option<instant::Instant> = None;
+pub fn get_time_passed(time:Option<instant::Instant>) -> instant::Duration
+{
+        let now = instant::Instant::now();
+        now - time.unwrap()
+}
 
 //================================================================
 //TODO Make this my own code
@@ -191,6 +204,10 @@ impl Default for App {
 impl App {
     pub fn new() -> App {
         // App::default()
+        #[cfg(feature = "start_time")]
+        unsafe {
+            START_TIME = Some(instant::Instant::now());
+        }
         App::default()
     }
     pub fn empty() -> App {

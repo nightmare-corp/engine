@@ -1,3 +1,12 @@
+[features]
+print_fps = []
+first_frame_time = []
+start_time = []
+
+example:
+ne_render = {path = "../../crates/ne_render", features = ["print_fps"] }
+
+
 
 Renderer is not tested for browser. In the future make another version ne_renderer3D_wasm
 
