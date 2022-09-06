@@ -97,6 +97,8 @@ struct State {
     camera: look_at_camera::Camera,
     camera_controller: look_at_camera::CameraController,
     camera_uniform: look_at_camera::CameraUniform,
+
+    //Can we change this into a buffer vector? or is that stupid?
     camera_buffer: wgpu::Buffer,
     camera_bind_group: wgpu::BindGroup,
 
@@ -501,14 +503,6 @@ fn main_loop(app: App) {
     println!("main_loop done");
 
 }
-pub struct StartTime {
-    start_time:instant::Instant,
-}
-impl Default for StartTime {
-    fn default() -> Self {
-        Self { start_time: instant::Instant::now() }
-    }
-}
 
 #[cfg_attr(target_arch = "wasm32", wasm_bindgen(start))]
 async fn init_renderer(mut app: App) {
@@ -680,8 +674,8 @@ impl Plugin for RenderPlugin {
         .add_event::<WindowResized>()
         .add_event::<AppExit>()
         .add_event::<FrameEvent>()
-/*     
-        .add_event::<CreateWindow>()
+
+/*         .add_event::<CreateWindow>()
         .add_event::<WindowCreated>()
         .add_event::<WindowClosed>()
         .add_event::<WindowCloseRequested>()
@@ -695,6 +689,8 @@ impl Plugin for RenderPlugin {
         .add_event::<WindowBackendScaleFactorChanged>()
         .add_event::<FileDragAndDrop>()
         .add_event::<WindowMoved>() */
+
+
         // .init_resource::<Windows>()
         .set_runner(main_loop);
     }
