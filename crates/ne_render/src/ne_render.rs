@@ -1,5 +1,5 @@
 //thank you https://github.com/sotrh/learn-wgpu
-use std::{iter};
+use std::{iter, path::PathBuf};
 
 use ne_math::{Vec2, Vec3, Quat, Mat4};
 use ne::{warn, info, trace};
@@ -12,7 +12,7 @@ use wgpu::util::DeviceExt;
 use winit::{
     event::{*, self},
     event_loop::{ControlFlow, EventLoop, EventLoopWindowTarget},
-    window::{Window, Fullscreen}, dpi::PhysicalSize,
+    window::{Window, Fullscreen, WindowId}, dpi::PhysicalSize,
 };
 use model::{DrawModel, Vertex};
 use crate::cameras::{look_at_camera::{CameraFields, self}};
@@ -108,7 +108,6 @@ struct State {
     depth_texture: texture::Texture,
 
     is_right_mouse_pressed:bool,
-
 }
 
 struct FPSData {
@@ -507,7 +506,6 @@ fn main_loop(app: App) {
 #[cfg_attr(target_arch = "wasm32", wasm_bindgen(start))]
 async fn init_renderer(mut app: App) {
     println!("init_renderer");
-    app.insert_resource::<StartTime>(StartTime::default());
     // app.update(); //moved}
 
     let event_loop = EventLoop::new();
@@ -548,8 +546,14 @@ async fn init_renderer(mut app: App) {
     
                     if !state.input(event) {
                         match event {
-                            WindowEvent::CloseRequested
-                            | WindowEvent::KeyboardInput {
+                            WindowEvent::CloseRequested => {
+                                let mut window_close_requested_events =
+                                    world.resource_mut::
+                                        <Events<OnWindowCloseRequested>>();
+                                window_close_requested_events.send(
+                                    OnWindowCloseRequested { id: window_id });
+                            }
+                            WindowEvent::KeyboardInput {
                                 input:
                                     KeyboardInput {
                                         state: ElementState::Pressed,
@@ -564,17 +568,90 @@ async fn init_renderer(mut app: App) {
                                 state.resize(*physical_size);
                                 
                                 let mut resize_events
-                                = world.resource_mut::<Events<WindowResized>>();
-                                resize_events.send(WindowResized {
+                                = world.resource_mut::<Events<OnWindowResized>>();
+                                resize_events.send(OnWindowResized {
                                     id: window_id,
                                     width: window.inner_size().width as f32,
                                     height: window.inner_size().height as f32,
                                 });
                             }
-                            WindowEvent::ScaleFactorChanged { new_inner_size, .. } => {
+                            WindowEvent::ScaleFactorChanged { scale_factor, new_inner_size } => {
                                 state.resize(**new_inner_size);
+
+                                let mut scale_event = world.resource_mut
+                                ::<Events<OnWindowScaleFactorChanged>>();
+                                scale_event.send(OnWindowScaleFactorChanged 
+                                    { id: window_id, scale_factor: *scale_factor })
+
                             }
-                            _ => {}
+                            WindowEvent::Focused(focused)
+                            => {
+                                let mut focused_events = 
+                                    world.resource_mut::<Events<OnWindowFocused>>();
+                                focused_events.send(OnWindowFocused {
+                                    id: window_id,
+                                    //TODO why does this have to be dereferenced?
+                                    focused: *focused });
+                            }
+                            WindowEvent::HoveredFile(path_buf) => {
+                                let mut events = world.resource_mut::<Events<OnFileDragAndDrop>>();
+                                events.send(OnFileDragAndDrop::HoveredFile {
+                                    id: window_id,
+                                    //TODO TEST
+                                    path_buf: path_buf.to_path_buf(),
+                                });
+                            }
+                            WindowEvent::DroppedFile(path_buf) => {
+                                let mut events = world.resource_mut::<Events<OnFileDragAndDrop>>();
+                                events.send(OnFileDragAndDrop::DroppedFile {
+                                    id: window_id,
+                                    path_buf: path_buf.to_path_buf(),
+                                });
+                            }
+                                                    //TODO implement multiple windows before implementing this one.
+                        WindowEvent::CursorMoved { position, .. }
+                        => {
+                            // TODO
+                            // let mut cursor_moved_event 
+                            //     = world.resource_mut::<Events<OnCursorMoved>>();
+
+                            //     //idk what's happening here
+                            //     let winit_window = winit_windows.get_window(window_id).unwrap();
+                            //     let inner_size = winit_window.inner_size();
+        
+                            //     // move origin to bottom left
+                            //     let y_position = inner_size.height as f64 - position.y;
+        
+                            //     let physical_position = DVec2::new(position.x, y_position);
+                            // cursor_moved_event.send(OnCursorMoved {
+                            //         id: window_id, 
+                            //         position: (physical_position / window.scale_factor()).as_vec2(), 
+                            //     })
+
+                        }
+                        WindowEvent::CursorEntered{.. /* device id needed? */ } 
+                        => {
+                            let mut cursor_entered_events =
+                                world.resource_mut::<Events<OnCursorEntered>>();
+                            cursor_entered_events.send(OnCursorEntered { id: window_id });
+                        }
+                        WindowEvent::CursorLeft { device_id } => {
+                            let mut cursor_left_event 
+                            = world.resource_mut::<Events<OnCursorLeft>>();
+                            cursor_left_event.send(OnCursorLeft { id: window_id });
+                        }
+                        //TODO TEST
+                        WindowEvent::ReceivedCharacter(c) => {
+                            let mut char_input_events =
+                                world.resource_mut::<Events<OnReceivedCharacter>>();
+    
+                            char_input_events.send(OnReceivedCharacter {
+                                id: window_id,
+                                //TODO this dereference hits performance? Measure this
+                                char: *c,
+                            });
+                        }
+                         _ => {}
                         }
                     }
                 }
@@ -671,24 +748,34 @@ impl Plugin for RenderPlugin {
         //TODO what's going onnnnn
         println!("setup");
         app
-        .add_event::<WindowResized>()
+        .add_event::<OnWindowResized>()
         .add_event::<AppExit>()
         .add_event::<FrameEvent>()
 
-/*         .add_event::<CreateWindow>()
+
+        //TODO
+        .add_event::<OnWindowCloseRequested>()
+        .add_event::<OnWindowFocused>()
+
+//      .add_event::<OnWindowMoved>()
+        .add_event::<OnWindowScaleFactorChanged>()
+        .add_event::<OnFileDragAndDrop>()
+
+        .add_event::<OnCursorMoved>()
+        .add_event::<OnCursorEntered>()
+        .add_event::<OnCursorLeft>()
+
+        .add_event::<OnReceivedCharacter>()
+        //todo
+        .add_event::<OnRequestRedraw>()
+
+/*     
+        .add_event::<CreateWindow>()
         .add_event::<WindowCreated>()
         .add_event::<WindowClosed>()
-        .add_event::<WindowCloseRequested>()
-        .add_event::<RequestRedraw>()
-        .add_event::<CursorMoved>()
-        .add_event::<CursorEntered>()
-        .add_event::<CursorLeft>()
-        .add_event::<ReceivedCharacter>()
-        .add_event::<WindowFocused>()
-        .add_event::<WindowScaleFactorChanged>()
         .add_event::<WindowBackendScaleFactorChanged>()
-        .add_event::<FileDragAndDrop>()
-        .add_event::<WindowMoved>() */
+         */
+
 
 
         // .init_resource::<Windows>()
@@ -989,13 +1076,129 @@ impl WindowResizeConstraints {
 /// ================================================================================================
 /// A window event that is sent whenever a window's logical size has changed.
 #[derive(Debug, Clone)]
-pub struct WindowResized {
+pub struct OnWindowResized {
     pub id: winit::window::WindowId,
     /// The new logical width of the window.
     pub width: f32,
     /// The new logical height of the window.
     pub height: f32,
 }
+
+/// An event that indicates the window should redraw, even if its control flow is set to `Wait` and
+/// there have been no window events.
+#[derive(Debug, Clone)]
+pub struct OnRequestRedraw;
+
+/// An event that is sent whenever a new window is created.
+///
+/// To create a new window, send a [`CreateWindow`] event - this
+/// event will be sent in the handler for that event.
+#[derive(Debug, Clone)]
+pub struct OnWindowCreated {
+    pub id: WindowId,
+}
+
+/// An event that is sent whenever the operating systems requests that a window
+/// be closed. This will be sent when the close button of the window is pressed.
+///
+/// If the default [`WindowPlugin`] is used, these events are handled
+/// by [closing] the corresponding [`Window`].  
+/// To disable this behaviour, set `close_when_requested` on the [`WindowPlugin`]
+/// to `false`.
+///
+/// [`WindowPlugin`]: crate::WindowPlugin
+/// [`Window`]: crate::Window
+/// [closing]: crate::Window::close
+#[derive(Debug, Clone)]
+pub struct OnWindowCloseRequested {
+    pub id: WindowId,
+}
+
+/// An event that is sent whenever a window is closed. This will be sent by the
+/// handler for [`Window::close`].
+///
+/// [`Window::close`]: crate::Window::close
+#[derive(Debug, Clone)]
+pub struct OnWindowClosed {
+    pub id: WindowId,
+}
+/// An event reporting that the mouse cursor has moved on a window.
+///
+/// The event is sent only if the cursor is over one of the application's windows.
+/// It is the translated version of [`WindowEvent::CursorMoved`] from the `winit` crate.
+///
+/// Not to be confused with the [`MouseMotion`] event from `bevy_input`.
+///
+/// [`WindowEvent::CursorMoved`]: https://docs.rs/winit/latest/winit/event/enum.WindowEvent.html#variant.CursorMoved
+/// [`MouseMotion`]: bevy_input::mouse::MouseMotion
+#[derive(Debug, Clone)]
+pub struct OnCursorMoved {
+    /// The identifier of the window the cursor has moved on.
+    pub id: WindowId,
+
+    /// The position of the cursor, in window coordinates.
+    pub position: Vec2,
+}
+/// An event that is sent whenever the user's cursor enters a window.
+#[derive(Debug, Clone)]
+pub struct OnCursorEntered {
+    pub id: WindowId,
+}
+/// An event that is sent whenever the user's cursor leaves a window.
+#[derive(Debug, Clone)]
+pub struct OnCursorLeft {
+    pub id: WindowId,
+}
+
+
+/// An event that indicates a window has received or lost focus.
+#[derive(Debug, Clone)]
+pub struct OnWindowFocused {
+    pub id: WindowId,
+    pub focused: bool,
+}
+
+/// Events related to files being dragged and dropped on a window.
+#[derive(Debug, Clone)]
+pub enum OnFileDragAndDrop {
+    DroppedFile { id: WindowId, path_buf: PathBuf },
+
+    HoveredFile { id: WindowId, path_buf: PathBuf },
+
+    HoveredFileCancelled { id: WindowId },
+}
+
+/// An event that is sent when a window is repositioned in physical pixels.
+#[derive(Debug, Clone)]
+pub struct OnWindowMoved {
+    pub id: WindowId,
+    pub position: Vec2,
+}
+//TODO implement these maybe:
+/* /// An event that indicates that a new window should be created.
+#[derive(Debug, Clone)]
+pub struct OnCreateWindow {
+    pub id: WindowId,
+    pub descriptor: WindowDescriptor,
+} */
+/// An event that is sent whenever a window receives a character from the OS or underlying system.
+#[derive(Debug, Clone)]
+pub struct OnReceivedCharacter {
+    pub id: WindowId,
+    pub char: char,
+}
+/// An event that indicates a window's scale factor has changed.
+#[derive(Debug, Clone)]
+pub struct OnWindowScaleFactorChanged {
+    pub id: WindowId,
+    pub scale_factor: f64,
+}
+/* /// An event that indicates a window's OS-reported scale factor has changed.
+#[derive(Debug, Clone)]
+pub struct OnWindowBackendScaleFactorChanged {
+    pub id: WindowId,
+    pub scale_factor: f64,
+} */
 // #[derive(Debug, Clone)]
 /// Reader in loop that will end the event loop.
 pub struct AppExit;
