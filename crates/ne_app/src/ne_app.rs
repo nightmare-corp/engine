@@ -3,12 +3,26 @@
 use std::collections::HashMap;
 
 // use bevy_ecs::schedule::IntoSystemDescriptor;
-use bevy_ecs::{
+//TODO does pub use make compile times longer?
+pub use bevy_ecs::{
+    event::{Event, Events, ManualEventReader},
     schedule::{IntoSystemDescriptor, Schedule, ShouldRun, Stage, StageLabel, SystemStage},
     system::{IntoExclusiveSystem, Resource},
-    world::{FromWorld, World}, event::{Event, Events},
+    world::{FromWorld, World},
 };
 pub use ne::*;
+
+//globals
+//TODO replace by some kind of thread safe version.
+//These should not be modified, just read.
+#[cfg(feature = "start_time")]
+pub static mut START_TIME: Option<instant::Instant> = None;
+#[cfg(feature = "first_frame_time")]
+pub static mut FIRST_FRAME_TIME: Option<instant::Instant> = None;
+pub fn get_time_passed(time: Option<instant::Instant>) -> instant::Duration {
+    let now = instant::Instant::now();
+    now - time.unwrap()
+}
 
 //================================================================
 //TODO Make this my own code
@@ -190,6 +204,10 @@ impl Default for App {
 impl App {
     pub fn new() -> App {
         // App::default()
+        #[cfg(feature = "start_time")]
+        unsafe {
+            START_TIME = Some(instant::Instant::now());
+        }
         App::default()
     }
     pub fn empty() -> App {
@@ -200,9 +218,9 @@ impl App {
             sub_apps: HashMap::default(),
         }
     }
-    pub fn add_thread(&mut self, func: fn()) -> &mut Self {
-        self
-    }
+    // pub fn add_thread(&mut self, func: fn()) -> &mut Self {
+    //     self
+    // }
     pub fn add_plugin<T>(&mut self, plugin: T) -> &mut Self
     where
         T: Plugin,
@@ -267,7 +285,7 @@ impl App {
     /// #
     /// app.add_system(my_system);
     /// ```
-    pub fn add_running<Params>(&mut self, system: impl IntoSystemDescriptor<Params>) -> &mut Self {
+    pub fn add_system<Params>(&mut self, system: impl IntoSystemDescriptor<Params>) -> &mut Self {
         self.add_system_to_stage(CoreStage::Update, system)
     }
     /// Adds a system to the [`Stage`] identified by `stage_label`.
@@ -327,8 +345,7 @@ impl App {
     }
 
     pub fn run(&mut self) {
-        println!("run");
-        while true {
+        loop {
             self.schedule.run(&mut self.world);
 
             // #[cfg(feature = "trace")]
@@ -336,8 +353,7 @@ impl App {
 
             //Calls the apps runner funtion! Self::set_runner
             let mut app = std::mem::replace(self, App::empty());
-            let runner =
-                std::mem::replace(&mut app.runner, Box::new(run_once));
+            let runner = std::mem::replace(&mut app.runner, Box::new(run_once));
             (runner)(app);
         }
     }
@@ -534,4 +550,3 @@ pub trait Plugin /* Any + Send + Sync */ {
 fn run_once(mut app: App) {
     app.update();
 }
-

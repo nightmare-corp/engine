@@ -1,40 +1,40 @@
 //thank you https://github.com/sotrh/learn-wgpu
-use std::iter;
+use std::{iter, path::PathBuf};
 
-use cgmath::prelude::*;
-use glam::Vec2;
-use instant::Duration;
-use ne::warn;
-use ne_app1::{App, Plugin};
+use ne_math::{Vec2, Vec3, Quat, Mat4};
+use ne::{warn, info, trace};
+use ne_app::{App, Plugin, Events, ManualEventReader};
+#[cfg(feature = "first_frame_time")]
+use ne_app::FIRST_FRAME_TIME;
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
 use wgpu::util::DeviceExt;
 use winit::{
-    event::*,
-    event_loop::{ControlFlow, EventLoop},
-    window::Window, dpi::PhysicalSize,
+    event::{*, self},
+    event_loop::{ControlFlow, EventLoop, EventLoopWindowTarget},
+    window::{Window, Fullscreen, WindowId}, dpi::PhysicalSize,
 };
 use model::{DrawModel, Vertex};
-use crate::camera::CameraFields;
+use crate::cameras::{look_at_camera::{CameraFields, self}};
 
-mod camera;
+mod cameras;
 mod model;
 mod resources;
 mod texture;
 
-const NUM_INSTANCES_PER_ROW: u32 = 100;
+const NUM_INSTANCES_PER_ROW: u32 = 50;
 
 struct Instance {
-    position: cgmath::Vector3<f32>,
-    rotation: cgmath::Quaternion<f32>,
+    position: Vec3,
+    rotation: Quat,
 }
 
 impl Instance {
     fn to_raw(&self) -> InstanceRaw {
         InstanceRaw {
-            model: (cgmath::Matrix4::from_translation(self.position)
-                * cgmath::Matrix4::from(self.rotation))
-            .into(),
+            model: (Mat4::from_translation(self.position)
+                * Mat4::from_quat(self.rotation))
+            .to_cols_array_2d(),
         }
     }
 }
@@ -93,15 +93,53 @@ struct State {
     size: winit::dpi::PhysicalSize<u32>,
     render_pipeline: wgpu::RenderPipeline,
     obj_model: model::Model,
-    camera: camera::Camera,
-    camera_controller: camera::CameraController,
-    camera_uniform: camera::CameraUniform,
+    
+    camera: look_at_camera::Camera,
+    camera_controller: look_at_camera::CameraController,
+    camera_uniform: look_at_camera::CameraUniform,
+
+    //Can we change this into a buffer vector? or is that stupid?
     camera_buffer: wgpu::Buffer,
     camera_bind_group: wgpu::BindGroup,
+
     instances: Vec<Instance>,
     // #[allow(dead_code)]
     instance_buffer: wgpu::Buffer,
     depth_texture: texture::Texture,
+
+    is_right_mouse_pressed:bool,
+}
+
+struct FPSData {
+    low:f32, //1%
+    index:f32,
+    // lowest:u32, //.1%
+}
+impl Default for FPSData
+{
+    fn default() -> Self {
+        Self { low: 100_000_000.0, 
+            index: Default::default() }
+    }
+}
+impl FPSData
+{
+    fn get_lowest(&mut self, fps:f32) -> f32
+    {
+        self.index+=1.0;
+        //reset every 100+ frames
+        if self.index>=100.0
+        {
+            self.index = 0.0;
+            self.low = 100_000_000.0;
+        }
+        //set if lower
+        if fps<self.low
+        {
+            self.low=fps;
+        }
+        self.low
+    }
 }
 
 impl State {
@@ -110,7 +148,7 @@ impl State {
 
         // The instance is a handle to our GPU
         // BackendBit::PRIMARY => Vulkan + Metal + DX12 + Browser WebGPU
-        log::warn!("WGPU setup");
+        warn!("WGPU setup");
         let instance = wgpu::Instance::new(wgpu::Backends::all());
         let surface = unsafe { instance.create_surface(window) };
         let adapter = instance
@@ -121,7 +159,7 @@ impl State {
             })
             .await
             .unwrap();
-        log::warn!("device and queue");
+        warn!("device and queue");
         let (device, queue) = adapter
             .request_device(
                 &wgpu::DeviceDescriptor {
@@ -141,7 +179,7 @@ impl State {
             .await
             .unwrap();
 
-        log::warn!("Surface");
+        warn!("Surface");
         let config = wgpu::SurfaceConfiguration {
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
             format: surface.get_supported_formats(&adapter)[0],
@@ -175,14 +213,14 @@ impl State {
                 label: Some("texture_bind_group_layout"),
             });
 
-        let camera = camera::Camera::new(
+        let camera = look_at_camera::Camera::new(
             CameraFields{
             aspect: (config.width as f32 / config.height as f32),
             fovy: 45.0, znear: 0.1, zfar: 100.0,
-            ..camera::CameraFields::default()});
-        let camera_controller = camera::CameraController::new(0.2);
+            ..look_at_camera::CameraFields::default()});
+        let camera_controller = look_at_camera::CameraController::new(7.0);
 
-        let mut camera_uniform = camera::CameraUniform::new();
+        let mut camera_uniform = look_at_camera::CameraUniform::new();
         camera_uniform.update_view_proj(&camera);
 
         //Buffer that will put camera-vpm-matrix into shader
@@ -199,17 +237,14 @@ impl State {
                     let x = SPACE_BETWEEN * (x as f32 - NUM_INSTANCES_PER_ROW as f32 / 2.0);
                     let z = SPACE_BETWEEN * (z as f32 - NUM_INSTANCES_PER_ROW as f32 / 2.0);
 
-                    let position = cgmath::Vector3 { x, y: 0.0, z };
+                    let position = Vec3 { x, y: 0.0, z };
 
-                    let rotation = if position.is_zero() {
-                        cgmath::Quaternion::from_axis_angle(
-                            cgmath::Vector3::unit_z(),
-                            cgmath::Deg(0.0),
-                        )
+                    //How to know if position is zero???
+                    let rotation = if let Some(pos) = position.try_normalize() {
+                        Quat::from_axis_angle(pos, ne_math::to_radians(45.0))
                     } else {
-                        cgmath::Quaternion::from_axis_angle(position.normalize(), cgmath::Deg(45.0))
+                        Quat::from_axis_angle(Vec3::Z, 0.0)
                     };
-
                     Instance { position, rotation }
                 })
             })
@@ -246,7 +281,7 @@ impl State {
             label: Some("camera_bind_group"),
         });
 
-        log::warn!("Load model");
+        warn!("Load model");
         let obj_model = resources::load_model(
             //TODO Other models.
             "trapeprism2.obj",
@@ -338,6 +373,8 @@ impl State {
             instances,
             instance_buffer,
             depth_texture,
+
+            is_right_mouse_pressed: false,
         }
     }
 
@@ -353,11 +390,35 @@ impl State {
         }
     }
     fn input(&mut self, event: &WindowEvent) -> bool {
-        self.camera_controller.process_events(event)
+        match event {
+            WindowEvent::KeyboardInput {
+                input:
+                    KeyboardInput {
+                        virtual_keycode: Some(key),
+                        state,
+                        ..
+                    },
+                ..
+            } => self.camera_controller.process_events(event),
+            WindowEvent::MouseWheel { delta, .. } => {
+                self.camera_controller.process_scroll(delta);
+                true
+            }
+            WindowEvent::MouseInput {
+                button: MouseButton::Right,
+                state,
+                ..
+            } => {
+                self.is_right_mouse_pressed = *state == ElementState::Pressed;
+                true
+            }
+            _ => false,
+        }
+
     }
 
     //updates camera, can be cleaner/faster/moved into camera.rs
-    fn update(&mut self, dt:Duration) {
+    fn update(&mut self, dt:f32) {
         self.camera_controller.update_camera(&mut self.camera,dt);
         self.camera_uniform.update_view_proj(&self.camera);
         self.queue.write_buffer(
@@ -413,13 +474,12 @@ impl State {
             // understand how transforms work
             // understand how locations work?
 
-
             //Is instanced draw just better..?
             render_pass.draw_model_instanced(
                 &self.obj_model,
                 0..self.instances.len() as u32,
                 &self.camera_bind_group,
-            );
+            );           
 
             // render_pass.draw_model(&self.obj_model, &self.camera_bind_group);
         }
@@ -433,142 +493,294 @@ impl State {
 
 //TODO HOW TO SHORTEN THIS?
 fn main_loop(app: App) {
+    //TODO why is main_loop before exiting??????
+    println!("main_loop");
+
+    //is this async implementation any good?
     pollster::block_on(init_renderer(app));
+
+    println!("main_loop done");
+
 }
+
 #[cfg_attr(target_arch = "wasm32", wasm_bindgen(start))]
 async fn init_renderer(mut app: App) {
-/*     cfg_if::cfg_if! {
-        if #[cfg(target_arch = "wasm32")] {
-            std::panic::set_hook(Box::new(console_error_panic_hook::hook));
-            console_log::init_with_level(log::Level::Warn).expect("Could't initialize logger");
-        } else {
-            // env_logger::init(); //already inited
-        }
-    } */
-    let mut last_render_time = instant::Instant::now();
+    println!("init_renderer");
+    // app.update(); //moved}
 
     let event_loop = EventLoop::new();
     //TODO can this code be shrinked?
     let win_settings =  app.world.get_resource::<WindowSettings>()
         .cloned().unwrap_or_default();
     let window = create_window(&win_settings, &event_loop);
-    /*     #[cfg(target_arch = "wasm32")]
 
-       {
-           // Winit prevents sizing with CSS, so we have to set
-           // the size manually when on web.
-           use winit::dpi::PhysicalSize;
-           window.set_inner_size(PhysicalSize::new(450, 400));
-
-           use winit::platform::web::WindowExtWebSys;
-           web_sys::window()
-               .and_then(|win| win.document())
-               .and_then(|doc| {
-                   let dst = doc.get_element_by_id("wasm-example")?;
-                   let canvas = web_sys::Element::from(window.canvas());
-                   dst.append_child(&canvas).ok()?;
-                   Some(())
-               })
-               .expect("Couldn't append canvas to document body.");
-       }
-    */
-    // State::new uses async code, so we're going to wait for it to finish
-    
     let mut state = State::new(&window, win_settings).await;
-    event_loop.run(move |event, _, control_flow| {
-        *control_flow = ControlFlow::Poll;
-        //update app
-        app.update();
+
+    trace!("pre event_loop.run");
+
+    //benchmark values.
+    #[cfg(feature = "first_frame_time")]
+    let mut once_benchmark = true;
+    let mut last_render_time = instant::Instant::now();
+    let mut frame_count:u64 = 1;
+    //exit window event reader
+    let mut app_exit_event_reader = ManualEventReader::<AppExit>::default();
+
+    #[cfg(feature = "print_fps")]
+    let mut fpsd = FPSData::default();
+
+    let event_handler = 
+    move |event: Event<()>,
+        event_loop: &EventLoopWindowTarget<()>,
+        control_flow: &mut ControlFlow| {
         match event {
-            Event::MainEventsCleared => window.request_redraw(),
-            Event::WindowEvent {
-                ref event,
-                window_id,
-            } if window_id == window.id() => {
-                if !state.input(event) {
-                    match event {
-                        WindowEvent::CloseRequested
-                        | WindowEvent::KeyboardInput {
-                            input:
-                                KeyboardInput {
-                                    state: ElementState::Pressed,
-                                    virtual_keycode: Some(VirtualKeyCode::Escape),
-                                    ..
-                                },
-                            ..
-                        } => *control_flow = ControlFlow::Exit,
-                        WindowEvent::Resized(physical_size) => {
-                            state.resize(*physical_size);
+            event::Event::MainEventsCleared => {
+                window.request_redraw();
+                app.update(); //is this supposed to be here?
+            },
+            event::Event::WindowEvent {
+                    ref event,
+                    window_id,
+                } if window_id == window.id() => {
+                    let world = app.world.cell();
+    
+                    if !state.input(event) {
+                        match event {
+                            WindowEvent::CloseRequested => {
+                                let mut window_close_requested_events =
+                                    world.resource_mut::
+                                        <Events<OnWindowCloseRequested>>();
+                                window_close_requested_events.send(
+                                    OnWindowCloseRequested { id: window_id });
+                            }
+                            WindowEvent::KeyboardInput {
+                                input:
+                                    KeyboardInput {
+                                        state: ElementState::Pressed,
+                                        virtual_keycode: Some(VirtualKeyCode::Escape),
+                                        ..
+                                    },
+                                ..
+                            } => *control_flow = ControlFlow::Exit,
+                            WindowEvent::Resized(physical_size) => {
+    
+                                //TODO MOVE TASK: decouple window and renderer
+                                state.resize(*physical_size);
+                                
+                                let mut resize_events
+                                = world.resource_mut::<Events<OnWindowResized>>();
+                                resize_events.send(OnWindowResized {
+                                    id: window_id,
+                                    width: window.inner_size().width as f32,
+                                    height: window.inner_size().height as f32,
+                                });
+                            }
+                            WindowEvent::ScaleFactorChanged { scale_factor, new_inner_size } => {
+                                state.resize(**new_inner_size);
+
+                                let mut scale_event = world.resource_mut
+                                ::<Events<OnWindowScaleFactorChanged>>();
+                                scale_event.send(OnWindowScaleFactorChanged 
+                                    { id: window_id, scale_factor: *scale_factor })
+
+                            }
+                            WindowEvent::Focused(focused)
+                            => {
+                                let mut focused_events = 
+                                    world.resource_mut::<Events<OnWindowFocused>>();
+                                focused_events.send(OnWindowFocused {
+                                    id: window_id,
+                                    //TODO why does this have to be dereferenced?
+                                    focused: *focused });
+                            }
+                            WindowEvent::HoveredFile(path_buf) => {
+                                let mut events = world.resource_mut::<Events<OnFileDragAndDrop>>();
+                                events.send(OnFileDragAndDrop::HoveredFile {
+                                    id: window_id,
+                                    //TODO TEST
+                                    path_buf: path_buf.to_path_buf(),
+                                });
+                            }
+                            WindowEvent::DroppedFile(path_buf) => {
+                                let mut events = world.resource_mut::<Events<OnFileDragAndDrop>>();
+                                events.send(OnFileDragAndDrop::DroppedFile {
+                                    id: window_id,
+                                    path_buf: path_buf.to_path_buf(),
+                                });
+                            }
+                                                    //TODO implement multiple windows before implementing this one.
+                        WindowEvent::CursorMoved { position, .. }
+                        => {
+                            // TODO
+                            // let mut cursor_moved_event 
+                            //     = world.resource_mut::<Events<OnCursorMoved>>();
+
+                            //     //idk what's happening here
+                            //     let winit_window = winit_windows.get_window(window_id).unwrap();
+                            //     let inner_size = winit_window.inner_size();
+        
+                            //     // move origin to bottom left
+                            //     let y_position = inner_size.height as f64 - position.y;
+        
+                            //     let physical_position = DVec2::new(position.x, y_position);
+                            // cursor_moved_event.send(OnCursorMoved {
+                            //         id: window_id, 
+                            //         position: (physical_position / window.scale_factor()).as_vec2(), 
+                            //     })
+
                         }
-                        WindowEvent::ScaleFactorChanged { new_inner_size, .. } => {
-                            state.resize(**new_inner_size);
+                        WindowEvent::CursorEntered{.. /* device id needed? */ } 
+                        => {
+                            let mut cursor_entered_events =
+                                world.resource_mut::<Events<OnCursorEntered>>();
+                            cursor_entered_events.send(OnCursorEntered { id: window_id });
                         }
-                        _ => {}
+                        WindowEvent::CursorLeft { device_id } => {
+                            let mut cursor_left_event 
+                            = world.resource_mut::<Events<OnCursorLeft>>();
+                            cursor_left_event.send(OnCursorLeft { id: window_id });
+                        }
+                        //TODO TEST
+                        WindowEvent::ReceivedCharacter(c) => {
+                            let mut char_input_events =
+                                world.resource_mut::<Events<OnReceivedCharacter>>();
+    
+                            char_input_events.send(OnReceivedCharacter {
+                                id: window_id,
+                                //TODO this dereference hits performance? Measure this
+                                char: *c,
+                            });
+                        }
+                         _ => {}
+                        }
                     }
                 }
-            }
-            Event::RedrawRequested(window_id) if window_id == window.id() => {
-                //NPP
-                let now = instant::Instant::now();
-                //TODO move to global/ne_time (new crate) if it's ever needed.
-                let delta_time:Duration = now - last_render_time;
-                last_render_time = now;
-                
-
-                //TODO This is interesting... can we replace it by a placeholder to inject stuff in? Then again hard coded isn't bad..? 
-                //But bevy_ecs does have something convenient here
-                state.update(delta_time);
-
-                match state.render() {
-                    Ok(_) => {}
-                    // Reconfigure the surface if it's lost or outdated
-                    Err(wgpu::SurfaceError::Lost | wgpu::SurfaceError::Outdated) => {
-                        state.resize(state.size)
+            event::Event::DeviceEvent {
+                    event: DeviceEvent::MouseMotion{ delta, },
+                    .. // We're not using device_id currently
+                } => if state.is_right_mouse_pressed {
+                    //
+                    state.camera_controller.process_mouse(delta.0, delta.1)
+                }
+            event::Event::RedrawRequested(window_id) if window_id == window.id() => {
+                    //hope this gets optimized somehow
+                    #[cfg(feature = "first_frame_time")]
+                    if once_benchmark //do once
+                    {
+                        unsafe{
+                            FIRST_FRAME_TIME = Some(instant::Instant::now());
+                        }
+                        once_benchmark=false;
                     }
-                    // The system is out of memory, we should probably quit
-                    Err(wgpu::SurfaceError::OutOfMemory) => *control_flow = ControlFlow::Exit,
-                    // We're ignoring timeouts
-                    Err(wgpu::SurfaceError::Timeout) => log::warn!("Surface timeout"),
+                    let now = instant::Instant::now();
+                    let delta_time = (now - last_render_time).as_secs_f32();
+                    last_render_time = now;
+    
+                    #[cfg(feature = "print_fps")]
+                    {
+                        //TODO move maybe
+                        let fps = 1.0/delta_time;
+                        // a little messy
+                        frame_count+=1;
+                        unsafe
+                        {
+                            let time_passed = (now - FIRST_FRAME_TIME.unwrap()).as_secs_f32();
+                            let average_fps = frame_count as f32/time_passed;
+                            
+                            println!("fps:{:<14}fps | avg:{:<14}fps | 1%LOW:{:<10}fps",fps,average_fps, fpsd.get_lowest(fps));
+                        }
+                    }
+                    state.update(delta_time);
+    
+                    match state.render() {
+                        Ok(_) => {}
+                        // Reconfigure the surface if it's lost or outdated
+                        Err(wgpu::SurfaceError::Lost | wgpu::SurfaceError::Outdated) => {
+                            state.resize(state.size)
+                        }
+                        // The system is out of memory, we should probably quit
+                        Err(wgpu::SurfaceError::OutOfMemory) => *control_flow = ControlFlow::Exit,
+                        // We're ignoring timeouts
+                        Err(wgpu::SurfaceError::Timeout) => warn!("Surface timeout"),
+                    }
+
+                    // //add event right here...
+                    // let redraw_event = app.world.get_resource::<Events<Redraw>>() {
+
+                    // }
+                    //sent an event from here, frame is done!
+                    //TODO remove..?
+                    let world = app.world.cell();
+                    let mut frame_events = world.resource_mut::<Events<FrameEvent>>();
+                    frame_events.send(FrameEvent {});
+
+                }
+                event::Event::RedrawEventsCleared => {
+                    //measure
+                    if let Some(app_exit_events) = 
+                        app.world.get_resource::<Events<AppExit>>() {
+                        if app_exit_event_reader.iter(app_exit_events).last().is_some() {
+                            *control_flow = ControlFlow::Exit;
+                        }
+                    }
+                }
+                _ => 
+                {
+    
                 }
             }
-            _ => {}
-        }
-    });
+    };
+    println!("event loop run");
+    run(event_loop, event_handler);
 }
 
+fn run<F>(event_loop: EventLoop<()>, event_handler: F) -> !
+where
+    F: 'static + FnMut(Event<'_, ()>, &EventLoopWindowTarget<()>, &mut ControlFlow),
+{
+    event_loop.run(event_handler)
+}
 // #[derive(Default)]
+///sets runner using .set_runner()
 pub struct RenderPlugin;
 impl Plugin for RenderPlugin {
     fn setup(&self, app: &mut App) {
+
+        //TODO what's going onnnnn
+        println!("setup");
         app
-/*         .add_event::<WindowResized>()
+        .add_event::<OnWindowResized>()
+        .add_event::<AppExit>()
+        .add_event::<FrameEvent>()
+
+
+        //TODO
+        .add_event::<OnWindowCloseRequested>()
+        .add_event::<OnWindowFocused>()
+
+//      .add_event::<OnWindowMoved>()
+        .add_event::<OnWindowScaleFactorChanged>()
+        .add_event::<OnFileDragAndDrop>()
+
+        .add_event::<OnCursorMoved>()
+        .add_event::<OnCursorEntered>()
+        .add_event::<OnCursorLeft>()
+
+        .add_event::<OnReceivedCharacter>()
+        //todo
+/*     
         .add_event::<CreateWindow>()
         .add_event::<WindowCreated>()
         .add_event::<WindowClosed>()
-        .add_event::<WindowCloseRequested>()
-        .add_event::<RequestRedraw>()
-        .add_event::<CursorMoved>()
-        .add_event::<CursorEntered>()
-        .add_event::<CursorLeft>()
-        .add_event::<ReceivedCharacter>()
-        .add_event::<WindowFocused>()
-        .add_event::<WindowScaleFactorChanged>()
         .add_event::<WindowBackendScaleFactorChanged>()
-        .add_event::<FileDragAndDrop>()
-        .add_event::<WindowMoved>() */
+*/
+
+
+
         // .init_resource::<Windows>()
-        
         .set_runner(main_loop);
-
-
     }
 }
-/// ================================================================================================
-/// Events
-/// ================================================================================================
-
-
-
 /// ================================================================================================
 /// Window functionality
 /// ================================================================================================
@@ -637,7 +849,7 @@ pub struct WindowSettings {
     /// Sets whether the window is resizable.
     /// ## Platform-specific
     /// Sets the [`WindowMode`](crate::WindowMode).
-    pub mode: WindowMode,
+    pub window_mode: WindowMode,
     /// The "html canvas" element selector.
     /// If set, this selector will be used to find a matching html canvas element,
     /// rather than creating a new one.
@@ -658,26 +870,90 @@ impl Default for WindowSettings {
             cursor_visible: true,
             transparent: false,
             fit_canvas_to_parent: false,
-            present_mode: wgpu::PresentMode::Fifo,
+            present_mode: wgpu::PresentMode::Immediate,
                         
             //TODO THESE NEED TO BE ENABLED ON STARTUP
             position: WindowPosition::Automatic,
             resize_constraints: WindowResizeConstraints::default(),
             scale_factor_override: None,
 
-            mode: WindowMode::Windowed,
+            window_mode: WindowMode::Windowed,
             canvas: None,
         }
     }
 }
+
+//window
+pub fn get_fitting_videomode(
+    monitor: &winit::monitor::MonitorHandle,
+    width: u32,
+    height: u32,
+) -> winit::monitor::VideoMode {
+    let mut modes = monitor.video_modes().collect::<Vec<_>>();
+
+    fn abs_diff(a: u32, b: u32) -> u32 {
+        if a > b {
+            return a - b;
+        }
+        b - a
+    }
+
+    modes.sort_by(|a, b| {
+        use std::cmp::Ordering::*;
+        match abs_diff(a.size().width, width).cmp(&abs_diff(b.size().width, width)) {
+            Equal => {
+                match abs_diff(a.size().height, height).cmp(&abs_diff(b.size().height, height)) {
+                    Equal => b.refresh_rate().cmp(&a.refresh_rate()),
+                    default => default,
+                }
+            }
+            default => default,
+        }
+    });
+
+    modes.first().unwrap().clone()
+}
+
 fn create_window(win_settings: &WindowSettings, event_loop: &EventLoop<()>) -> Window
 {
-    let wind = winit::window::WindowBuilder::new()
+    let mut wind = winit::window::WindowBuilder::new()
     .with_title(win_settings.title.clone())
     .with_inner_size(PhysicalSize::new(win_settings.width, win_settings.height))
     .with_transparent(win_settings.transparent)
     .with_resizable(win_settings.resizable)
     .with_decorations(win_settings.decorations);
+
+    match win_settings.window_mode
+    {
+        //incomplete 
+        WindowMode::Windowed => {},
+        WindowMode::BorderlessFullscreen => {
+            // let mut monitor_index = 0; //todo
+            let mut monitor = event_loop
+            .available_monitors()
+            .next()
+            .expect("no monitor found!");
+            let fullscreen = Some(Fullscreen::Borderless(Some(monitor.clone())));
+            info!("Setting mode: {:?}", fullscreen);
+            wind = wind.with_fullscreen(fullscreen);
+        },
+        WindowMode::SizedFullscreen => todo!(),
+        WindowMode::Fullscreen => {
+            // let mut monitor_index = 0; //todo
+            let mut monitor = event_loop
+            .available_monitors()
+            .next()
+            .expect("no monitor found!");
+            let fullscreen = Some(Fullscreen::Exclusive(get_fitting_videomode(
+                &monitor,
+                win_settings.width as u32,
+                win_settings.height as u32,
+            )),);
+            info!("Setting mode: {:?}", fullscreen);
+            wind = wind.with_fullscreen(fullscreen);
+        },
+    }
+
     //TODO ...
     // match (win_settings.mode)
     // {
@@ -793,412 +1069,132 @@ impl WindowResizeConstraints {
     }
 }
 
-//TODO RUNTIME WINDOW CHANGES
-/* 
-    /// Get the window's [`WindowId`].
-    #[inline]
-    pub fn id(&self) -> WindowId {
-        self.id
-    }
 
-    /// The current logical width of the window's client area.
-    #[inline]
-    pub fn width(&self) -> f32 {
-        (self.physical_width as f64 / self.scale_factor()) as f32
-    }
-
-    /// The current logical height of the window's client area.
-    #[inline]
-    pub fn height(&self) -> f32 {
-        (self.physical_height as f64 / self.scale_factor()) as f32
-    }
-
-    /// The requested window client area width in logical pixels from window
-    /// creation or the last call to [`set_resolution`](Window::set_resolution).
-    ///
-    /// This may differ from the actual width depending on OS size limits and
-    /// the scaling factor for high DPI monitors.
-    #[inline]
-    pub fn requested_width(&self) -> f32 {
-        self.requested_width
-    }
-
-    /// The requested window client area height in logical pixels from window
-    /// creation or the last call to [`set_resolution`](Window::set_resolution).
-    ///
-    /// This may differ from the actual width depending on OS size limits and
-    /// the scaling factor for high DPI monitors.
-    #[inline]
-    pub fn requested_height(&self) -> f32 {
-        self.requested_height
-    }
-
-    /// The window's client area width in physical pixels.
-    #[inline]
-    pub fn physical_width(&self) -> u32 {
-        self.physical_width
-    }
-
-    /// The window's client area height in physical pixels.
-    #[inline]
-    pub fn physical_height(&self) -> u32 {
-        self.physical_height
-    }
-
-    /// The window's client resize constraint in logical pixels.
-    #[inline]
-    pub fn resize_constraints(&self) -> WindowResizeConstraints {
-        self.resize_constraints
-    }
-
-    /// The window's client position in physical pixels.
-    #[inline]
-    pub fn position(&self) -> Option<IVec2> {
-        self.position
-    }
-    /// Set whether or not the window is maximized.
-    #[inline]
-    pub fn set_maximized(&mut self, maximized: bool) {
-        self.command_queue
-            .push(WindowCommand::SetMaximized { maximized });
-    }
-
-    /// Sets the window to minimized or back.
-    ///
-    /// # Platform-specific
-    /// - iOS / Android / Web: Unsupported.
-    /// - Wayland: Un-minimize is unsupported.
-    #[inline]
-    pub fn set_minimized(&mut self, minimized: bool) {
-        self.command_queue
-            .push(WindowCommand::SetMinimized { minimized });
-    }
-
-    /// Modifies the position of the window in physical pixels.
-    ///
-    /// Note that the top-left hand corner of the desktop is not necessarily the same as the screen.
-    /// If the user uses a desktop with multiple monitors, the top-left hand corner of the
-    /// desktop is the top-left hand corner of the monitor at the top-left of the desktop. This
-    /// automatically un-maximizes the window if it's maximized.
-    ///
-    /// # Platform-specific
-    ///
-    /// - iOS: Can only be called on the main thread. Sets the top left coordinates of the window in
-    ///   the screen space coordinate system.
-    /// - Web: Sets the top-left coordinates relative to the viewport.
-    /// - Android / Wayland: Unsupported.
-    #[inline]
-    pub fn set_position(&mut self, position: IVec2) {
-        self.command_queue
-            .push(WindowCommand::SetPosition { position });
-    }
-
-    /// Modifies the position of the window to be in the center of the current monitor
-    ///
-    /// # Platform-specific
-    /// - iOS: Can only be called on the main thread.
-    /// - Web / Android / Wayland: Unsupported.
-    #[inline]
-    pub fn center_window(&mut self, monitor_selection: MonitorSelection) {
-        self.command_queue
-            .push(WindowCommand::Center(monitor_selection));
-    }
-
-    /// Modifies the minimum and maximum window bounds for resizing in logical pixels.
-    #[inline]
-    pub fn set_resize_constraints(&mut self, resize_constraints: WindowResizeConstraints) {
-        self.command_queue
-            .push(WindowCommand::SetResizeConstraints { resize_constraints });
-    }
-
-    /// Request the OS to resize the window such the client area matches the specified
-    /// width and height.
-    #[allow(clippy::float_cmp)]
-    pub fn set_resolution(&mut self, width: f32, height: f32) {
-        if self.requested_width == width && self.requested_height == height {
-            return;
-        }
-
-        self.requested_width = width;
-        self.requested_height = height;
-        self.command_queue.push(WindowCommand::SetResolution {
-            logical_resolution: Vec2::new(self.requested_width, self.requested_height),
-            scale_factor: self.scale_factor(),
-        });
-    }
-
-    /// Override the os-reported scaling factor.
-    #[allow(clippy::float_cmp)]
-    pub fn set_scale_factor_override(&mut self, scale_factor: Option<f64>) {
-        if self.scale_factor_override == scale_factor {
-            return;
-        }
-
-        self.scale_factor_override = scale_factor;
-        self.command_queue.push(WindowCommand::SetScaleFactor {
-            scale_factor: self.scale_factor(),
-        });
-        self.command_queue.push(WindowCommand::SetResolution {
-            logical_resolution: Vec2::new(self.requested_width, self.requested_height),
-            scale_factor: self.scale_factor(),
-        });
-    }
-
-    #[allow(missing_docs)]
-    #[inline]
-    pub fn update_scale_factor_from_backend(&mut self, scale_factor: f64) {
-        self.backend_scale_factor = scale_factor;
-    }
-
-    #[allow(missing_docs)]
-    #[inline]
-    pub fn update_actual_size_from_backend(&mut self, physical_width: u32, physical_height: u32) {
-        self.physical_width = physical_width;
-        self.physical_height = physical_height;
-    }
-
-    #[allow(missing_docs)]
-    #[inline]
-    pub fn update_actual_position_from_backend(&mut self, position: IVec2) {
-        self.position = Some(position);
-    }
-
-    /// The ratio of physical pixels to logical pixels
-    ///
-    /// `physical_pixels = logical_pixels * scale_factor`
-    pub fn scale_factor(&self) -> f64 {
-        self.scale_factor_override
-            .unwrap_or(self.backend_scale_factor)
-    }
-
-    /// The window scale factor as reported by the window backend.
-    ///
-    /// This value is unaffected by [`scale_factor_override`](Window::scale_factor_override).
-    #[inline]
-    pub fn backend_scale_factor(&self) -> f64 {
-        self.backend_scale_factor
-    }
-    /// The scale factor set with [`set_scale_factor_override`](Window::set_scale_factor_override).
-    ///
-    /// This value may be different from the scale factor reported by the window backend.
-    #[inline]
-    pub fn scale_factor_override(&self) -> Option<f64> {
-        self.scale_factor_override
-    }
-    /// Get the window's title.
-    #[inline]
-    pub fn title(&self) -> &str {
-        &self.title
-    }
-    /// Set the window's title.
-    pub fn set_title(&mut self, title: String) {
-        self.title = title.to_string();
-        self.command_queue.push(WindowCommand::SetTitle { title });
-    }
-
-    #[inline]
-    #[doc(alias = "vsync")]
-    /// Get the window's [`PresentMode`].
-    pub fn present_mode(&self) -> PresentMode {
-        self.present_mode
-    }
-
-    #[inline]
-    #[doc(alias = "set_vsync")]
-    /// Set the window's [`PresentMode`].
-    pub fn set_present_mode(&mut self, present_mode: PresentMode) {
-        self.present_mode = present_mode;
-        self.command_queue
-            .push(WindowCommand::SetPresentMode { present_mode });
-    }
-    /// Get whether or not the window is resizable.
-    #[inline]
-    pub fn resizable(&self) -> bool {
-        self.resizable
-    }
-    /// Set whether or not the window is resizable.
-    pub fn set_resizable(&mut self, resizable: bool) {
-        self.resizable = resizable;
-        self.command_queue
-            .push(WindowCommand::SetResizable { resizable });
-    }
-    /// Get whether or not decorations are enabled.
-    ///
-    /// (Decorations are the minimize, maximize, and close buttons on desktop apps)
-    ///
-    /// ## Platform-specific
-    ///
-    /// **`iOS`**, **`Android`**, and the **`Web`** do not have decorations.
-    #[inline]
-    pub fn decorations(&self) -> bool {
-        self.decorations
-    }
-    /// Set whether or not decorations are enabled.
-    ///
-    /// (Decorations are the minimize, maximize, and close buttons on desktop apps)
-    ///
-    /// ## Platform-specific
-    ///
-    /// **`iOS`**, **`Android`**, and the **`Web`** do not have decorations.
-    pub fn set_decorations(&mut self, decorations: bool) {
-        self.decorations = decorations;
-        self.command_queue
-            .push(WindowCommand::SetDecorations { decorations });
-    }
-    /// Get whether or not the cursor is locked.
-    ///
-    /// ## Platform-specific
-    ///
-    /// - **`macOS`** doesn't support cursor lock, but most windowing plugins can emulate it. See [issue #4875](https://github.com/bevyengine/bevy/issues/4875#issuecomment-1153977546) for more information.
-    /// - **`iOS/Android`** don't have cursors.
-    #[inline]
-    pub fn cursor_locked(&self) -> bool {
-        self.cursor_locked
-    }
-    /// Set whether or not the cursor is locked.
-    ///
-    /// This doesn't hide the cursor. For that, use [`set_cursor_visibility`](Window::set_cursor_visibility)
-    ///
-    /// ## Platform-specific
-    ///
-    /// - **`macOS`** doesn't support cursor lock, but most windowing plugins can emulate it. See [issue #4875](https://github.com/bevyengine/bevy/issues/4875#issuecomment-1153977546) for more information.
-    /// - **`iOS/Android`** don't have cursors.
-    pub fn set_cursor_lock_mode(&mut self, lock_mode: bool) {
-        self.cursor_locked = lock_mode;
-        self.command_queue
-            .push(WindowCommand::SetCursorLockMode { locked: lock_mode });
-    }
-    /// Get whether or not the cursor is visible.
-    ///
-    /// ## Platform-specific
-    ///
-    /// - **`Windows`**, **`X11`**, and **`Wayland`**: The cursor is hidden only when inside the window. To stop the cursor from leaving the window, use [`set_cursor_lock_mode`](Window::set_cursor_lock_mode).
-    /// - **`macOS`**: The cursor is hidden only when the window is focused.
-    /// - **`iOS`** and **`Android`** do not have cursors
-    #[inline]
-    pub fn cursor_visible(&self) -> bool {
-        self.cursor_visible
-    }
-    /// Set whether or not the cursor is visible.
-    ///
-    /// ## Platform-specific
-    ///
-    /// - **`Windows`**, **`X11`**, and **`Wayland`**: The cursor is hidden only when inside the window. To stop the cursor from leaving the window, use [`set_cursor_lock_mode`](Window::set_cursor_lock_mode).
-    /// - **`macOS`**: The cursor is hidden only when the window is focused.
-    /// - **`iOS`** and **`Android`** do not have cursors
-    pub fn set_cursor_visibility(&mut self, visible_mode: bool) {
-        self.cursor_visible = visible_mode;
-        self.command_queue.push(WindowCommand::SetCursorVisibility {
-            visible: visible_mode,
-        });
-    }
-    /// Get the current [`CursorIcon`]
-    #[inline]
-    pub fn cursor_icon(&self) -> CursorIcon {
-        self.cursor_icon
-    }
-    /// Set the [`CursorIcon`]
-    pub fn set_cursor_icon(&mut self, icon: CursorIcon) {
-        self.command_queue
-            .push(WindowCommand::SetCursorIcon { icon });
-    }
-
-    /// The current mouse position, in physical pixels.
-    #[inline]
-    pub fn physical_cursor_position(&self) -> Option<DVec2> {
-        self.physical_cursor_position
-    }
-
-    /// The current mouse position, in logical pixels, taking into account the screen scale factor.
-    #[inline]
-    #[doc(alias = "mouse position")]
-    pub fn cursor_position(&self) -> Option<Vec2> {
-        self.physical_cursor_position
-            .map(|p| (p / self.scale_factor()).as_vec2())
-    }
-    /// Set the cursor's position
-    pub fn set_cursor_position(&mut self, position: Vec2) {
-        self.command_queue
-            .push(WindowCommand::SetCursorPosition { position });
-    }
-
-    #[allow(missing_docs)]
-    #[inline]
-    pub fn update_focused_status_from_backend(&mut self, focused: bool) {
-        self.focused = focused;
-    }
-
-    #[allow(missing_docs)]
-    #[inline]
-    pub fn update_cursor_physical_position_from_backend(&mut self, cursor_position: Option<DVec2>) {
-        self.physical_cursor_position = cursor_position;
-    }
-    /// Get the window's [`WindowMode`]
-    #[inline]
-    pub fn mode(&self) -> WindowMode {
-        self.mode
-    }
-    /// Set the window's [`WindowMode`]
-    pub fn set_mode(&mut self, mode: WindowMode) {
-        self.mode = mode;
-        self.command_queue.push(WindowCommand::SetWindowMode {
-            mode,
-            resolution: UVec2::new(self.physical_width, self.physical_height),
-        });
-    }
-    /// Close the operating system window corresponding to this [`Window`].
-    ///  
-    /// This will also lead to this [`Window`] being removed from the
-    /// [`Windows`] resource.
-    ///
-    /// If the default [`WindowPlugin`] is used, when no windows are
-    /// open, the [app will exit](bevy_app::AppExit).  
-    /// To disable this behaviour, set `exit_on_all_closed` on the [`WindowPlugin`]
-    /// to `false`
-    ///
-    /// [`Windows`]: crate::Windows
-    /// [`WindowPlugin`]: crate::WindowPlugin
-    pub fn close(&mut self) {
-        self.command_queue.push(WindowCommand::Close);
-    }
-    #[inline]
-    pub fn drain_commands(&mut self) -> impl Iterator<Item = WindowCommand> + '_ {
-        self.command_queue.drain(..)
-    }
-    /// Get whether or not the window has focus.
-    ///
-    /// A window loses focus when the user switches to another window, and regains focus when the user uses the window again
-    #[inline]
-    pub fn is_focused(&self) -> bool {
-        self.focused
-    }
-    /// Get the [`RawWindowHandleWrapper`] corresponding to this window
-    pub fn raw_window_handle(&self) -> RawWindowHandleWrapper {
-        self.raw_window_handle.clone()
-    }
-
-    /// The "html canvas" element selector.
-    ///
-    /// If set, this selector will be used to find a matching html canvas element,
-    /// rather than creating a new one.   
-    /// Uses the [CSS selector format](https://developer.mozilla.org/en-US/docs/Web/API/Document/querySelector).
-    ///
-    /// This value has no effect on non-web platforms.
-    #[inline]
-    pub fn canvas(&self) -> Option<&str> {
-        self.canvas.as_deref()
-    }
-
-    /// Whether or not to fit the canvas element's size to its parent element's size.
-    ///
-    /// **Warning**: this will not behave as expected for parents that set their size according to the size of their
-    /// children. This creates a "feedback loop" that will result in the canvas growing on each resize. When using this
-    /// feature, ensure the parent's size is not affected by its children.
-    ///
-    /// This value has no effect on non-web platforms.
-    #[inline]
-    pub fn fit_canvas_to_parent(&self) -> bool {
-        self.fit_canvas_to_parent
-    }
+/// ================================================================================================
+/// Events
+/// ================================================================================================
+/// A window event that is sent whenever a window's logical size has changed.
+#[derive(Debug, Clone)]
+pub struct OnWindowResized {
+    pub id: winit::window::WindowId,
+    /// The new logical width of the window.
+    pub width: f32,
+    /// The new logical height of the window.
+    pub height: f32,
 }
-*/
+/// An event that is sent whenever a new window is created.
+///
+/// To create a new window, send a [`CreateWindow`] event - this
+/// event will be sent in the handler for that event.
+#[derive(Debug, Clone)]
+pub struct OnWindowCreated {
+    pub id: WindowId,
+}
+
+/// An event that is sent whenever the operating systems requests that a window
+/// be closed. This will be sent when the close button of the window is pressed.
+///
+/// If the default [`WindowPlugin`] is used, these events are handled
+/// by [closing] the corresponding [`Window`].  
+/// To disable this behaviour, set `close_when_requested` on the [`WindowPlugin`]
+/// to `false`.
+///
+/// [`WindowPlugin`]: crate::WindowPlugin
+/// [`Window`]: crate::Window
+/// [closing]: crate::Window::close
+#[derive(Debug, Clone)]
+pub struct OnWindowCloseRequested {
+    pub id: WindowId,
+}
+
+/// An event that is sent whenever a window is closed. This will be sent by the
+/// handler for [`Window::close`].
+///
+/// [`Window::close`]: crate::Window::close
+#[derive(Debug, Clone)]
+pub struct OnWindowClosed {
+    pub id: WindowId,
+}
+/// An event reporting that the mouse cursor has moved on a window.
+///
+/// The event is sent only if the cursor is over one of the application's windows.
+/// It is the translated version of [`WindowEvent::CursorMoved`] from the `winit` crate.
+///
+/// Not to be confused with the [`MouseMotion`] event from `bevy_input`.
+///
+/// [`WindowEvent::CursorMoved`]: https://docs.rs/winit/latest/winit/event/enum.WindowEvent.html#variant.CursorMoved
+/// [`MouseMotion`]: bevy_input::mouse::MouseMotion
+#[derive(Debug, Clone)]
+pub struct OnCursorMoved {
+    /// The identifier of the window the cursor has moved on.
+    pub id: WindowId,
+
+    /// The position of the cursor, in window coordinates.
+    pub position: Vec2,
+}
+/// An event that is sent whenever the user's cursor enters a window.
+#[derive(Debug, Clone)]
+pub struct OnCursorEntered {
+    pub id: WindowId,
+}
+/// An event that is sent whenever the user's cursor leaves a window.
+#[derive(Debug, Clone)]
+pub struct OnCursorLeft {
+    pub id: WindowId,
+}
+
+
+/// An event that indicates a window has received or lost focus.
+#[derive(Debug, Clone)]
+pub struct OnWindowFocused {
+    pub id: WindowId,
+    pub focused: bool,
+}
+
+/// Events related to files being dragged and dropped on a window.
+#[derive(Debug, Clone)]
+pub enum OnFileDragAndDrop {
+    DroppedFile { id: WindowId, path_buf: PathBuf },
+
+    HoveredFile { id: WindowId, path_buf: PathBuf },
+
+    HoveredFileCancelled { id: WindowId },
+}
+
+/// An event that is sent when a window is repositioned in physical pixels.
+#[derive(Debug, Clone)]
+pub struct OnWindowMoved {
+    pub id: WindowId,
+    pub position: Vec2,
+}
+//TODO implement these maybe:
+/* /// An event that indicates that a new window should be created.
+#[derive(Debug, Clone)]
+pub struct OnCreateWindow {
+    pub id: WindowId,
+    pub descriptor: WindowDescriptor,
+} */
+/// An event that is sent whenever a window receives a character from the OS or underlying system.
+#[derive(Debug, Clone)]
+pub struct OnReceivedCharacter {
+    pub id: WindowId,
+    pub char: char,
+}
+/// An event that indicates a window's scale factor has changed.
+#[derive(Debug, Clone)]
+pub struct OnWindowScaleFactorChanged {
+    pub id: WindowId,
+    pub scale_factor: f64,
+}
+/* /// An event that indicates a window's OS-reported scale factor has changed.
+#[derive(Debug, Clone)]
+pub struct OnWindowBackendScaleFactorChanged {
+    pub id: WindowId,
+    pub scale_factor: f64,
+} */
+// #[derive(Debug, Clone)]
+/// Reader in loop that will end the event loop.
+pub struct AppExit;
+/// An event that is sent when a frame has been rendered 
+/// Inside of RedrawRequested in the eventloop
+pub struct FrameEvent;

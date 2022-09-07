@@ -3,22 +3,28 @@ name = "ne_render"
 version = "0.1.0"
 edition = "2021"
 
+[features]
+# TODO
+print_fps = []
+first_frame_time = []
+start_time = []
 [dependencies]
 ne = {path = "../ne"}
 ne_files = {path = "../ne_files"}
-ne_app1 = {path = "../ne_app1"}
+ne_app = {path = "../ne_app", features = [ "start_time", "first_frame_time" ] }
 ne_window = {path = "../ne_window"}
+ne_math = {path = "../ne_math"}
+# ne_gui = {path = "../ne_gui"}
 
 instant = "0.1"
 tracing = "0.1.35"
 # wgpu
 cfg-if = "1"
-glam = "0.21.3"
+
 image = "0.23"
-cgmath = "0.18"
 winit = "0.26"
 env_logger = "0.9"
-log = "0.4"
+# log = "0.4"
 pollster = "0.2"
 wgpu = "0.13"
 bytemuck = { version = "1.4", features = [ "derive" ] }

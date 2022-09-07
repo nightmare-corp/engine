@@ -1,5 +1,5 @@
 [package]
-name = "ne_editor"
+name = "frame_counter"
 version = "0.1.0"
 edition = "2021"
 description = "State of the art"
@@ -14,16 +14,17 @@ opt-level = 1
 opt-level = 3
 
 [dependencies]
-nightmare_engine = {path = "../" }
+nightmare_engine = {path = "../../" }
 
-ne = {path = "../crates/ne"}
-ne_files = {path = "../crates/ne_files"}
-ne_app = {path = "../crates/ne_app"}
-ne_window = {path = "../crates/ne_window"}
-ne_render = {path = "../crates/ne_render"}
-ne_gui = {path = "../crates/ne_gui"}
+ne = {path = "../../crates/ne"}
+ne_files = {path = "../../crates/ne_files"}
+ne_app = {path = "../../crates/ne_app"}
+ne_window = {path = "../../crates/ne_window"}
+ne_render = {path = "../../crates/ne_render", features = ["print_fps", "first_frame_time", "start_time"] }
+ne_gui = {path = "../../crates/ne_gui"}
 
-
+instant = "0.1"
+once_cell = "1.14.0"
 # Bevy
 bevy_ecs = "0.8.1"
 # ne_minimum = {path = "../crates/ne_minimum"}

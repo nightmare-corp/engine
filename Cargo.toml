@@ -16,7 +16,6 @@ ne_render = {path = "crates/ne_render"}
 
 pollster = "0.2"
 
-
 # ne_files = {path = "crates/ne_files"}
 # egui-wgpu = "0.18.0"
 
@@ -24,7 +23,9 @@ pollster = "0.2"
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 console_error_panic_hook = "0.1.6"
 console_log = "0.2.0"
-wgpu = { version = "0.13", features = ["webgl"]}
+
+# wgpu = { version = "0.13", features = ["webgl"]}
+
 wasm-bindgen = "0.2"
 wasm-bindgen-futures = "0.4"
 web-sys = { version = "0.3", features = [
@@ -38,6 +39,7 @@ resolver = "2" # can remove
 members = [
     "ne_editor",
     "crates/*",
+    "benchmarks/*",
 ]
 
 
