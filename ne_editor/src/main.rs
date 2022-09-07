@@ -2,7 +2,7 @@ use bevy_ecs::prelude::EventReader;
 use nightmare_engine::*;
 
 use ne_app::{App, Plugin};
-use ne_render::{RenderPlugin, WindowSettings, WindowResized};
+use ne_render::{RenderPlugin, WindowSettings, OnWindowResized, OnWindowCloseRequested};
 
 // User interface allows you to build interface of any kind.
 // use crate::interface::EditorPlugin; //TODO move
@@ -11,13 +11,6 @@ mod interface;
 fn gui_event_system()
 {
 
-}
-//on WindowResized
-fn random_system(mut window_resized_events: EventReader<WindowResized>)
-{
-    for event in window_resized_events.iter().rev() {
-        println!("window is resized w: {}, h:{}", event.width, event.height);
-    }
 }
 
 // use ne_window::WindowPlugin;
@@ -43,23 +36,30 @@ fn main() {
         .add_plugin(RenderPlugin)
         .add_plugin(interface::RandomPlugin)
 
-        .add_system(random_system)
-        // .add_plugin(EditorPlugin)
+        .add_system(resize_sys)
+        .add_system(exit_window)
 
-        /* TODO modular plugins
-        CHECK IF REQUIRED PLUGINS ARE ALREADY LOADED
-        .add_plugin(InputPlugin)
-        .add_plugin(WindowPlugin)
-        .add_plugin(WinitPlugin)
-        .add_plugin(TimePlugin)
-        .add_plugin(AssetPlugin)
-        .add_plugin(RenderPlugin)
-        .add_plugin(Logger)
-          */
-        // .add_system(test_running)
+        // .add_plugin(EditorPlugin)
         .run();
 }
 
+//on WindowResized
+fn resize_sys(mut window_resized_events: EventReader<OnWindowResized>)
+{
+    for event in window_resized_events.iter().rev() {
+        println!("window is resized w: {}, h:{}", event.width, event.height);
+    }
+}
+fn exit_window(mut window_close_requested: EventReader<OnWindowCloseRequested>)
+{
+    for event in window_close_requested.iter().rev() {
+        //TODO GUI would you like to save? Yes, No, Cancel. 
+        println!("Would you like to save?");
+        println!("exiting program");
+        //Doesn't call any destructors, maybe a bad idea?
+        std::process::exit(0);
+    }
+}
 
 //TODO important!
 //struct editor_camera;
