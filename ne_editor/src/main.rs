@@ -5,7 +5,6 @@ use ne_app::{App, Plugin};
 use ne_render::{OnWindowCloseRequested, OnWindowResized, RenderPlugin, WindowSettings};
 
 // User interface allows you to build interface of any kind.
-// use crate::interface::EditorPlugin; //TODO move
 mod interface;
 
 fn gui_event_system() {}
@@ -30,10 +29,9 @@ fn main() {
         //TODO currently working on a windowplugin
         // .add_plugin(WindowPlugin)
         .add_plugin(RenderPlugin)
-        .add_plugin(interface::RandomPlugin)
+        .add_plugin(interface::EditorPlugin)
         .add_system(resize_sys)
         .add_system(exit_window)
-        // .add_plugin(EditorPlugin)
         .run();
 }
 

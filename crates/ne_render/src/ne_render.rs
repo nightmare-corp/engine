@@ -187,10 +187,12 @@ impl State {
                 label: Some("texture_bind_group_layout"),
             });
 
+            //TODO accessibility 
             let camera = free_fly_camera::Camera::new(Vec3::new(0.0, 5.0, 10.0), -90.0, -20.0);
             let projection =
             free_fly_camera::Projection::new(config.width, config.height, 45.0, 0.1, 100.0);
-            let camera_controller = free_fly_camera::CameraController::new(4.0, 0.4);
+            //TODO accessibility 
+            let camera_controller = free_fly_camera::CameraController::new(4.0, 0.8);
     
             let mut camera_uniform = CameraUniform::new();
             camera_uniform.update_view_proj(&camera, &projection);

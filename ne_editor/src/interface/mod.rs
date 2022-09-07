@@ -15,9 +15,10 @@ use self::basic_window::BasicWindow;
 fn main_system(world: &mut World) {
     let nui = world.get_non_send_resource::<NUserInterface>().unwrap();
 }
-pub struct RandomPlugin;
-impl Plugin for RandomPlugin {
+pub struct EditorPlugin;
+impl Plugin for EditorPlugin {
     fn setup(&self, app: &mut App) {
+
         let w = app.world.get_resource::<WindowSettings>().unwrap();
         //insert NUserInterface
         app.insert_non_send_resource::<NUserInterface>(NUserInterface::new(w.width, w.height));
