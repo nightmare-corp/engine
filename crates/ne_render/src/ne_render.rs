@@ -659,6 +659,7 @@ async fn init_renderer(mut app: App) {
                     event: DeviceEvent::MouseMotion{ delta, },
                     .. // We're not using device_id currently
                 } => if state.is_right_mouse_pressed {
+                    //
                     state.camera_controller.process_mouse(delta.0, delta.1)
                 }
             event::Event::RedrawRequested(window_id) if window_id == window.id() => {
@@ -767,14 +768,12 @@ impl Plugin for RenderPlugin {
 
         .add_event::<OnReceivedCharacter>()
         //todo
-        .add_event::<OnRequestRedraw>()
-
 /*     
         .add_event::<CreateWindow>()
         .add_event::<WindowCreated>()
         .add_event::<WindowClosed>()
         .add_event::<WindowBackendScaleFactorChanged>()
-         */
+*/
 
 
 
@@ -1083,12 +1082,6 @@ pub struct OnWindowResized {
     /// The new logical height of the window.
     pub height: f32,
 }
-
-/// An event that indicates the window should redraw, even if its control flow is set to `Wait` and
-/// there have been no window events.
-#[derive(Debug, Clone)]
-pub struct OnRequestRedraw;
-
 /// An event that is sent whenever a new window is created.
 ///
 /// To create a new window, send a [`CreateWindow`] event - this
@@ -1202,5 +1195,6 @@ pub struct OnWindowBackendScaleFactorChanged {
 // #[derive(Debug, Clone)]
 /// Reader in loop that will end the event loop.
 pub struct AppExit;
-/// An event that is sent when a frame has been rendered
+/// An event that is sent when a frame has been rendered 
+/// Inside of RedrawRequested in the eventloop
 pub struct FrameEvent;

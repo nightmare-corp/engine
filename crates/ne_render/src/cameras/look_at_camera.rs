@@ -1,3 +1,5 @@
+//Yeah this isn't a look at camera right now....
+
 use ne_math::Mat4;
 use winit::{
     dpi::PhysicalPosition,
@@ -99,10 +101,10 @@ pub struct CameraController {
     is_left_pressed: bool,
     is_right_pressed: bool,
 
+    mouse_sensitivity: f32,
+
     rotate_horizontal: f32,
     rotate_vertical: f32,
-
-    mouse_sensitivity: f32,
 }
 
 impl CameraController {
@@ -116,10 +118,9 @@ impl CameraController {
             is_left_pressed: false,
             is_right_pressed: false,
 
+            mouse_sensitivity: 7.0,
             rotate_horizontal: 0.0,
             rotate_vertical: 0.0,
-
-            mouse_sensitivity: 7.0,
         }
     }
 
@@ -174,6 +175,7 @@ impl CameraController {
         camera.yaw += self.rotate_horizontal * self.mouse_sensitivity * dt;
         camera.pitch += -self.rotate_vertical * self.mouse_sensitivity * dt;
 
+        println!("YAW: {}, PUTCH: {}", camera.yaw, camera.pitch);
         //|TODOrecalculate look at with rotation
         // camera.target
 
@@ -187,7 +189,8 @@ impl CameraController {
             camera.pitch = SAFE_FRAC_PI_2;
         } else if camera.pitch > SAFE_FRAC_PI_2 {
             camera.pitch = SAFE_FRAC_PI_2;
-        }
+        } 
+
         let mut forward = camera.target - camera.pos;
         //TODO somehow calculate forward from yaw and pitch
         forward.x = camera.yaw.sin() * camera.pitch.cos();
@@ -239,9 +242,42 @@ impl CameraController {
             self.speed += a;
         }
     }
-    //TODO need to use mouse_dx and mouse_dy, multiply by yaw and pitch
-    pub fn process_mouse(&mut self, mouse_dx: f64, mouse_dy: f64) {
-        self.rotate_horizontal = mouse_dx as f32;
-        self.rotate_vertical = mouse_dy as f32;
+
+    // these values will be used to calculate camera yaw and pitch.
+    pub fn process_mouse(&mut self, xoffset: f64, yoffset: f64) {
+        self.rotate_horizontal = xoffset as f32;
+        self.rotate_vertical = yoffset as f32;
+
+        // //constrain pitch
+        // if camera.pitch > 89.0
+        // {
+        //     camera.pitch = 89.0;
+        // }
+        // if camera.pitch < -89.0
+        // {
+        //     camera.pitch = -89.0;
+        // }
     }
+
+    /* 
+        // processes input received from a mouse input system. Expects the offset value in both the x and y direction.
+    inline void ProcessMouseMovement(float xoffset, float yoffset, bool constrainPitch = true){
+        xoffset *= MouseSensitivity;
+        yoffset *= MouseSensitivity;
+
+        Yaw   += xoffset;
+        Pitch += yoffset;
+
+        // make sure that when pitch is out of bounds, screen doesn't get flipped
+        if (constrainPitch)
+        {
+            if (Pitch > 89.0f)
+                Pitch = 89.0f;
+            if (Pitch < -89.0f)
+                Pitch = -89.0f;
+        }
+        // update Front, Right and Up Vectors using the updated Euler angles
+        updateCameraVectors();
+    };
+ */
 }

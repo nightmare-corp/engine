@@ -5,7 +5,7 @@ use bevy_ecs::prelude::{EventWriter, EventReader};
 use nightmare_engine::*;
 
 use ne_app::{App, get_time_passed};
-use ne_render::{RenderPlugin, WindowSettings, AppExit, FrameEvent};
+use ne_render::{RenderPlugin, WindowSettings, AppExit, FrameEvent, OnWindowCloseRequested};
 
 fn gui_event_system()
 {
@@ -55,9 +55,20 @@ fn main() {
         })
         .add_plugin(RenderPlugin)
         .add_system(bench)
+        .add_system(exit_window)
+
         .run();
 }
-
+fn exit_window(mut window_close_requested: EventReader<OnWindowCloseRequested>)
+{
+    for event in window_close_requested.iter().rev() {
+        //TODO GUI would you like to save? Yes, No, Cancel. 
+        println!("Would you like to save?");
+        println!("exiting program");
+        //Doesn't call any destructors, maybe a bad idea?
+        std::process::exit(0);
+    }
+}
 //random conclusions:
 //fps counter has minimal performance impact on --release but significant on debug.
 //window down and window focused cost the same, except on lower resolutions. This still has to be optimized ofcourse
