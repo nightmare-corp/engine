@@ -41,8 +41,8 @@ fn bench(mut frame_event: EventReader<FrameEvent>,
 fn main() {
     // env::set_var("RUST_BACKTRACE", "1");
   
-  const width:f32 = 1000.0;
-  const height:f32 = 1000.0;
+  const width:f32 = 500.0;
+  const height:f32 = 500.0;
 
     L::init_log!(tracing::Level::ERROR);
     App::new()
@@ -60,14 +60,13 @@ fn main() {
 
 //random conclusions:
 //fps counter has minimal performance impact on --release but significant on debug.
-//window down and window focused cost the same, this still has to be optimized maybe
-
-//questions still:
-//how much does resolution affect performance.
+//window down and window focused cost the same, except on lower resolutions. This still has to be optimized ofcourse
 
 //But all of this should be with a spinning camera instead of 
 //a frozen camera.
 
+//To measure:
+//todo()
 
 //resolution 100x100
 //1)17.4363505s | fps:1751.9271     fps | avg:1433.9448     fps | 1%LOW:1751.9271 fps
