@@ -40,11 +40,17 @@ fn bench(mut frame_event: EventReader<FrameEvent>,
 //2) WASD flying first person camera
 fn main() {
     // env::set_var("RUST_BACKTRACE", "1");
-  L::init_log!(tracing::Level::ERROR);
+  
+  const width:f32 = 1000.0;
+  const height:f32 = 1000.0;
+
+    L::init_log!(tracing::Level::ERROR);
     App::new()
         .insert_resource(WindowSettings {
             title: "Nightmare_Editor".to_string(),
             window_mode: ne_render::WindowMode::Windowed,
+            width: width,
+            height: height,
             ..WindowSettings::default()
         })
         .add_plugin(RenderPlugin)
@@ -57,20 +63,21 @@ fn main() {
 //window down and window focused cost the same, this still has to be optimized maybe
 
 //questions still:
-//what do events cost?
-//are globals cheaper?
 //how much does resolution affect performance.
 
 //But all of this should be with a spinning camera instead of 
 //a frozen camera.
 
 
-//without events 
-//1)26.574561s  | fps:990.68756     fps | avg:940.8561      fps | 1%LOW:990.68756 fps
-//2)26.1475108s | fps:1125.9993     fps | avg:956.24023     fps | 1%LOW:1125.9993 fps
-//3)26.3261607s | fps:1141.0315     fps | avg:949.733       fps | 1%LOW:582.479   fps
-//This is with events added:
-//1)26.4459507s  | fps:1013.6848     fps | avg:945.4338      fps | 1%LOW:1013.6848 fps
-//2)26.3227508s  | fps:1110.4941     fps | avg:949.8529      fps | 1%LOW:738.8799  fps
-//3)26.531376s   | fps:735.9435      fps | avg:942.38214     fps | 1%LOW:735.9435  fps
-//hm this isn't accurate since the testcases are very different. But events are probably alright.
+//resolution 100x100
+//1)17.4363505s | fps:1751.9271     fps | avg:1433.9448     fps | 1%LOW:1751.9271 fps
+//2)21.6829268s | fps:1740.0382     fps | avg:1153.1024     fps | 1%LOW:1730.1039 fps //window down
+//3)19.0872487s | fps:1006.13745    fps | avg:1309.9307     fps | 1%LOW:1006.13745fps
+//resolution 1000x1000
+//1)25.4664988s  | fps:987.55676     fps | avg:981.798       fps | 1%LOW:987.55676 fps
+//2)27.1185229s  | fps:1555.21       fps | avg:921.9817      fps | 1%LOW:983.76776 fps //window down
+//resolution 2000x2000
+//1)55.4715823s  | fps:348.94272     fps | avg:450.73666     fps | 1%LOW:348.94272 fps
+//2)55.4501635s  | fps:554.0473      fps | avg:450.90796     fps | 1%LOW:508.41428 fps //window down
+//this test was not meant to be accurate just to detect a significant differences in performance if present
+//conclusion: resolution has a big impact on performance, suprisingly focusing a small window improves performance greatly
