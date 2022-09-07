@@ -70,6 +70,7 @@ fn main() {
 //2)26.1475108s | fps:1125.9993     fps | avg:956.24023     fps | 1%LOW:1125.9993 fps
 //3)26.3261607s | fps:1141.0315     fps | avg:949.733       fps | 1%LOW:582.479   fps
 //This is with events added:
-//1)
-//2)
-//3)
+//1)26.4459507s  | fps:1013.6848     fps | avg:945.4338      fps | 1%LOW:1013.6848 fps
+//2)26.3227508s  | fps:1110.4941     fps | avg:949.8529      fps | 1%LOW:738.8799  fps
+//3)26.531376s   | fps:735.9435      fps | avg:942.38214     fps | 1%LOW:735.9435  fps
+//hm this isn't accurate since the testcases are very different. But events are probably alright.
