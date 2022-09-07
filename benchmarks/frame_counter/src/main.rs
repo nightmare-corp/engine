@@ -1,38 +1,32 @@
 // I don't know how to write tests, this will do for now!
 
 // use core::time;
-use bevy_ecs::prelude::{EventWriter, EventReader};
+use bevy_ecs::prelude::{EventReader, EventWriter};
 use nightmare_engine::*;
 
-use ne_app::{App, get_time_passed};
-use ne_render::{RenderPlugin, WindowSettings, AppExit, FrameEvent, OnWindowCloseRequested};
+use ne_app::{get_time_passed, App};
+use ne_render::{AppExit, FrameEvent, OnWindowCloseRequested, RenderPlugin, WindowSettings};
 
-fn gui_event_system()
-{
-
-}
-pub static mut TOTAL_TIME:Option<instant::Duration> = None;
+fn gui_event_system() {}
+pub static mut TOTAL_TIME: Option<instant::Duration> = None;
 static mut frame_count: u32 = 0;
-fn bench(mut frame_event: EventReader<FrameEvent>,
-  mut exit: EventWriter<AppExit>)
-{
-  unsafe {
-    for _ in frame_event.iter().rev() {
-      frame_count+=1;
-      // println!("frame count: {}", frame_count);
-      const MAX:u32 = 25_000;
-      if frame_count > MAX
-      {
-        let t = get_time_passed(ne_app::FIRST_FRAME_TIME);
-        println!("to render: {} frames took: {:?}",MAX, t); //write to results/*
-        //TODO this is messed up
-        //I want it to write to afile these details, together with:
-        //window settings that impact performance like resolution and quality 
+fn bench(mut frame_event: EventReader<FrameEvent>, mut exit: EventWriter<AppExit>) {
+    unsafe {
+        for _ in frame_event.iter().rev() {
+            frame_count += 1;
+            // println!("frame count: {}", frame_count);
+            const MAX: u32 = 25_000;
+            if frame_count > MAX {
+                let t = get_time_passed(ne_app::FIRST_FRAME_TIME);
+                println!("to render: {} frames took: {:?}", MAX, t); //write to results/*
+                                                                     //TODO this is messed up
+                                                                     //I want it to write to afile these details, together with:
+                                                                     //window settings that impact performance like resolution and quality
 
-        exit.send(AppExit);
-      }
-  }
-  }
+                exit.send(AppExit);
+            }
+        }
+    }
 }
 
 //TOOD modularly add different types of camera and input events...
@@ -40,9 +34,9 @@ fn bench(mut frame_event: EventReader<FrameEvent>,
 //2) WASD flying first person camera
 fn main() {
     // env::set_var("RUST_BACKTRACE", "1");
-  
-  const width:f32 = 500.0;
-  const height:f32 = 500.0;
+
+    const width: f32 = 500.0;
+    const height: f32 = 500.0;
 
     L::init_log!(tracing::Level::ERROR);
     App::new()
@@ -56,13 +50,11 @@ fn main() {
         .add_plugin(RenderPlugin)
         .add_system(bench)
         .add_system(exit_window)
-
         .run();
 }
-fn exit_window(mut window_close_requested: EventReader<OnWindowCloseRequested>)
-{
+fn exit_window(mut window_close_requested: EventReader<OnWindowCloseRequested>) {
     for event in window_close_requested.iter().rev() {
-        //TODO GUI would you like to save? Yes, No, Cancel. 
+        //TODO GUI would you like to save? Yes, No, Cancel.
         println!("Would you like to save?");
         println!("exiting program");
         //Doesn't call any destructors, maybe a bad idea?
@@ -73,7 +65,7 @@ fn exit_window(mut window_close_requested: EventReader<OnWindowCloseRequested>)
 //fps counter has minimal performance impact on --release but significant on debug.
 //window down and window focused cost the same, except on lower resolutions. This still has to be optimized ofcourse
 
-//But all of this should be with a spinning camera instead of 
+//But all of this should be with a spinning camera instead of
 //a frozen camera.
 
 //To measure:

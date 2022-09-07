@@ -1,7 +1,6 @@
 use std::f32::consts::FRAC_PI_2;
 
-use ne_math::{Mat4, vec4, Vec3};
-
+use ne_math::{vec4, Mat4, Vec3};
 
 #[rustfmt::skip]
 pub const OPENGL_TO_WGPU_MATRIX: Mat4 = Mat4::from_cols(
@@ -28,8 +27,9 @@ pub fn look_to_rh(eye: Vec3, dir: Vec3, up: Vec3) -> Mat4 {
 
     //does this automatically have uhhh simd optimizations?
     Mat4::from_cols(
-    vec4(s.x, u.x, -f.x, 0.0,),
-    vec4(s.y, u.y, -f.y, 0.0,),
-    vec4(s.z, u.z, -f.z, 0.0,),
-    vec4(-eye.dot(s), -eye.dot(u), eye.dot(f), 1.0,))
+        vec4(s.x, u.x, -f.x, 0.0),
+        vec4(s.y, u.y, -f.y, 0.0),
+        vec4(s.z, u.z, -f.z, 0.0),
+        vec4(-eye.dot(s), -eye.dot(u), eye.dot(f), 1.0),
+    )
 }

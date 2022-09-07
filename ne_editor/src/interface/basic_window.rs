@@ -14,15 +14,15 @@
 //     utils::lightmap::Lightmap,
 // };
 
+use bevy_ecs::world::World;
 use ne_gui::{
     button::{ButtonBuilder, ButtonMessage},
     core::pool::Handle,
     prelude::{Column, GridBuilder, Row, UiMessage},
     widget::WidgetBuilder,
     window::{WindowBuilder, WindowTitle},
-    Thickness, UiNode, NUserInterface
+    NUserInterface, Thickness, UiNode,
 };
-use bevy_ecs::world::World;
 pub struct BasicWindow {
     pub window: Handle<UiNode>,
     // nud_texels_per_unit: Handle<UiNode>,
@@ -36,36 +36,30 @@ impl BasicWindow {
     pub fn new(world: &mut World) -> Self {
         let button;
         //do I have insert a mutable one?
-        let mut gui = 
-        world.get_non_send_resource_mut::<NUserInterface>().unwrap();
+        let mut gui = world.get_non_send_resource_mut::<NUserInterface>().unwrap();
         let ctx = &mut gui.user_interface.build_ctx();
 
-        let window = 
-        WindowBuilder::new(WidgetBuilder::new().with_width(300.0).with_height(400.0))
+        let window = WindowBuilder::new(WidgetBuilder::new().with_width(300.0).with_height(400.0))
             .with_title(WindowTitle::Text("Light Settings".to_owned()))
             .open(false)
             .with_content(
-                GridBuilder::new(
-                    WidgetBuilder::new()
-                        .with_child({
-                            button = ButtonBuilder::new(
-                                WidgetBuilder::new()
-                                    .on_row(2)
-                                    .on_column(1)
-                                    .with_margin(Thickness::uniform(1.0)),
-                            )
-                            .with_text("Generate Lightmap")
-                            .build(ctx);
-                            button
-                        }),
-                )
+                GridBuilder::new(WidgetBuilder::new().with_child({
+                    button = ButtonBuilder::new(
+                        WidgetBuilder::new()
+                            .on_row(2)
+                            .on_column(1)
+                            .with_margin(Thickness::uniform(1.0)),
+                    )
+                    .with_text("Generate Lightmap")
+                    .build(ctx);
+                    button
+                }))
                 .add_column(Column::strict(100.0))
                 .add_column(Column::stretch())
                 .add_row(Row::strict(25.0))
                 .add_row(Row::strict(25.0))
                 .add_row(Row::strict(25.0))
                 .add_row(Row::stretch())
-
                 //how to mutably borrow multiple times in the same scope? ...
                 .build(ctx),
             )

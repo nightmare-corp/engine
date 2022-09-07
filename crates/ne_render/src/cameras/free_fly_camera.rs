@@ -33,16 +33,13 @@ impl Camera {
         let (sin_pitch, cos_pitch) = self.pitch.sin_cos();
         let (sin_yaw, cos_yaw) = self.yaw.sin_cos();
 
-
-
         //So how do I do this? with glam-rs... position makes sense,( this second parameter somehow gets used to calculate look at... we can do that as well...),up makes sense
-        
-        let dir = Vec3::new(cos_pitch * cos_yaw, sin_pitch, cos_pitch * sin_yaw).normalize();
 
+        let dir = Vec3::new(cos_pitch * cos_yaw, sin_pitch, cos_pitch * sin_yaw).normalize();
 
         //Vec3::Y() => Vec3::Z(). Z is supposed to be up. Z is the best, Z is for the elite.
         super::camera_helper::look_to_rh(self.position, dir, Vec3::Y)
-            
+
         // Matrix4::look_to_rh(
         //     self.position,
         //     Vector3::new(cos_pitch * cos_yaw, sin_pitch, cos_pitch * sin_yaw).normalize(),
@@ -73,9 +70,9 @@ impl Projection {
     }
 
     pub fn calc_perspective(&self) -> ne_math::Mat4 {
-
         // OPENGL_TO_WGPU_MATRIX * perspective(self.fovy, self.aspect, self.znear, self.zfar)
-        OPENGL_TO_WGPU_MATRIX * ne_math::Mat4::perspective_rh(self.fovy, self.aspect, self.znear, self.zfar)
+        OPENGL_TO_WGPU_MATRIX
+            * ne_math::Mat4::perspective_rh(self.fovy, self.aspect, self.znear, self.zfar)
     }
 }
 
@@ -174,8 +171,7 @@ impl CameraController {
         // changes when zooming. I've added this to make it easier
         // to get closer to an object you want to focus on.
         let (pitch_sin, pitch_cos) = camera.pitch.sin_cos();
-        let scrollward =
-            Vec3::new(pitch_cos * yaw_cos, pitch_sin, pitch_cos * yaw_sin).normalize();
+        let scrollward = Vec3::new(pitch_cos * yaw_cos, pitch_sin, pitch_cos * yaw_sin).normalize();
         camera.position += scrollward * self.scroll * self.speed * self.sensitivity * dt;
         self.scroll = 0.0;
 

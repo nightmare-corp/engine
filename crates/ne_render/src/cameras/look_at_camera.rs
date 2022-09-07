@@ -189,7 +189,7 @@ impl CameraController {
             camera.pitch = SAFE_FRAC_PI_2;
         } else if camera.pitch > SAFE_FRAC_PI_2 {
             camera.pitch = SAFE_FRAC_PI_2;
-        } 
+        }
 
         let mut forward = camera.target - camera.pos;
         //TODO somehow calculate forward from yaw and pitch
@@ -259,25 +259,25 @@ impl CameraController {
         // }
     }
 
-    /* 
-        // processes input received from a mouse input system. Expects the offset value in both the x and y direction.
-    inline void ProcessMouseMovement(float xoffset, float yoffset, bool constrainPitch = true){
-        xoffset *= MouseSensitivity;
-        yoffset *= MouseSensitivity;
+    /*
+           // processes input received from a mouse input system. Expects the offset value in both the x and y direction.
+       inline void ProcessMouseMovement(float xoffset, float yoffset, bool constrainPitch = true){
+           xoffset *= MouseSensitivity;
+           yoffset *= MouseSensitivity;
 
-        Yaw   += xoffset;
-        Pitch += yoffset;
+           Yaw   += xoffset;
+           Pitch += yoffset;
 
-        // make sure that when pitch is out of bounds, screen doesn't get flipped
-        if (constrainPitch)
-        {
-            if (Pitch > 89.0f)
-                Pitch = 89.0f;
-            if (Pitch < -89.0f)
-                Pitch = -89.0f;
-        }
-        // update Front, Right and Up Vectors using the updated Euler angles
-        updateCameraVectors();
-    };
- */
+           // make sure that when pitch is out of bounds, screen doesn't get flipped
+           if (constrainPitch)
+           {
+               if (Pitch > 89.0f)
+                   Pitch = 89.0f;
+               if (Pitch < -89.0f)
+                   Pitch = -89.0f;
+           }
+           // update Front, Right and Up Vectors using the updated Euler angles
+           updateCameraVectors();
+       };
+    */
 }

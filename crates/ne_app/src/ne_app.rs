@@ -5,9 +5,10 @@ use std::collections::HashMap;
 // use bevy_ecs::schedule::IntoSystemDescriptor;
 //TODO does pub use make compile times longer?
 pub use bevy_ecs::{
+    event::{Event, Events, ManualEventReader},
     schedule::{IntoSystemDescriptor, Schedule, ShouldRun, Stage, StageLabel, SystemStage},
     system::{IntoExclusiveSystem, Resource},
-    world::{FromWorld, World}, event::{Event, Events, ManualEventReader,},
+    world::{FromWorld, World},
 };
 pub use ne::*;
 
@@ -15,13 +16,12 @@ pub use ne::*;
 //TODO replace by some kind of thread safe version.
 //These should not be modified, just read.
 #[cfg(feature = "start_time")]
-pub static mut START_TIME:Option<instant::Instant> = None;
+pub static mut START_TIME: Option<instant::Instant> = None;
 #[cfg(feature = "first_frame_time")]
-pub static mut FIRST_FRAME_TIME:Option<instant::Instant> = None;
-pub fn get_time_passed(time:Option<instant::Instant>) -> instant::Duration
-{
-        let now = instant::Instant::now();
-        now - time.unwrap()
+pub static mut FIRST_FRAME_TIME: Option<instant::Instant> = None;
+pub fn get_time_passed(time: Option<instant::Instant>) -> instant::Duration {
+    let now = instant::Instant::now();
+    now - time.unwrap()
 }
 
 //================================================================
@@ -345,7 +345,6 @@ impl App {
     }
 
     pub fn run(&mut self) {
-        error!("default run activated not sure what's going to happen");
         loop {
             self.schedule.run(&mut self.world);
 
@@ -354,8 +353,7 @@ impl App {
 
             //Calls the apps runner funtion! Self::set_runner
             let mut app = std::mem::replace(self, App::empty());
-            let runner =
-                std::mem::replace(&mut app.runner, Box::new(run_once));
+            let runner = std::mem::replace(&mut app.runner, Box::new(run_once));
             (runner)(app);
         }
     }
