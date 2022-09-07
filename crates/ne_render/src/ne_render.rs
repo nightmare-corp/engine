@@ -1,6 +1,10 @@
 //thank you https://github.com/sotrh/learn-wgpu
+//TODO I think projection and model matrixes aren't moved correctly into te gpu buffer,
+//because the tutorial uses light... 
+
 use std::{iter, path::PathBuf};
 
+use cameras::free_fly_camera;
 use ne_math::{Vec2, Vec3, Quat, Mat4};
 use ne::{warn, info, trace};
 use ne_app::{App, Plugin, Events, ManualEventReader};
@@ -15,7 +19,7 @@ use winit::{
     window::{Window, Fullscreen, WindowId}, dpi::PhysicalSize,
 };
 use model::{DrawModel, Vertex};
-use crate::cameras::{look_at_camera::{CameraFields, self}};
+use crate::cameras::free_fly_camera::CameraUniform;
 
 mod cameras;
 mod model;
@@ -94,11 +98,12 @@ struct State {
     render_pipeline: wgpu::RenderPipeline,
     obj_model: model::Model,
     
-    camera: look_at_camera::Camera,
-    camera_controller: look_at_camera::CameraController,
-    camera_uniform: look_at_camera::CameraUniform,
+    camera: free_fly_camera::Camera,
+    projection: free_fly_camera::Projection,
+    camera_controller: free_fly_camera::CameraController,
+    camera_uniform: free_fly_camera::CameraUniform,
 
-    //Can we change this into a buffer vector? or is that stupid?
+    //Can we change this into a buffer vector? or is that bad?
     camera_buffer: wgpu::Buffer,
     camera_bind_group: wgpu::BindGroup,
 
@@ -110,37 +115,6 @@ struct State {
     is_right_mouse_pressed:bool,
 }
 
-struct FPSData {
-    low:f32, //1%
-    index:f32,
-    // lowest:u32, //.1%
-}
-impl Default for FPSData
-{
-    fn default() -> Self {
-        Self { low: 100_000_000.0, 
-            index: Default::default() }
-    }
-}
-impl FPSData
-{
-    fn get_lowest(&mut self, fps:f32) -> f32
-    {
-        self.index+=1.0;
-        //reset every 100+ frames
-        if self.index>=100.0
-        {
-            self.index = 0.0;
-            self.low = 100_000_000.0;
-        }
-        //set if lower
-        if fps<self.low
-        {
-            self.low=fps;
-        }
-        self.low
-    }
-}
 
 impl State {
     async fn new(window: &Window, window_settings: WindowSettings) -> Self {
@@ -213,15 +187,14 @@ impl State {
                 label: Some("texture_bind_group_layout"),
             });
 
-        let camera = look_at_camera::Camera::new(
-            CameraFields{
-            aspect: (config.width as f32 / config.height as f32),
-            fovy: 45.0, znear: 0.1, zfar: 100.0,
-            ..look_at_camera::CameraFields::default()});
-        let camera_controller = look_at_camera::CameraController::new(7.0);
-
-        let mut camera_uniform = look_at_camera::CameraUniform::new();
-        camera_uniform.update_view_proj(&camera);
+            let camera = free_fly_camera::Camera::new(Vec3::new(0.0, 5.0, 10.0), -90.0, -20.0);
+            let projection =
+            free_fly_camera::Projection::new(config.width, config.height, 45.0, 0.1, 100.0);
+            let camera_controller = free_fly_camera::CameraController::new(4.0, 0.4);
+    
+            let mut camera_uniform = CameraUniform::new();
+            camera_uniform.update_view_proj(&camera, &projection);
+    
 
         //Buffer that will put camera-vpm-matrix into shader
         let camera_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
@@ -307,7 +280,8 @@ impl State {
                 push_constant_ranges: &[],
             });
 
-        let render_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+        let render_pipeline = 
+        device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
             label: Some("Render Pipeline"),
             layout: Some(&render_pipeline_layout),
             vertex: wgpu::VertexState {
@@ -366,6 +340,7 @@ impl State {
             render_pipeline,
             obj_model,
             camera,
+            projection,
             camera_controller,
             camera_buffer,
             camera_bind_group,
@@ -380,7 +355,7 @@ impl State {
 
     fn resize(&mut self, new_size: winit::dpi::PhysicalSize<u32>) {
         if new_size.width > 0 && new_size.height > 0 {
-            self.camera.set_aspect(self.config.width as f32 / self.config.height as f32);
+            self.projection.resize(new_size.width, new_size.height);
             self.size = new_size;
             self.config.width = new_size.width;
             self.config.height = new_size.height;
@@ -399,7 +374,7 @@ impl State {
                         ..
                     },
                 ..
-            } => self.camera_controller.process_events(event),
+            } => self.camera_controller.process_keyboard(*key, *state),
             WindowEvent::MouseWheel { delta, .. } => {
                 self.camera_controller.process_scroll(delta);
                 true
@@ -417,10 +392,10 @@ impl State {
 
     }
 
-    //updates camera, can be cleaner/faster/moved into camera.rs
+    //updates camera, can be cleaner/faster/moved into camera.rs... maybe
     fn update(&mut self, dt:f32) {
         self.camera_controller.update_camera(&mut self.camera,dt);
-        self.camera_uniform.update_view_proj(&self.camera);
+        self.camera_uniform.update_view_proj(&self.camera, &self.projection);
         self.queue.write_buffer(
             &self.camera_buffer,
             0,
@@ -513,7 +488,7 @@ async fn init_renderer(mut app: App) {
     let win_settings =  app.world.get_resource::<WindowSettings>()
         .cloned().unwrap_or_default();
     let window = create_window(&win_settings, &event_loop);
-
+    
     let mut state = State::new(&window, win_settings).await;
 
     trace!("pre event_loop.run");
@@ -527,7 +502,7 @@ async fn init_renderer(mut app: App) {
     let mut app_exit_event_reader = ManualEventReader::<AppExit>::default();
 
     #[cfg(feature = "print_fps")]
-    let mut fpsd = FPSData::default();
+    let mut fpsd = ne_bench::FPSData::default();
 
     let event_handler = 
     move |event: Event<()>,
@@ -659,8 +634,10 @@ async fn init_renderer(mut app: App) {
                     event: DeviceEvent::MouseMotion{ delta, },
                     .. // We're not using device_id currently
                 } => if state.is_right_mouse_pressed {
-                    //
-                    state.camera_controller.process_mouse(delta.0, delta.1)
+                    state.camera_controller.process_mouse(delta.0, delta.1);
+                    window.set_cursor_visible(false);
+                } else {
+                    window.set_cursor_visible(true);
                 }
             event::Event::RedrawRequested(window_id) if window_id == window.id() => {
                     //hope this gets optimized somehow
@@ -704,7 +681,7 @@ async fn init_renderer(mut app: App) {
                         Err(wgpu::SurfaceError::Timeout) => warn!("Surface timeout"),
                     }
 
-                    // //add event right here...
+                    // //add event right here... maybe?
                     // let redraw_event = app.world.get_resource::<Events<Redraw>>() {
 
                     // }

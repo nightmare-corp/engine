@@ -35,8 +35,8 @@ fn bench(mut frame_event: EventReader<FrameEvent>, mut exit: EventWriter<AppExit
 fn main() {
     // env::set_var("RUST_BACKTRACE", "1");
 
-    const width: f32 = 500.0;
-    const height: f32 = 500.0;
+    const width: f32 = 1600.0;
+    const height: f32 = 900.0;
 
     L::init_log!(tracing::Level::ERROR);
     App::new()

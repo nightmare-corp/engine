@@ -14,6 +14,7 @@ ne_files = {path = "../ne_files"}
 ne_app = {path = "../ne_app", features = [ "start_time", "first_frame_time" ] }
 ne_window = {path = "../ne_window"}
 ne_math = {path = "../ne_math"}
+ne_bench = {path = "../ne_bench"}
 # ne_gui = {path = "../ne_gui"}
 
 instant = "0.1"
