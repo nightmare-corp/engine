@@ -73,7 +73,7 @@ init_log {
         }
         pub use tracing::{info,debug,trace,warn};
 
-        trace!("Initialized logging [TRACE]");
+        tracing::trace!("Initialized logging [TRACE]");
         debug!("Initialized logging [DEBUG]");
         info!("Initialized logging [INFO]");
         warn!("Initialized logging [WARN]");

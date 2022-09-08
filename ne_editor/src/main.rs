@@ -3,6 +3,7 @@ use nightmare_engine::*;
 
 use ne_app::App;
 use ne_render::{OnWindowCloseRequested, OnWindowResized, RenderPlugin, WindowSettings};
+use ne_gui::*;
 
 //TODO
 mod interface;

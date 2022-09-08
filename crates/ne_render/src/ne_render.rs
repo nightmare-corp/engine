@@ -26,6 +26,9 @@ mod model;
 mod resources;
 mod texture;
 
+//move maybe
+mod interface;
+
 const NUM_INSTANCES_PER_ROW: u32 = 50;
 
 struct Instance {
@@ -269,7 +272,7 @@ impl State {
 
         let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("shader.wgsl"),
-            source: wgpu::ShaderSource::Wgsl(include_str!("../../../assets/shader.wgsl").into()),
+            source: wgpu::ShaderSource::Wgsl(include_str!("../../../assets/shaders/shader.wgsl").into()),
         });
 
         let depth_texture =

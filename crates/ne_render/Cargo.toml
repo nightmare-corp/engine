@@ -18,6 +18,7 @@ ne_math = {path = "../ne_math"}
 ne_bench = {path = "../ne_bench"}
 ne_gui = {path = "../ne_gui", optional = true}
 
+type-map = "0.5.0"
 instant = "0.1"
 tracing = "0.1.35"
 # wgpu
