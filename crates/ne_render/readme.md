@@ -2,6 +2,7 @@
 print_fps = []
 first_frame_time = []
 start_time = []
+editor_ui = []
 
 example:
 ne_render = {path = "../../crates/ne_render", features = ["print_fps"] }

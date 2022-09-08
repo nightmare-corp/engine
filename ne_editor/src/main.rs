@@ -1,10 +1,10 @@
 use bevy_ecs::prelude::EventReader;
 use nightmare_engine::*;
 
-use ne_app::{App, Plugin};
+use ne_app::App;
 use ne_render::{OnWindowCloseRequested, OnWindowResized, RenderPlugin, WindowSettings};
 
-// User interface allows you to build interface of any kind.
+//TODO
 mod interface;
 
 fn gui_event_system() {}
@@ -29,7 +29,7 @@ fn main() {
         //TODO currently working on a windowplugin
         // .add_plugin(WindowPlugin)
         .add_plugin(RenderPlugin)
-        .add_plugin(interface::EditorPlugin)
+        // .add_plugin(interface::EditorPlugin)
         .add_system(resize_sys)
         .add_system(exit_window)
         .run();
@@ -50,21 +50,3 @@ fn exit_window(mut window_close_requested: EventReader<OnWindowCloseRequested>) 
         std::process::exit(0);
     }
 }
-
-//TODO important!
-//struct editor_camera;
-// fn setup(&self, app: &mut App)
-// {
-//   app.add_events(... WASD, MOUSE, SCROLLWHEEL, );
-//
-// }
-
-//TODO
-// struct Logger;
-// impl Plugin for Logger {
-//     fn setup(&self, app: &mut App) {
-//         //this is annoying... because we neeed certain variablesss to outlive this function inside main..?
-//         //So we have to simply add resources! This is very much possible and easy even
-//     }
-// }
-//----------------------------------------------------------------------------------

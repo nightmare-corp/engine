@@ -1,6 +1,6 @@
 //thank you https://github.com/sotrh/learn-wgpu
-//TODO I think projection and model matrixes aren't moved correctly into te gpu buffer,
-//because the tutorial uses light... 
+
+//TODO EDITOR UI    #[cfg(feature = "editor_ui")]
 
 use std::{iter, path::PathBuf};
 

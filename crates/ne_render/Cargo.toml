@@ -4,10 +4,11 @@ version = "0.1.0"
 edition = "2021"
 
 [features]
-# TODO
 print_fps = []
 first_frame_time = []
 start_time = []
+# TODO
+editor_ui = ["dep:ne_gui"]
 [dependencies]
 ne = {path = "../ne"}
 ne_files = {path = "../ne_files"}
@@ -15,7 +16,7 @@ ne_app = {path = "../ne_app", features = [ "start_time", "first_frame_time" ] }
 ne_window = {path = "../ne_window"}
 ne_math = {path = "../ne_math"}
 ne_bench = {path = "../ne_bench"}
-# ne_gui = {path = "../ne_gui"}
+ne_gui = {path = "../ne_gui", optional = true}
 
 instant = "0.1"
 tracing = "0.1.35"
