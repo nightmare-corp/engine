@@ -519,7 +519,7 @@ async fn init_renderer(mut app: App) {
 
     let event_handler = 
     move |event: Event<()>,
-        event_loop: &EventLoopWindowTarget<()>,
+        _: &EventLoopWindowTarget<()>, //not sure what to do with event_loop: &EventLoopWindowTarget
         control_flow: &mut ControlFlow| {
         match event {
             event::Event::MainEventsCleared => {
@@ -623,7 +623,7 @@ async fn init_renderer(mut app: App) {
                                 world.resource_mut::<Events<OnCursorEntered>>();
                             cursor_entered_events.send(OnCursorEntered { id: window_id });
                         }
-                        WindowEvent::CursorLeft { device_id } => {
+                        WindowEvent::CursorLeft { .. } => {
                             let mut cursor_left_event 
                             = world.resource_mut::<Events<OnCursorLeft>>();
                             cursor_left_event.send(OnCursorLeft { id: window_id });
@@ -919,7 +919,7 @@ fn create_window(win_settings: &WindowSettings, event_loop: &EventLoop<()>) -> W
         WindowMode::Windowed => {},
         WindowMode::BorderlessFullscreen => {
             // let mut monitor_index = 0; //todo
-            let mut monitor = event_loop
+            let monitor = event_loop
             .available_monitors()
             .next()
             .expect("no monitor found!");
@@ -930,7 +930,7 @@ fn create_window(win_settings: &WindowSettings, event_loop: &EventLoop<()>) -> W
         WindowMode::SizedFullscreen => todo!(),
         WindowMode::Fullscreen => {
             // let mut monitor_index = 0; //todo
-            let mut monitor = event_loop
+            let monitor = event_loop
             .available_monitors()
             .next()
             .expect("no monitor found!");
