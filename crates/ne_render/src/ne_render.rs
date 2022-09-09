@@ -26,10 +26,6 @@ mod model;
 mod resources;
 mod texture;
 
-//move maybe
-#[cfg(feature = "editor_ui")]
-mod interface;
-
 const NUM_INSTANCES_PER_ROW: u32 = 50;
 
 struct Instance {
