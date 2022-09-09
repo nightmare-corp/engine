@@ -526,21 +526,14 @@ impl State {
     }
 }
 
-//TODO HOW TO SHORTEN THIS?
 fn main_loop(app: App) {
-    //TODO why is main_loop before exiting??????
-    println!("main_loop");
-
     //is this async implementation any good?
     pollster::block_on(init_renderer(app));
-
-    println!("main_loop done");
-
 }
 
 #[cfg_attr(target_arch = "wasm32", wasm_bindgen(start))]
 async fn init_renderer(mut app: App) {
-    println!("init_renderer");
+    ne::debug!("init_renderer");
     // app.update(); //moved}
 
     let event_loop = EventLoop::new();
@@ -776,9 +769,7 @@ where
 pub struct RenderPlugin;
 impl Plugin for RenderPlugin {
     fn setup(&self, app: &mut App) {
-
-        //TODO what's going onnnnn
-        println!("setup");
+        ne::debug!("setup RenderPlugin");
         app
         .add_event::<OnWindowResized>()
         .add_event::<AppExit>()

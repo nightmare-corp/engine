@@ -13,7 +13,6 @@ fn bench(mut frame_event: EventReader<OnRedrawRequested>, mut exit: EventWriter<
     unsafe {
         for _ in frame_event.iter().rev() {
             frame_count += 1;
-            // println!("frame count: {}", frame_count);
             const MAX: u32 = 25_000;
             if frame_count > MAX {
                 let t = get_time_passed(ne_app::FIRST_FRAME_TIME);

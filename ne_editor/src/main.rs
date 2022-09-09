@@ -14,13 +14,12 @@ fn gui_event_system() {}
 fn main() {
     // std::env::set_var("RUST_BACKTRACE", "1");
     // vulkan, metal, dx12, dx11, or gl
-    //WGPU_BACKEND isnt read by wgpu at all, just the examples, you can change the backend flags in the instance parameters
     // std::env::set_var("WGPU_BACKEND", "dx11");
 
     L::init_log!(tracing::Level::INFO);
 
-    let width = 1600.;
-    let height = 900.;
+    let width = 1009.0;
+    let height = 700.0;
 
     //TODO replace WindowSettings with WindowBuilder
     App::new()
@@ -33,6 +32,8 @@ fn main() {
             window_mode: ne_render::WindowMode::Windowed,
             ..WindowSettings::default()
         })
+        .add_startup_system(setup_scene)
+
         //TODO currently working on a windowplugin
         // .add_plugin(WindowPlugin)
         .add_plugin(RenderPlugin)
@@ -40,6 +41,11 @@ fn main() {
         .add_system(resize_sys)
         .add_system(exit_window)
         .run();
+}
+
+fn setup_scene()
+{
+    println!("HELLLOOO");
 }
 
 //on WindowResized
