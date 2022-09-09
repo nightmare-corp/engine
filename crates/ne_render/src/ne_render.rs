@@ -1,6 +1,20 @@
-//thank you https://github.com/sotrh/learn-wgpu
-
-//TODO EDITOR UI    #[cfg(feature = "editor_ui")]
+///thank you https://github.com/sotrh/learn-wgpu
+/// This is the first iteration renderer it needs to do: 
+/// 1) Render separate meshes
+/// 2) Render many instances of one mesh
+/// 3) Render many seperate meshes
+/// 4) Allow for easy user interface integration 
+/// 5) Easy switching from camera
+/// 6) Mesh loading from .gltf and .obj and maybe fbx files
+/// 7) Level saving/loading from .nscene
+/// 8) Effective editing of .nscene file...
+/// No need to think about optimzations yet. Just focus on implementing
+/// in a way that makes sense~!
+/// After that let's figure out how to make things faster
+/// Maybe by more effectively storing data (ecs)! And by using less buffers
+/// And by making the renderer feed less work to the gpu
+/// And maybe by moving from wgpu -> gfx/vulkan/dx12/dx11
+///TODO EDITOR UI    #[cfg(feature = "editor_ui")]
 
 use std::{iter, path::PathBuf};
 
@@ -426,8 +440,10 @@ impl State {
             .create_command_encoder(&wgpu::CommandEncoderDescriptor {
                 label: Some("Render Encoder"),
             });
-
+        //MESH RENDERING
         {
+            //TODO explore the possibilities here.
+
             let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("Render Pass"),
                 color_attachments: &[Some(wgpu::RenderPassColorAttachment {
@@ -452,28 +468,60 @@ impl State {
                     stencil_ops: None,
                 }),
             });
-
             render_pass.set_vertex_buffer(1, self.instance_buffer.slice(..));
             render_pass.set_pipeline(&self.render_pipeline);
-
-            //TODO BIG
-            //UNDERSTAD how is this rendererd
-            // understand how transforms work
-            // understand how locations work?
 
             //Is instanced draw just better..?
             render_pass.draw_model_instanced(
                 &self.obj_model,
                 0..self.instances.len() as u32,
                 &self.camera_bind_group,
-            );           
+            );
+            // render_pass.draw_model(&self.obj_model, &self.camera_bind_group);
+        }
+        //UI RENDERING! WIll be rendered on top of the previous output!!!
+        {
+            //TODO explore the possibilities here.
+            let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                label: Some("Render Pass"),
+                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                    view: &view,
+                    resolve_target: None,
+                    ops: wgpu::Operations {
+                        load: wgpu::LoadOp::Clear(wgpu::Color {
+                            r: 0.1,
+                            g: 0.2,
+                            b: 0.3,
+                            a: 1.0,
+                        }),
+                        store: true,
+                    },
+                })],
+                depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
+                    view: &self.depth_texture.view,
+                    depth_ops: Some(wgpu::Operations {
+                        load: wgpu::LoadOp::Clear(1.0),
+                        store: true,
+                    }),
+                    stencil_ops: None,
+                }),
+            });
+            render_pass.set_vertex_buffer(1, self.instance_buffer.slice(..));
+            render_pass.set_pipeline(&self.render_pipeline);
 
+            //Is instanced draw just better..?
+            render_pass.draw_model_instanced(
+                &self.obj_model,
+                0..self.instances.len() as u32,
+                &self.camera_bind_group,
+            );
             // render_pass.draw_model(&self.obj_model, &self.camera_bind_group);
         }
 
+
+        //What does this do?
         self.queue.submit(iter::once(encoder.finish()));
         output.present();
-
         Ok(())
     }
 }
@@ -693,16 +741,10 @@ async fn init_renderer(mut app: App) {
                         Err(wgpu::SurfaceError::Timeout) => warn!("Surface timeout"),
                     }
 
-                    // //add event right here... maybe?
-                    // let redraw_event = app.world.get_resource::<Events<Redraw>>() {
-
-                    // }
-                    //sent an event from here, frame is done!
                     //TODO remove..?
                     let world = app.world.cell();
-                    let mut frame_events = world.resource_mut::<Events<FrameEvent>>();
-                    frame_events.send(FrameEvent {});
-
+                    let mut frame_events = world.resource_mut::<Events<OnRedrawRequested>>();
+                    frame_events.send(OnRedrawRequested {});
                 }
                 event::Event::RedrawEventsCleared => {
                     //measure
@@ -740,9 +782,7 @@ impl Plugin for RenderPlugin {
         app
         .add_event::<OnWindowResized>()
         .add_event::<AppExit>()
-        .add_event::<FrameEvent>()
-
-
+        .add_event::<OnRedrawRequested>()
         //TODO
         .add_event::<OnWindowCloseRequested>()
         .add_event::<OnWindowFocused>()
@@ -1186,4 +1226,4 @@ pub struct OnWindowBackendScaleFactorChanged {
 pub struct AppExit;
 /// An event that is sent when a frame has been rendered 
 /// Inside of RedrawRequested in the eventloop
-pub struct FrameEvent;
+pub struct OnRedrawRequested;

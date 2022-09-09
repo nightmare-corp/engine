@@ -15,7 +15,7 @@ use self::basic_window::BasicWindow;
 //     let nui = world.get_non_send_resource::<NUserInterface>().unwrap();
 // }
 
-// fn render_ui(world:&World,mut frame_event: EventReader<FrameEvent>)
+// fn render_ui(world:&World,mut frame_event: EventReader<OnRedrawRequested>)
 // {
 //     for _ in frame_event.iter().rev() {
 //         println!("FRAME UNO");
