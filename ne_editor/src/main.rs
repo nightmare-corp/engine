@@ -22,8 +22,10 @@ fn main() {
     let width = 1600.;
     let height = 900.;
 
+    //TODO replace WindowSettings with WindowBuilder
     App::new()
-        .insert_resource(WindowSettings {
+        .insert_resource(
+            WindowSettings {
             title: "Nightmare_Editor".to_string(),
             width: width,
             height: height,

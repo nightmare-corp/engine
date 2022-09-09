@@ -16,8 +16,11 @@ use wgpu::util::DeviceExt;
 use winit::{
     event::{*, self},
     event_loop::{ControlFlow, EventLoop, EventLoopWindowTarget},
-    window::{Window, Fullscreen, WindowId}, dpi::PhysicalSize,
+    window::{Fullscreen, WindowId}, dpi::PhysicalSize,
 };
+//export windowbuilder
+pub use winit::window::{Window,WindowBuilder};
+
 use model::{DrawModel, Vertex};
 use crate::cameras::free_fly_camera::CameraUniform;
 
