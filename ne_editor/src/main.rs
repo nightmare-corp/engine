@@ -12,7 +12,11 @@ fn gui_event_system() {}
 
 // use ne_window::WindowPlugin;
 fn main() {
-    // env::set_var("RUST_BACKTRACE", "1");
+    // std::env::set_var("RUST_BACKTRACE", "1");
+    // vulkan, metal, dx12, dx11, or gl
+    //WGPU_BACKEND isnt read by wgpu at all, just the examples, you can change the backend flags in the instance parameters
+    // std::env::set_var("WGPU_BACKEND", "dx11");
+
     L::init_log!(tracing::Level::INFO);
 
     let width = 1600.;

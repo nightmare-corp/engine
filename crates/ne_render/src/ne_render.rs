@@ -27,6 +27,7 @@ mod resources;
 mod texture;
 
 //move maybe
+#[cfg(feature = "editor_ui")]
 mod interface;
 
 const NUM_INSTANCES_PER_ROW: u32 = 50;
@@ -126,16 +127,22 @@ impl State {
         // The instance is a handle to our GPU
         // BackendBit::PRIMARY => Vulkan + Metal + DX12 + Browser WebGPU
         warn!("WGPU setup");
-        let instance = wgpu::Instance::new(wgpu::Backends::all());
+        let backend = wgpu::util::backend_bits_from_env().unwrap_or_else(wgpu::Backends::all);
+        ne::log!("backend: ", backend);
+        let instance = wgpu::Instance::new(backend);
+        
         let surface = unsafe { instance.create_surface(window) };
+
+        //TODO this crashes when we use opengl or dx11? does dx11 need to be installed on pc? are drivers outdated?
         let adapter = instance
             .request_adapter(&wgpu::RequestAdapterOptions {
-                power_preference: wgpu::PowerPreference::default(),
+                //will use the highest performance gpu.
+                power_preference: wgpu::PowerPreference::HighPerformance,
                 compatible_surface: Some(&surface),
                 force_fallback_adapter: false,
             })
             .await
-            .unwrap();
+            .unwrap(); //TODO maybe replace this unwrap with a match?
         warn!("device and queue");
         let (device, queue) = adapter
             .request_device(
@@ -408,6 +415,7 @@ impl State {
         );
     }
 
+    //TODO double&triple buffer
     fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
         let output = self.surface.get_current_texture()?;
         let view = output

@@ -26,25 +26,6 @@ macro_rules! err {
     }
 }
 
-/* }
-/// Legacy code:
-#[macro_export]
-macro_rules! log {
-    ($($args:expr),*) => {
-        let mut result: String = String::from("");
-        $(
-            let tempstr: String = format!("{}", format_args!("{}", $args));
-            result.push_str(&tempstr[..]);
-        )*
-        println!("{}", result);
-    };
-} */
-//TODO
-// struct Logger
-// {
-
-// }
-
 //TODO change the log format into [time]: [type] [message]
 //And a debug version [time]: [where] [type] [message]
 //TODO move to ne_log

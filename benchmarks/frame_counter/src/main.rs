@@ -33,7 +33,9 @@ fn bench(mut frame_event: EventReader<FrameEvent>, mut exit: EventWriter<AppExit
 //1) orbit camera, with predetermined rotation and look at point.
 //2) WASD flying first person camera
 fn main() {
-    // env::set_var("RUST_BACKTRACE", "1");
+    // std::env::set_var("RUST_BACKTRACE", "1");
+    // vulkan, metal, dx12, dx11, or gl
+    // std::env::set_var("WGPU_BACKEND", "vulkan");
 
     const width: f32 = 1600.0;
     const height: f32 = 900.0;
@@ -83,3 +85,16 @@ fn exit_window(mut window_close_requested: EventReader<OnWindowCloseRequested>) 
 //2)55.4501635s  | fps:554.0473      fps | avg:450.90796     fps | 1%LOW:508.41428 fps //window down
 //this test was not meant to be accurate just to detect a significant differences in performance if present
 //conclusion: resolution has a big impact on performance, suprisingly focusing a small window improves performance greatly
+
+
+//dx12 vs vulkan
+//vulkan: to render: 25000 frames took: 18.8669649s
+// fps:1349.5277     fps | avg:1325.2115     fps | 1%LOW:1349.5277 fps
+//
+//dx12: to render: 25000 frames took: 35.5932863s
+// fps:588.3737      fps | avg:702.4591      fps | 1%LOW:588.3737  fps
+//
+//default: to render: 25000 frames took: 18.8244332s
+// fps:1527.6505     fps | avg:1328.2094     fps | 1%LOW:1527.6505 fps
+
+//HMMM IS THIS RIGHT?
