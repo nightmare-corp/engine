@@ -1,4 +1,5 @@
-use bevy_ecs::prelude::EventReader;
+use bevy_asset::Assets;
+use bevy_ecs::{prelude::EventReader, system::{Commands, ResMut}};
 use nightmare_engine::*;
 
 use ne_app::App;
@@ -17,22 +18,21 @@ fn main() {
     // std::env::set_var("WGPU_BACKEND", "dx11");
 
     L::init_log!(tracing::Level::INFO);
-
-    let width = 1009.0;
-    let height = 700.0;
+    const WIDTH: f32 = 1600.0;
+    const HEIGHT: f32 = 900.0;
 
     //TODO replace WindowSettings with WindowBuilder
     App::new()
         .insert_resource(
             WindowSettings {
             title: "Nightmare_Editor".to_string(),
-            width: width,
-            height: height,
+            width: WIDTH,
+            height: HEIGHT,
             // present_mode: PresentMode::AutoVsync,
             window_mode: ne_render::WindowMode::Windowed,
             ..WindowSettings::default()
         })
-        .add_startup_system(setup_scene)
+        // .add_startup_system(setup_scene)
 
         //TODO currently working on a windowplugin
         // .add_plugin(WindowPlugin)
@@ -43,10 +43,17 @@ fn main() {
         .run();
 }
 
-fn setup_scene()
-{
-    println!("HELLLOOO");
-}
+//Commands are used to modify World...? but how
+// fn setup_scene(    
+//     mut commands: Commands,
+//     mut meshes: ResMut<Assets<Mesh>>,
+//     mut materials: ResMut<Assets<StandardMaterial>>,
+// )
+// {
+//     println!("HELLLOOO");
+// }
+
+
 
 //on WindowResized
 fn resize_sys(mut window_resized_events: EventReader<OnWindowResized>) {

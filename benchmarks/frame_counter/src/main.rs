@@ -9,6 +9,7 @@ use ne_render::{AppExit, OnRedrawRequested, OnWindowCloseRequested, RenderPlugin
 
 pub static mut TOTAL_TIME: Option<instant::Duration> = None;
 static mut frame_count: u32 = 0;
+
 fn bench(mut frame_event: EventReader<OnRedrawRequested>, mut exit: EventWriter<AppExit>) {
     unsafe {
         for _ in frame_event.iter().rev() {
@@ -20,94 +21,10 @@ fn bench(mut frame_event: EventReader<OnRedrawRequested>, mut exit: EventWriter<
                                                                      //TODO this is messed up
                                                                      //I want it to write to afile these details, together with:
                                                                      //window settings that impact performance like resolution and quality
-
                 exit.send(AppExit);
             }
         }
     }
-}
-fn gui_event_system(mut frame_event: EventReader<OnRedrawRequested>) {
-    for _ in frame_event.iter().rev() {
-        //reference 
-        // data.platform.update_time(data.start_time.elapsed().as_secs_f64());
-        // data.platform.begin_frame();
-
-        // // Insert egui commands here
-        // let ctx = data.platform.context();
-        // egui::Window::new("Change color").resizable(true).show(&ctx, |ui| {
-        //     ui.label("Change the color of the cube");
-        //     if ui.color_edit_button_rgba_unmultiplied(&mut data.color).changed() {
-        //         renderer.update_material(
-        //             &data.material_handle.clone(),
-        //             rend3_routine::pbr::PbrMaterial {
-        //                 albedo: rend3_routine::pbr::AlbedoComponent::Value(glam::Vec4::from(data.color)),
-        //                 transparency: rend3_routine::pbr::Transparency::Blend,
-        //                 ..rend3_routine::pbr::PbrMaterial::default()
-        //             },
-        //         );
-        //     }
-        //     ui.label("Want to get rusty?");
-        //     if ui
-        //         .add(egui::widgets::ImageButton::new(self.rust_logo, egui::Vec2::splat(64.0)))
-        //         .clicked()
-        //     {
-        //         webbrowser::open("https://www.rust-lang.org").expect("failed to open URL");
-        //     }
-        // });
-
-        // // End the UI frame. Now let's draw the UI with our Backend, we could also
-        // // handle the output here
-        // let egui::FullOutput {
-        //     shapes, textures_delta, ..
-        // } = data.platform.end_frame(Some(window));
-        // let paint_jobs = data.platform.context().tessellate(shapes);
-
-        // let input = rend3_egui::Input {
-        //     clipped_meshes: &paint_jobs,
-        //     textures_delta,
-        //     context: data.platform.context(),
-        // };
-
-        // // Get a frame
-        // let frame = rend3::util::output::OutputFrame::Surface {
-        //     surface: Arc::clone(surface.unwrap()),
-        // };
-
-        // // Ready up the renderer
-        // let (cmd_bufs, ready) = renderer.ready();
-
-        // // Lock the routines
-        // let pbr_routine = rend3_framework::lock(&routines.pbr);
-        // let tonemapping_routine = rend3_framework::lock(&routines.tonemapping);
-
-        // // Build a rendergraph
-        // let mut graph = rend3::graph::RenderGraph::new();
-
-        // // Add the default rendergraph without a skybox
-        // base_rendergraph.add_to_graph(
-        //     &mut graph,
-        //     &ready,
-        //     &pbr_routine,
-        //     None,
-        //     &tonemapping_routine,
-        //     resolution,
-        //     SAMPLE_COUNT,
-        //     glam::Vec4::ZERO,
-        //     glam::Vec4::new(0.10, 0.05, 0.10, 1.0), // Nice scene-referred purple
-        // );
-
-        // // Add egui on top of all the other passes
-        // let surface = graph.add_surface_texture();
-        // data.egui_routine.add_to_graph(&mut graph, input, surface);
-
-        // // Dispatch a render using the built up rendergraph!
-        // graph.execute(renderer, frame, cmd_bufs, &ready);
-
-        // control_flow(winit::event_loop::ControlFlow::Poll);
-
-
-    }
-
 }
 
 //TOOD modularly add different types of camera and input events...
@@ -118,16 +35,16 @@ fn main() {
     // vulkan, metal, dx12, dx11, or gl
     // std::env::set_var("WGPU_BACKEND", "vulkan");
 
-    const width: f32 = 1600.0;
-    const height: f32 = 900.0;
+    const WIDTH: f32 = 1600.0;
+    const HEIGHT: f32 = 900.0;
 
     L::init_log!(tracing::Level::ERROR);
     App::new()
         .insert_resource(WindowSettings {
             title: "Nightmare_Editor".to_string(),
             window_mode: ne_render::WindowMode::Windowed,
-            width: width,
-            height: height,
+            width: WIDTH,
+            height: HEIGHT,
             ..WindowSettings::default()
         })
         .add_plugin(RenderPlugin)

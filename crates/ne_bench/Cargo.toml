@@ -2,7 +2,7 @@
 name = "ne_bench"
 version = "0.1.0"
 edition = "2021"
-
+description = "Collection of diagnostic tools for nightmare_engine"
 [lib]
 path = "src/ne_bench.rs" 
 

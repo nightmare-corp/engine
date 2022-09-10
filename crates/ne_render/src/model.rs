@@ -115,6 +115,7 @@ where
         self.draw_model_instanced(model, 0..1, camera_bind_group);
     }
 
+///draw many of this mesh
     fn draw_model_instanced(
         &mut self,
         model: &'b Model,

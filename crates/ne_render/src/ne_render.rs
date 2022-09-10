@@ -42,6 +42,8 @@ mod cameras;
 mod model;
 mod resources;
 mod texture;
+mod user_interface;
+mod render_modules;
 
 const NUM_INSTANCES_PER_ROW: u32 = 50;
 
@@ -110,7 +112,7 @@ struct State {
     surface: wgpu::Surface,
     device: wgpu::Device,
     queue: wgpu::Queue,
-    config: wgpu::SurfaceConfiguration,
+    surface_config: wgpu::SurfaceConfiguration,
     size: winit::dpi::PhysicalSize<u32>,
     render_pipeline: wgpu::RenderPipeline,
     obj_model: model::Model,
@@ -135,6 +137,8 @@ struct State {
 
 impl State {
     async fn new(window: &Window, window_settings: WindowSettings) -> Self {
+        println!("size of struct {} ", std::mem::size_of::<State>());
+
         let size = window.inner_size();
 
         // The instance is a handle to our GPU
@@ -177,15 +181,16 @@ impl State {
             .unwrap();
 
         warn!("Surface");
-        let config = wgpu::SurfaceConfiguration {
+        let surface_format= surface.get_supported_formats(&adapter)[0];
+        let surface_config = wgpu::SurfaceConfiguration {
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
-            format: surface.get_supported_formats(&adapter)[0],
+            format: surface_format,
             width: size.width,
             height: size.height,
             present_mode: window_settings.present_mode,
         };
 
-        surface.configure(&device, &config);
+        surface.configure(&device, &surface_config);
 
         let texture_bind_group_layout =
             device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
@@ -213,7 +218,7 @@ impl State {
             //TODO accessibility 
             let camera = free_fly_camera::Camera::new(Vec3::new(0.0, 5.0, 10.0), -90.0, -20.0);
             let projection =
-            free_fly_camera::Projection::new(config.width, config.height, 45.0, 0.1, 100.0);
+            free_fly_camera::Projection::new(surface_config.width, surface_config.height, 45.0, 0.1, 100.0);
             //TODO accessibility 
             let camera_controller = free_fly_camera::CameraController::new(4.0, 0.8);
     
@@ -296,7 +301,7 @@ impl State {
         });
 
         let depth_texture =
-            texture::Texture::create_depth_texture(&device, &config, "depth_texture");
+            texture::Texture::create_depth_texture(&device, &surface_config, "depth_texture");
 
         let render_pipeline_layout =
             device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
@@ -318,7 +323,7 @@ impl State {
                 module: &shader,
                 entry_point: "fs_main",
                 targets: &[Some(wgpu::ColorTargetState {
-                    format: config.format,
+                    format: surface_config.format,
                     blend: Some(wgpu::BlendState {
                         color: wgpu::BlendComponent::REPLACE,
                         alpha: wgpu::BlendComponent::REPLACE,
@@ -360,7 +365,7 @@ impl State {
             surface,
             device,
             queue,
-            config,
+            surface_config,
             size,
             render_pipeline,
             obj_model,
@@ -382,11 +387,11 @@ impl State {
         if new_size.width > 0 && new_size.height > 0 {
             self.projection.resize(new_size.width, new_size.height);
             self.size = new_size;
-            self.config.width = new_size.width;
-            self.config.height = new_size.height;
-            self.surface.configure(&self.device, &self.config);
+            self.surface_config.width = new_size.width;
+            self.surface_config.height = new_size.height;
+            self.surface.configure(&self.device, &self.surface_config);
             self.depth_texture =
-                texture::Texture::create_depth_texture(&self.device, &self.config, "depth_texture");
+                texture::Texture::create_depth_texture(&self.device, &self.surface_config, "depth_texture");
         }
     }
     fn input(&mut self, event: &WindowEvent) -> bool {
@@ -416,7 +421,6 @@ impl State {
         }
 
     }
-
     //updates camera, can be cleaner/faster/moved into camera.rs... maybe
     fn update(&mut self, dt:f32) {
         self.camera_controller.update_camera(&mut self.camera,dt);
@@ -479,7 +483,7 @@ impl State {
             );
             // render_pass.draw_model(&self.obj_model, &self.camera_bind_group);
         }
-        //UI RENDERING! WIll be rendered on top of the previous output!!!
+        // UI RENDERING! WIll be rendered on top of the previous output!!!
         {
             //TODO explore the possibilities here.
             let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
@@ -555,7 +559,7 @@ async fn init_renderer(mut app: App) {
     let mut app_exit_event_reader = ManualEventReader::<AppExit>::default();
 
     #[cfg(feature = "print_fps")]
-    let mut fpsd = ne_bench::FPSData::default();
+    let mut fpsd = ne_bench::fpsdata::FPSData::default();
 
     let event_handler = 
     move |event: Event<()>,
@@ -567,6 +571,8 @@ async fn init_renderer(mut app: App) {
                 app.update(); //is this supposed to be here?
             },
             event::Event::WindowEvent {
+
+                //HOW DOES THIS EVENT GET HERE???
                     ref event,
                     window_id,
                 } if window_id == window.id() => {
@@ -917,13 +923,13 @@ pub fn get_fitting_videomode(
         }
         b - a
     }
-
+    //does this work..?
     modes.sort_by(|a, b| {
         use std::cmp::Ordering::*;
         match abs_diff(a.size().width, width).cmp(&abs_diff(b.size().width, width)) {
             Equal => {
                 match abs_diff(a.size().height, height).cmp(&abs_diff(b.size().height, height)) {
-                    Equal => b.refresh_rate().cmp(&a.refresh_rate()),
+                    Equal => b.refresh_rate_millihertz().cmp(&a.refresh_rate_millihertz()),
                     default => default,
                 }
             }
