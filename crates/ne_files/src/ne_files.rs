@@ -6,7 +6,7 @@
 // TODO CFG only. To decrease compile time.
 ///example
 ///let x = find_file!("C:/git/tools/nightmare_engine", "/Cargo.toml");
-///println!("{}", x)
+///ne::log!("{}", x)
 ///Finds and returns a file, will throw error if file is not available
 ///$path either absolute or relative from your_crate/src
 #[macro_export]

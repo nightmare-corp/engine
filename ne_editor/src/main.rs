@@ -50,7 +50,7 @@ fn main() {
 //     mut materials: ResMut<Assets<StandardMaterial>>,
 // )
 // {
-//     println!("HELLLOOO");
+//     ne::log!("HELLLOOO");
 // }
 
 
@@ -58,14 +58,14 @@ fn main() {
 //on WindowResized
 fn resize_sys(mut window_resized_events: EventReader<OnWindowResized>) {
     for event in window_resized_events.iter().rev() {
-        println!("window is resized w: {}, h:{}", event.width, event.height);
+        ne::log!("window is resized w: {}, h:{}", event.width, event.height);
     }
 }
 fn exit_window(mut window_close_requested: EventReader<OnWindowCloseRequested>) {
     for event in window_close_requested.iter().rev() {
         //TODO GUI would you like to save? Yes, No, Cancel.
-        println!("Would you like to save?");
-        println!("exiting program");
+        ne::log!("Would you like to save?");
+        ne::log!("exiting program");
         //Doesn't call any destructors, maybe a bad idea?
         std::process::exit(0);
     }

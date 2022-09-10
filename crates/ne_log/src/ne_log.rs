@@ -3,7 +3,7 @@ pub use tracing;
 pub use tracing_appender::rolling::RollingFileAppender;
 // pub use tracing_subscriber as tracing_subscriber;
 pub use tracing_appender;
-//TODO cfg to use println! instead of tracing during release?
+//TODO cfg to use ne::log! instead of tracing during release?
 #[macro_export]
 macro_rules! err {
     //simple error and exit

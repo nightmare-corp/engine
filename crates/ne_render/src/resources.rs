@@ -32,11 +32,11 @@ pub async fn load_string(file_name: &str) -> anyhow::Result<String> {
             //TODO what to do for path here?
             //What is this path now?
             let s = env!("CARGO_MANIFEST_DIR").to_owned()+"/../../assets";
-            println!("{}", s);
+            ne::log!("{}", s);
             let path = std::path::Path::new(&s)
                 .join(file_name);
 
-                println!("{}", path.display());
+                ne::log!("{}", path.display());
             let txt = std::fs::read_to_string(path)?;
         }
     }

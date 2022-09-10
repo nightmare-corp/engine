@@ -4,10 +4,33 @@ use L::tracing;
 #[allow(dead_code)]
 pub use tracing::{debug, error, info, trace, warn};
 
+
+/// multiple arguments very similar to ne::log!: log!("{} {} {} {}", "exactly the same: ", 163, 136.0, my_var);
+#[cfg(any(debug_assertions, ne_log))]
+#[macro_export]
+macro_rules! log {
+    () => {
+        $crate::print!("\n")
+    };
+    //but for one arg it will simply print that arg as with {:?} the debug setting.
+    ($arg:tt) => {
+        println!("{}", format!("{:?}", $arg));
+    };
+    ($($arg:tt)*) => {
+        println!($($arg)*);
+    };
+}
+#[cfg(not(any(debug_assertions, ne_log)))]
+#[macro_export]
+macro_rules! log {
+    ($($args:expr),*) => {
+    };
+}
+
+/* 
+//OLD implementation
 /// print to console that will be disabled on release!
 /// example: log("hello", "int:", number, "string:", str);
-/// TODO add ne_log
-/// TODO I want this to be usuable by println!() and replace all cases of println!() with ne::log!
 #[cfg(any(debug_assertions, ne_log))]
 #[macro_export]
 macro_rules! log {
@@ -22,12 +45,7 @@ macro_rules! log {
             let tempstr: String = format!("{:?}", format_args!("{:?}", $args));
             result.push_str(&tempstr[..]);
         )*
-        println!("{}", result);
+        ne::log!("{}", result);
     };
 }
-#[cfg(not(any(debug_assertions, ne_log)))]
-#[macro_export]
-macro_rules! log {
-    ($($args:expr),*) => {
-    };
-}
+*/

@@ -114,7 +114,7 @@
 //                 return;
 //             }
 //             Err(e) => {
-//                 eprintln!("Dropped frame with error: {}", e);
+//                 ene::log!("Dropped frame with error: {}", e);
 //                 return;
 //             }
 //         };

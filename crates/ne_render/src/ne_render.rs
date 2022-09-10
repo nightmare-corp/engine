@@ -137,7 +137,7 @@ struct State {
 
 impl State {
     async fn new(window: &Window, window_settings: WindowSettings) -> Self {
-        println!("size of struct {} ", std::mem::size_of::<State>());
+        ne::log!("size of struct {} ", std::mem::size_of::<State>());
 
         let size = window.inner_size();
 
@@ -145,7 +145,7 @@ impl State {
         // BackendBit::PRIMARY => Vulkan + Metal + DX12 + Browser WebGPU
         warn!("WGPU setup");
         let backend = wgpu::util::backend_bits_from_env().unwrap_or_else(wgpu::Backends::all);
-        ne::log!("backend: ", backend);
+        ne::log!("backend: {:?}", backend);
         let instance = wgpu::Instance::new(backend);
         
         let surface = unsafe { instance.create_surface(window) };
@@ -723,7 +723,7 @@ async fn init_renderer(mut app: App) {
                             let time_passed = (now - FIRST_FRAME_TIME.unwrap()).as_secs_f32();
                             let average_fps = frame_count as f32/time_passed;
                             
-                            println!("fps:{:<14}fps | avg:{:<14}fps | 1%LOW:{:<10}fps",fps,average_fps, fpsd.get_lowest(fps));
+                            ne::log!("fps:{:<14}fps | avg:{:<14}fps | 1%LOW:{:<10}fps",fps,average_fps, fpsd.get_lowest(fps));
                         }
                     }
                     state.update(delta_time);
@@ -760,7 +760,7 @@ async fn init_renderer(mut app: App) {
                 }
             }
     };
-    println!("event loop run");
+    ne::log!("event loop run");
     run(event_loop, event_handler);
 }
 

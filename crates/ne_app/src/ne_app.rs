@@ -242,7 +242,7 @@ impl App {
     /// # use bevy_ecs::prelude::*;
     /// #
     /// fn my_startup_system(_commands: Commands) {
-    ///     println!("My startup system");
+    ///     ne::log!("My startup system");
     /// }
     ///
     /// App::new()
@@ -374,7 +374,7 @@ impl App {
     /// #
     /// fn my_runner(mut app: App) {
     ///     loop {
-    ///         println!("In main loop");
+    ///         ne::log!("In main loop");
     ///         app.update();
     ///     }
     /// }

@@ -17,7 +17,7 @@ fn bench(mut frame_event: EventReader<OnRedrawRequested>, mut exit: EventWriter<
             const MAX: u32 = 25_000;
             if frame_count > MAX {
                 let t = get_time_passed(ne_app::FIRST_FRAME_TIME);
-                println!("to render: {} frames took: {:?}", MAX, t); //write to results/*
+                ne::log!("to render: {} frames took: {:?}", MAX, t); //write to results/*
                                                                      //TODO this is messed up
                                                                      //I want it to write to afile these details, together with:
                                                                      //window settings that impact performance like resolution and quality
@@ -55,8 +55,8 @@ fn main() {
 fn exit_window(mut window_close_requested: EventReader<OnWindowCloseRequested>) {
     for event in window_close_requested.iter().rev() {
         //TODO GUI would you like to save? Yes, No, Cancel.
-        println!("Would you like to save?");
-        println!("exiting program");
+        ne::log!("Would you like to save?");
+        ne::log!("exiting program");
         //Doesn't call any destructors, maybe a bad idea?
         std::process::exit(0);
     }
