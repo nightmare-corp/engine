@@ -16,6 +16,7 @@ Cargo.lock
 .idea/
 .jacked/
 
+logs/
 logs/*
 src/logs/*
 crates/
