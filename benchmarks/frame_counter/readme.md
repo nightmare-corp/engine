@@ -1,6 +1,6 @@
-### nightmare_editor
-The editor is literally just a nightmare_engine game. All it does it edit the scene file.
+### frame_counter
+Imagine keeping a good eye on performance while developing, that would be pretty neat, no?
 
-A game is literally just a addon on top of a game engine. In this case it adds a useful ui, that can be tweaked.
+TODO I'd really like to have the game automatically detect: "oh shit the fps average is way below the previous example." But that sounds annoying in practice.
 
 ``cargo run -p frame_counter --release``

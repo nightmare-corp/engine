@@ -16,31 +16,32 @@ fn main() {
     // std::env::set_var("RUST_BACKTRACE", "1");
     // vulkan, metal, dx12, dx11, or gl
     // std::env::set_var("WGPU_BACKEND", "dx11");
+  
 
-    L::init_log!(tracing::Level::INFO);
-    const WIDTH: f32 = 1600.0;
-    const HEIGHT: f32 = 900.0;
+    // L::init_log!(tracing::Level::INFO);
+    // const WIDTH: f32 = 1600.0;
+    // const HEIGHT: f32 = 900.0;
 
-    //TODO replace WindowSettings with WindowBuilder
-    App::new()
-        .insert_resource(
-            WindowSettings {
-            title: "Nightmare_Editor".to_string(),
-            width: WIDTH,
-            height: HEIGHT,
-            // present_mode: PresentMode::AutoVsync,
-            window_mode: ne_render::WindowMode::Windowed,
-            ..WindowSettings::default()
-        })
-        // .add_startup_system(setup_scene)
+    // //TODO replace WindowSettings with WindowBuilder
+    // App::new()
+    //     .insert_resource(
+    //         WindowSettings {
+    //         title: "Nightmare_Editor".to_string(),
+    //         width: WIDTH,
+    //         height: HEIGHT,
+    //         // present_mode: PresentMode::AutoVsync,
+    //         window_mode: ne_render::WindowMode::Windowed,
+    //         ..WindowSettings::default()
+    //     })
+    //     // .add_startup_system(setup_scene)
 
-        //TODO currently working on a windowplugin
-        // .add_plugin(WindowPlugin)
-        .add_plugin(RenderPlugin)
-        // .add_plugin(interface::EditorPlugin)
-        .add_system(resize_sys)
-        .add_system(exit_window)
-        .run();
+    //     //TODO currently working on a windowplugin
+    //     // .add_plugin(WindowPlugin)
+    //     .add_plugin(RenderPlugin)
+    //     // .add_plugin(interface::EditorPlugin)
+    //     .add_system(resize_sys)
+    //     .add_system(exit_window)
+    //     .run();
 }
 
 //Commands are used to modify World...? but how
