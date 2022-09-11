@@ -17,6 +17,10 @@ Cargo.lock
 .jacked/
 
 logs/*
+src/logs/*
+crates/
+
 # wish this worked.
 */logs/*
 benchmarks/frame_counter/logs/*
+crates/ne_render/src/logs/*
