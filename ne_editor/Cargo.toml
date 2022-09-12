@@ -20,7 +20,7 @@ ne = {path = "../crates/ne"}
 ne_files = {path = "../crates/ne_files"}
 ne_app = {path = "../crates/ne_app"}
 ne_window = {path = "../crates/ne_window"}
-ne_render = {path = "../crates/ne_render", features = ["first_frame_time", "start_time", "egui"] }
+ne_render = {path = "../crates/ne_render", features = ["first_frame_time", "start_time", "ui"] }
 ne_gui = {path = "../crates/ne_gui"}
 # remove
 ne_bench = {path = "../crates/ne_bench"}

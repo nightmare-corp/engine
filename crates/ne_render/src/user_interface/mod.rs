@@ -1,19 +1,13 @@
-// use std::borrow::Cow;
-// use std::collections::HashMap;
-// use std::iter;
-// use instant::Instant;
+use std::borrow::Cow;
+use instant::Instant;
 
-// use ::egui::FontDefinitions;
-// use egui_demo_lib::DemoWindows;
-// use egui_wgpu_backend::ScreenDescriptor;
-// use egui_winit_platform::{Platform, PlatformDescriptor};
-// use winit::event::Event::*;
-// use winit::event_loop::ControlFlow;
+use ::egui::FontDefinitions;
+use egui_demo_lib::DemoWindows;
+use egui_winit_platform::{Platform, PlatformDescriptor};
 
-// use crate::render_modules::render_pass::RenderPassRecipe;
+use self::render_pass::RenderPassRecipe;
 
-// const INITIAL_WIDTH: u32 = 1920;
-// const INITIAL_HEIGHT: u32 = 1080;
+pub mod render_pass;
 
 // /// A custom event type for the winit app.
 // enum Event {
@@ -32,15 +26,115 @@
 
 // //TODO HONESTLY IT'S better just putting in a mutable RendererState ...? 
 // //We need to clean state first tho, it has to many members
-// struct EguiState<'a> {
-//     platform:Platform,
-//     device:wgpu::Device,
-//     render_pass:RenderPassRecipe,
-//     demo_window:DemoWindows,
-//     start_time:Instant,
-//     //TODO is lifetime implemented correctly?
-//     surface_config:&'a wgpu::SurfaceConfiguration,
-// }
+pub struct ScreenDescriptor {
+    /// Width of the window in physical pixel.
+    pub physical_width: u32,
+    /// Height of the window in physical pixel.
+    pub physical_height: u32,
+    /// HiDPI scale factor.
+    pub scale_factor: f32,
+}
+
+impl ScreenDescriptor {
+    fn logical_size(&self) -> (u32, u32) {
+        let logical_width = self.physical_width as f32 / self.scale_factor;
+        let logical_height = self.physical_height as f32 / self.scale_factor;
+        (logical_width as u32, logical_height as u32)
+    }
+}
+
+pub struct EguiState {
+    pub platform:Platform,
+    pub render_pass:RenderPassRecipe,
+    demo_window:DemoWindows,
+    start_time:Instant,
+    //TODO is lifetime implemented correctly?
+    // device:&'a wgpu::Device,
+    // surface_config:&'a wgpu::SurfaceConfiguration,
+}
+impl EguiState {
+    //this should return egui_state?
+    /// A simple egui + wgpu + winit based example.
+    pub fn new(
+        window:&winit::window::Window,
+        surface:&wgpu::Surface, 
+        device:&wgpu::Device,
+        queue:&wgpu::Queue,
+        surface_config:&wgpu::SurfaceConfiguration,
+        adapter:&wgpu::Adapter,
+        //adapter needed?
+        surface_format:&wgpu::TextureFormat,
+        ) -> Self { 
+        //TODO
+        let size = window.inner_size();
+        // We use the egui_winit_platform crate as the platform.
+        let platform = Platform::new(PlatformDescriptor {
+            physical_width: size.width as u32,
+            physical_height: size.height as u32,
+            scale_factor: window.scale_factor(),
+            font_definitions: FontDefinitions::default(),
+            style: Default::default(),
+        });
+
+        //TODO this needs to be setup and stored and used in winit loop... A stored RenderPass
+        // We use the egui_wgpu_backend crate as the render backend.
+        //TODO move to state, the main state struct, because the state should own all RenderPassRecipes in a Vec..? 
+        let render_pass = RenderPassRecipe::new(
+            &device, *surface_format,
+             1, 
+             wgpu::ShaderSource::Wgsl(Cow::Borrowed(include_str!("egui.wgsl")))
+        );
+        // Display the demo application that ships with egui.
+        let demo_window = egui_demo_lib::DemoWindows::default();
+        let start_time = Instant::now();
+
+        Self {
+            platform, render_pass,
+            demo_window, start_time,
+            // device,
+            // surface_config 
+        }
+
+        //THIS ALL NEEDS TO BE IN UPDATES OR WELL, INDEPENDENT UPDATES
+        //RedrawRequested needs to use the output frame of the previous RenderPass
+
+        // event_loop.run(move |event, _, control_flow| {
+        //     // Pass the winit events to the platform integration.
+
+        //TODO THIS IS IMPORTANT 
+        //it handles mouse and keyboard for egui? Or even more?
+        //So this is litterally everythignt aht needs to be in the winit loop???
+            
+
+
+    }
+    //TODO just put     ``state.ui_ctx.platform.handle_event(&event)`` at top of eventloop
+    // fn input<T>(&self, winit_event: &winit::Event<T>)
+    // {
+    //     self.platform.handle_event(&event);
+    // }
+
+    pub fn update_time(&mut self)
+    {
+        self.platform.update_time(self.start_time.elapsed().as_secs_f64());
+    }
+    pub fn begin_frame(&mut self)
+    {
+        self.platform.begin_frame();
+    }
+    pub fn end_frame(&mut self, window:&winit::window::Window) -> egui::FullOutput 
+    {
+        self.platform.end_frame(Some(window))
+    }
+    pub fn draw_ui(&mut self)
+    {
+        self.demo_window.ui(&self.platform.context());
+    }
+    pub fn handle_event<T>(&mut self, winit_event: &winit::event::Event<T>)
+    {
+        self.platform.handle_event(winit_event);
+    }
+}
 // impl EguiState<'_> {
 //     //this should return egui_state?
 //     /// A simple egui + wgpu + winit based example.

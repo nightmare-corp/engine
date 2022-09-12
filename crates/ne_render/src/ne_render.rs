@@ -36,13 +36,16 @@ use winit::{
 pub use winit::window::{Window,WindowBuilder};
 
 use model::{DrawModel, Vertex};
-use crate::cameras::free_fly_camera::CameraUniform;
-
+use crate::{cameras::free_fly_camera::CameraUniform};
+#[cfg(feature="ui")]
+use user_interface::EguiState;
+#[cfg(feature="ui")]
+mod user_interface;
 mod cameras;
 mod model;
 mod resources;
 mod texture;
-mod user_interface;
+
 mod render_modules;
 
 const NUM_INSTANCES_PER_ROW: u32 = 50;
@@ -108,6 +111,7 @@ impl InstanceRaw {
     }
 }
 
+//I hope I implemented lifetime correct
 struct State {
     surface: wgpu::Surface,
     device: wgpu::Device,
@@ -115,7 +119,8 @@ struct State {
     surface_config: wgpu::SurfaceConfiguration,
     size: winit::dpi::PhysicalSize<u32>,
     render_pipeline: wgpu::RenderPipeline,
-    obj_model: model::Model,
+
+    models: Vec<model::Model>,
     
     camera: free_fly_camera::Camera,
     projection: free_fly_camera::Projection,
@@ -132,8 +137,10 @@ struct State {
     depth_texture: texture::Texture,
 
     is_right_mouse_pressed:bool,
-}
 
+    #[cfg(feature="ui")]
+    ui_state:user_interface::EguiState,
+}
 
 impl State {
     async fn new(window: &Window, window_settings: WindowSettings) -> Self {
@@ -285,7 +292,10 @@ impl State {
         });
 
         warn!("Load model");
-        let obj_model = resources::load_model(
+        let mut models:Vec<model::Model> = Vec::new();
+        //TODO move
+        //load and add model to models
+        models.push(resources::load_model(
             //TODO Other models.
             "trapeprism2.obj",
             &device,
@@ -293,7 +303,7 @@ impl State {
             &texture_bind_group_layout,
         )
         .await
-        .unwrap();
+        .unwrap());
 
         let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("shader.wgsl"),
@@ -361,6 +371,9 @@ impl State {
             multiview: None,
         });
 
+        //lol this is weird because these values are moved onto the struct? will the reference understand that??
+        #[cfg(feature="ui")]
+        let ui_state = EguiState::new(window, &surface, &device, &queue, &surface_config, &adapter, &surface_format);
         Self {
             surface,
             device,
@@ -368,7 +381,7 @@ impl State {
             surface_config,
             size,
             render_pipeline,
-            obj_model,
+            models,
             camera,
             projection,
             camera_controller,
@@ -380,6 +393,9 @@ impl State {
             depth_texture,
 
             is_right_mouse_pressed: false,
+            #[cfg(feature="ui")]
+            ui_state: ui_state,
+            
         }
     }
 
@@ -431,65 +447,99 @@ impl State {
             bytemuck::cast_slice(&[self.camera_uniform]),
         );
     }
-
     //TODO double&triple buffer
-    fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
-        let output = self.surface.get_current_texture()?;
-        let view = output
+    //TODO isolate from state and measure performance..?
+    //TODO is window:&Window bad?
+    fn render(&mut self, window:&winit::window::Window) -> Result<(), wgpu::SurfaceError> {
+        let mut cmd_buffer = Vec::<wgpu::CommandBuffer>::new();
+        let output_frame = self.surface.get_current_texture()?;
+        let output_view = output_frame
             .texture
             .create_view(&wgpu::TextureViewDescriptor::default());
 
-        let mut encoder = self
-            .device
-            .create_command_encoder(&wgpu::CommandEncoderDescriptor {
-                label: Some("Render Encoder"),
-            });
+            //Is it possible to reuse command_encoder instead of using the same one?
+        // let mut encoder = self
+        //     .device
+        //     .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+        //         label: Some("Render Encoder"),
+        //     });
         //MESH RENDERING
+        //HOW TO CHAIN?
+        let mut encoder = self
+        .device
+        .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+            label: Some("Render Encoder"),
+        });
         {
-            //TODO explore the possibilities here.
 
-            let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                label: Some("Render Pass"),
-                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                    view: &view,
-                    resolve_target: None,
-                    ops: wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(wgpu::Color {
-                            r: 0.1,
-                            g: 0.2,
-                            b: 0.3,
-                            a: 1.0,
-                        }),
-                        store: true,
-                    },
-                })],
-                depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
-                    view: &self.depth_texture.view,
-                    depth_ops: Some(wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(1.0),
-                        store: true,
-                    }),
-                    stencil_ops: None,
-                }),
-            });
-            render_pass.set_vertex_buffer(1, self.instance_buffer.slice(..));
-            render_pass.set_pipeline(&self.render_pipeline);
-
-            //Is instanced draw just better..?
-            render_pass.draw_model_instanced(
-                &self.obj_model,
-                0..self.instances.len() as u32,
-                &self.camera_bind_group,
-            );
-            // render_pass.draw_model(&self.obj_model, &self.camera_bind_group);
-        }
+                    let mut encoder = self
+        .device
+        .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+            label: Some("Render Encoder"),
+        });
         // UI RENDERING! WIll be rendered on top of the previous output!!!
+        #[cfg(feature="ui")]
         {
-            //TODO explore the possibilities here.
+
+            self.ui_state.update_time();
+
+            // Begin to draw the UI frame.
+            self.ui_state.begin_frame();
+            // Draw the demo application.
+            self.ui_state.draw_ui();
+    
+            // End the UI frame. We could now handle the output and draw the UI with the backend.
+            let full_output = self.ui_state.end_frame(window);
+            let paint_jobs = self.ui_state.platform.context().tessellate(full_output.shapes);
+    
+            // let mut encoder = self.device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
+            //     label: Some("encoder"),
+            // });
+    
+            // Upload all resources for the GPU.
+            let screen_descriptor = user_interface::render_pass::ScreenDescriptor {
+                physical_width: self.surface_config.width,
+                physical_height: self.surface_config.height,
+                scale_factor: window.scale_factor() as f32,
+            };
+            let tdelta: egui::TexturesDelta = full_output.textures_delta;
+            self.ui_state.render_pass
+                .add_textures(&self.device, &self.queue, &tdelta)
+                .expect("add texture ok");
+            self.ui_state.render_pass.update_buffers(&self.device, &self.queue, &paint_jobs, &screen_descriptor);
+    
+            // Record all render passes.
+            self.ui_state.render_pass
+                .execute(
+                    &mut encoder,
+                    &output_view,
+                    &paint_jobs,
+                    &screen_descriptor,
+                    Some(wgpu::Color::BLACK),
+                )
+                .unwrap();
+            // Submit the commands.
+            // self.queue.submit(iter::once(encoder.finish()));
+    
+            // Redraw egui
+            // output_frame.present();
+
+            //remove ui data
+            // self.ui_state.render_pass
+            // .remove_textures(tdelta)
+            // .expect("remove texture ok");
+            cmd_buffer.push(encoder.finish());
+        }
+    {
+    let mut encoder = self
+    .device
+    .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+        label: Some("Render Encoder")});
+             //TODO move this to state?
             let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("Render Pass"),
                 color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                    view: &view,
+                    view: &output_view,
                     resolve_target: None,
                     ops: wgpu::Operations {
                         load: wgpu::LoadOp::Clear(wgpu::Color {
@@ -514,19 +564,27 @@ impl State {
             render_pass.set_pipeline(&self.render_pipeline);
 
             //Is instanced draw just better..?
+            //Should instanced and individual be in different arrays?
+
             render_pass.draw_model_instanced(
-                &self.obj_model,
+                &self.models[0],
                 0..self.instances.len() as u32,
                 &self.camera_bind_group,
             );
             // render_pass.draw_model(&self.obj_model, &self.camera_bind_group);
+
+        }
+        // cmd_buffer.push(encoder.finish());
+
+
         }
 
-
-        //What does this do?
-        self.queue.submit(iter::once(encoder.finish()));
-        output.present();
+        // cmd_buffer.push(encoder.finish());
+        //so .. this is not how it works...
+        self.queue.submit(cmd_buffer);
+        output_frame.present();
         Ok(())
+
     }
 }
 
@@ -538,14 +596,12 @@ fn main_loop(app: App) {
 #[cfg_attr(target_arch = "wasm32", wasm_bindgen(start))]
 async fn init_renderer(mut app: App) {
     ne::debug!("init_renderer");
-    // app.update(); //moved}
 
     let event_loop = EventLoop::new();
-    //TODO can this code be shrinked?
+
     let win_settings =  app.world.get_resource::<WindowSettings>()
         .cloned().unwrap_or_default();
     let window = create_window(&win_settings, &event_loop);
-    
     let mut state = State::new(&window, win_settings).await;
 
     trace!("pre event_loop.run");
@@ -565,20 +621,25 @@ async fn init_renderer(mut app: App) {
     move |event: Event<()>,
         _: &EventLoopWindowTarget<()>, //not sure what to do with event_loop: &EventLoopWindowTarget
         control_flow: &mut ControlFlow| {
+            //maybe move this after if !state.input(event) {
+            #[cfg(feature="ui")]
+            let ui_event = &event;
+
         match event {
             event::Event::MainEventsCleared => {
                 window.request_redraw();
-                app.update(); //is this supposed to be here?
+                //are these supposed to be here?
+                app.update();
             },
             event::Event::WindowEvent {
-
                 //HOW DOES THIS EVENT GET HERE???
                     ref event,
                     window_id,
                 } if window_id == window.id() => {
                     let world = app.world.cell();
-    
                     if !state.input(event) {
+                        #[cfg(feature="ui")]
+                        state.ui_state.handle_event(ui_event);
                         match event {
                             WindowEvent::CloseRequested => {
                                 let mut window_close_requested_events =
@@ -728,7 +789,7 @@ async fn init_renderer(mut app: App) {
                     }
                     state.update(delta_time);
     
-                    match state.render() {
+                    match state.render(&window) {
                         Ok(_) => {}
                         // Reconfigure the surface if it's lost or outdated
                         Err(wgpu::SurfaceError::Lost | wgpu::SurfaceError::Outdated) => {
@@ -800,9 +861,6 @@ impl Plugin for RenderPlugin {
         .add_event::<WindowClosed>()
         .add_event::<WindowBackendScaleFactorChanged>()
 */
-
-
-
         // .init_resource::<Windows>()
         .set_runner(main_loop);
     }
@@ -948,7 +1006,6 @@ fn create_window(win_settings: &WindowSettings, event_loop: &EventLoop<()>) -> W
     .with_transparent(win_settings.transparent)
     .with_resizable(win_settings.resizable)
     .with_decorations(win_settings.decorations);
-
     match win_settings.window_mode
     {
         //incomplete 
