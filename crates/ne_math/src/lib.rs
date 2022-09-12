@@ -15,11 +15,12 @@ pub mod prelude {
     };
 }
 pub use glam::*;
-
+///to radians from degrees
 pub fn to_radians(deg: f32) -> f32
 {
     deg * (std::f32::consts::PI/180.0)
 }
+///to degrees from radians
 pub fn to_degrees(rad: f32) -> f32
 {
     rad * (180.0/std::f32::consts::PI)

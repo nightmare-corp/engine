@@ -11,7 +11,7 @@ macro_rules! find_asset {
         //TODO I also want the binary executable in the main project.
 
         // find_file!(concat!(env!("CARGO_MANIFEST_DIR"), "/assets")
-        println!(concat!(env!("CARGO_MANIFEST_DIR"), "/../assets"));
+        ne::log!(concat!(env!("CARGO_MANIFEST_DIR"), "/../assets"));
         concat!(env!("CARGO_MANIFEST_DIR"), "/../assets")
     }};
     //path from asset dir
@@ -19,7 +19,7 @@ macro_rules! find_asset {
     //if it is the same for each crate.
     () => {{
         // find_file!(concat!(env!("CARGO_MANIFEST_DIR"), "/assets")
-        println!(find_asset!(), "/../assets");
+        ne::log!(find_asset!(), "/../assets");
         concat!(find_asset!(), "/../assets")
     }};
 }

@@ -230,14 +230,29 @@ impl App {
         self
     }
 
-    //immediately calls function
-    //TODO maybe call it later
-    pub fn add_startup_func(&mut self, func: fn()) -> &mut Self {
-        // self.add_startup_system_to_stage(StartupStage::Startup, system)
-        // system.into_descriptor();
-        func();
-
-        self
+    /// Adds a system to the [startup stage](Self::add_default_stages) of the app's [`Schedule`].
+    ///
+    /// * For adding a system that runs every frame, see [`add_system`](Self::add_system).
+    /// * For adding a system to a specific stage, see [`add_system_to_stage`](Self::add_system_to_stage).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use bevy_app::prelude::*;
+    /// # use bevy_ecs::prelude::*;
+    /// #
+    /// fn my_startup_system(_commands: Commands) {
+    ///     ne::log!("My startup system");
+    /// }
+    ///
+    /// App::new()
+    ///     .add_startup_system(my_startup_system);
+    /// ```
+    pub fn add_startup_system<Params>(
+        &mut self,
+        system: impl IntoSystemDescriptor<Params>,
+    ) -> &mut Self {
+        self.add_startup_system_to_stage(StartupStage::Startup, system)
     }
     /// Inserts a non-send resource to the app.
     ///
@@ -315,6 +330,34 @@ impl App {
         self
     }
 
+        /// Adds a system to the [startup schedule](Self::add_default_stages), in the stage
+    /// identified by `stage_label`.
+    ///
+    /// `stage_label` must refer to a stage inside the startup schedule.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use bevy_app::prelude::*;
+    /// # use bevy_ecs::prelude::*;
+    /// #
+    /// # let mut app = App::new();
+    /// # fn my_startup_system() {}
+    /// #
+    /// app.add_startup_system_to_stage(StartupStage::PreStartup, my_startup_system);
+    /// ```
+    pub fn add_startup_system_to_stage<Params>(
+        &mut self,
+        stage_label: impl StageLabel,
+        system: impl IntoSystemDescriptor<Params>,
+    ) -> &mut Self {
+        self.schedule
+            .stage(StartupSchedule, |schedule: &mut Schedule| {
+                schedule.add_system_to_stage(stage_label, system)
+            });
+        self
+    }
+
     /// Sets the function that will be called when the app is run.
     ///
     /// The runner function `run_fn` is called only once by [`App::run`]. If the
@@ -331,7 +374,7 @@ impl App {
     /// #
     /// fn my_runner(mut app: App) {
     ///     loop {
-    ///         println!("In main loop");
+    ///         ne::log!("In main loop");
     ///         app.update();
     ///     }
     /// }

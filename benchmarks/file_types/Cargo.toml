@@ -1,5 +1,5 @@
 [package]
-name = "frame_counter"
+name = "file_types"
 version = "0.1.0"
 edition = "2021"
 description = "State of the art"
@@ -28,7 +28,8 @@ ne = {path = "../../crates/ne"}
 ne_files = {path = "../../crates/ne_files"}
 ne_app = {path = "../../crates/ne_app"}
 ne_window = {path = "../../crates/ne_window"}
-ne_render = {path = "../../crates/ne_render", features = [ "print_fps", "first_frame_time", "start_time","ui"] }
+ne_render = {path = "../../crates/ne_render", features = [ "print_fps", "first_frame_time", "start_time", "egui"] }
+ne_bench = {path = "../../crates/ne_bench"}
 # ne_gui = {path = "../../crates/ne_gui"}
 
 instant = "0.1"

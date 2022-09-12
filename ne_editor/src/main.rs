@@ -1,72 +1,72 @@
-use bevy_ecs::prelude::EventReader;
+use bevy_asset::Assets;
+use bevy_ecs::{prelude::EventReader, system::{Commands, ResMut}};
 use nightmare_engine::*;
 
-use ne_app::{App, Plugin};
+use ne_app::App;
 use ne_render::{OnWindowCloseRequested, OnWindowResized, RenderPlugin, WindowSettings};
+use ne_gui::*;
 
-// User interface allows you to build interface of any kind.
-// use crate::interface::EditorPlugin; //TODO move
+//TODO
 mod interface;
 
 fn gui_event_system() {}
 
 // use ne_window::WindowPlugin;
 fn main() {
-    // env::set_var("RUST_BACKTRACE", "1");
-    L::init_log!(tracing::Level::INFO);
+    // std::env::set_var("RUST_BACKTRACE", "1");
+    // vulkan, metal, dx12, dx11, or gl
+    // std::env::set_var("WGPU_BACKEND", "dx11");
 
-    let width = 1600.;
-    let height = 900.;
+    L::init_log!(tracing::Level::ERROR);
+    const WIDTH: f32 = 1600.0;
+    const HEIGHT: f32 = 900.0;
 
+    //TODO replace WindowSettings with WindowBuilder
     App::new()
-        .insert_resource(WindowSettings {
+        .insert_resource(
+            WindowSettings {
             title: "Nightmare_Editor".to_string(),
-            width: width,
-            height: height,
+            width: WIDTH,
+            height: HEIGHT,
             // present_mode: PresentMode::AutoVsync,
             window_mode: ne_render::WindowMode::Windowed,
             ..WindowSettings::default()
         })
+        // .add_startup_system(setup_scene)
+
         //TODO currently working on a windowplugin
         // .add_plugin(WindowPlugin)
         .add_plugin(RenderPlugin)
-        .add_plugin(interface::RandomPlugin)
+        // .add_plugin(interface::EditorPlugin)
         .add_system(resize_sys)
         .add_system(exit_window)
-        // .add_plugin(EditorPlugin)
         .run();
 }
+
+//Commands are used to modify World...? but how
+// fn setup_scene(    
+//     mut commands: Commands,
+//     mut meshes: ResMut<Assets<Mesh>>,
+//     mut materials: ResMut<Assets<StandardMaterial>>,
+// )
+// {
+//     ne::log!("HELLLOOO");
+// }
+
+
 
 //on WindowResized
 fn resize_sys(mut window_resized_events: EventReader<OnWindowResized>) {
     for event in window_resized_events.iter().rev() {
-        println!("window is resized w: {}, h:{}", event.width, event.height);
+        ne::log!("window is resized w: {}, h:{}", event.width, event.height);
     }
 }
 fn exit_window(mut window_close_requested: EventReader<OnWindowCloseRequested>) {
     for event in window_close_requested.iter().rev() {
         //TODO GUI would you like to save? Yes, No, Cancel.
-        println!("Would you like to save?");
-        println!("exiting program");
+        ne::log!("Would you like to save?");
+        ne::log!("exiting program");
         //Doesn't call any destructors, maybe a bad idea?
         std::process::exit(0);
     }
 }
-
-//TODO important!
-//struct editor_camera;
-// fn setup(&self, app: &mut App)
-// {
-//   app.add_events(... WASD, MOUSE, SCROLLWHEEL, );
-//
-// }
-
-//TODO
-// struct Logger;
-// impl Plugin for Logger {
-//     fn setup(&self, app: &mut App) {
-//         //this is annoying... because we neeed certain variablesss to outlive this function inside main..?
-//         //So we have to simply add resources! This is very much possible and easy even
-//     }
-// }
-//----------------------------------------------------------------------------------

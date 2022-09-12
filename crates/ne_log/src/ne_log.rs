@@ -3,7 +3,7 @@ pub use tracing;
 pub use tracing_appender::rolling::RollingFileAppender;
 // pub use tracing_subscriber as tracing_subscriber;
 pub use tracing_appender;
-//TODO cfg to use println! instead of tracing during release?
+//TODO cfg to use ne::log! instead of tracing during release?
 #[macro_export]
 macro_rules! err {
     //simple error and exit
@@ -25,25 +25,6 @@ macro_rules! err {
         std::process::exit(1);
     }
 }
-
-/* }
-/// Legacy code:
-#[macro_export]
-macro_rules! log {
-    ($($args:expr),*) => {
-        let mut result: String = String::from("");
-        $(
-            let tempstr: String = format!("{}", format_args!("{}", $args));
-            result.push_str(&tempstr[..]);
-        )*
-        println!("{}", result);
-    };
-} */
-//TODO
-// struct Logger
-// {
-
-// }
 
 //TODO change the log format into [time]: [type] [message]
 //And a debug version [time]: [where] [type] [message]
@@ -73,7 +54,7 @@ init_log {
         }
         pub use tracing::{info,debug,trace,warn};
 
-        trace!("Initialized logging [TRACE]");
+        tracing::trace!("Initialized logging [TRACE]");
         debug!("Initialized logging [DEBUG]");
         info!("Initialized logging [INFO]");
         warn!("Initialized logging [WARN]");

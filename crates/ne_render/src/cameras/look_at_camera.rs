@@ -174,8 +174,6 @@ impl CameraController {
         // calculate yaw and pitch
         camera.yaw += self.rotate_horizontal * self.mouse_sensitivity * dt;
         camera.pitch += -self.rotate_vertical * self.mouse_sensitivity * dt;
-
-        println!("YAW: {}, PUTCH: {}", camera.yaw, camera.pitch);
         //|TODOrecalculate look at with rotation
         // camera.target
 

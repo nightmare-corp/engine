@@ -1,6 +1,24 @@
-//thank you https://github.com/sotrh/learn-wgpu
+///thank you https://github.com/sotrh/learn-wgpu
+/// This is the first iteration renderer it needs to do: 
+/// 1) Render separate meshes
+/// 2) Render many instances of one mesh
+/// 3) Render many seperate meshes
+/// 4) Allow for easy user interface integration 
+/// 5) Easy switching from camera
+/// 6) Mesh loading from .gltf and .obj and maybe fbx files
+/// 7) Level saving/loading from .nscene
+/// 8) Effective editing of .nscene file...
+/// No need to think about optimzations yet. Just focus on implementing
+/// in a way that makes sense~!
+/// After that let's figure out how to make things faster
+/// Maybe by more effectively storing data (ecs)! And by using less buffers
+/// And by making the renderer feed less work to the gpu
+/// And maybe by moving from wgpu -> gfx/vulkan/dx12/dx11
+///TODO EDITOR UI    #[cfg(feature = "editor_ui")]
+
 use std::{iter, path::PathBuf};
 
+use cameras::free_fly_camera;
 use ne_math::{Vec2, Vec3, Quat, Mat4};
 use ne::{warn, info, trace};
 use ne_app::{App, Plugin, Events, ManualEventReader};
@@ -12,15 +30,23 @@ use wgpu::util::DeviceExt;
 use winit::{
     event::{*, self},
     event_loop::{ControlFlow, EventLoop, EventLoopWindowTarget},
-    window::{Window, Fullscreen, WindowId}, dpi::PhysicalSize,
+    window::{Fullscreen, WindowId}, dpi::PhysicalSize,
 };
-use model::{DrawModel, Vertex};
-use crate::cameras::{look_at_camera::{CameraFields, self}};
+//export windowbuilder
+pub use winit::window::{Window,WindowBuilder};
 
+use model::{DrawModel, Vertex};
+use crate::{cameras::free_fly_camera::CameraUniform};
+#[cfg(feature="ui")]
+use user_interface::EguiState;
+#[cfg(feature="ui")]
+mod user_interface;
 mod cameras;
 mod model;
 mod resources;
 mod texture;
+
+mod render_modules;
 
 const NUM_INSTANCES_PER_ROW: u32 = 50;
 
@@ -85,20 +111,23 @@ impl InstanceRaw {
     }
 }
 
+//I hope I implemented lifetime correct
 struct State {
     surface: wgpu::Surface,
     device: wgpu::Device,
     queue: wgpu::Queue,
-    config: wgpu::SurfaceConfiguration,
+    surface_config: wgpu::SurfaceConfiguration,
     size: winit::dpi::PhysicalSize<u32>,
     render_pipeline: wgpu::RenderPipeline,
-    obj_model: model::Model,
-    
-    camera: look_at_camera::Camera,
-    camera_controller: look_at_camera::CameraController,
-    camera_uniform: look_at_camera::CameraUniform,
 
-    //Can we change this into a buffer vector? or is that stupid?
+    models: Vec<model::Model>,
+    
+    camera: free_fly_camera::Camera,
+    projection: free_fly_camera::Projection,
+    camera_controller: free_fly_camera::CameraController,
+    camera_uniform: free_fly_camera::CameraUniform,
+
+    //Can we change this into a buffer vector? or is that bad?
     camera_buffer: wgpu::Buffer,
     camera_bind_group: wgpu::BindGroup,
 
@@ -108,57 +137,36 @@ struct State {
     depth_texture: texture::Texture,
 
     is_right_mouse_pressed:bool,
-}
 
-struct FPSData {
-    low:f32, //1%
-    index:f32,
-    // lowest:u32, //.1%
-}
-impl Default for FPSData
-{
-    fn default() -> Self {
-        Self { low: 100_000_000.0, 
-            index: Default::default() }
-    }
-}
-impl FPSData
-{
-    fn get_lowest(&mut self, fps:f32) -> f32
-    {
-        self.index+=1.0;
-        //reset every 100+ frames
-        if self.index>=100.0
-        {
-            self.index = 0.0;
-            self.low = 100_000_000.0;
-        }
-        //set if lower
-        if fps<self.low
-        {
-            self.low=fps;
-        }
-        self.low
-    }
+    #[cfg(feature="ui")]
+    ui_state:user_interface::EguiState,
 }
 
 impl State {
     async fn new(window: &Window, window_settings: WindowSettings) -> Self {
+        ne::log!("size of struct {} ", std::mem::size_of::<State>());
+
         let size = window.inner_size();
 
         // The instance is a handle to our GPU
         // BackendBit::PRIMARY => Vulkan + Metal + DX12 + Browser WebGPU
         warn!("WGPU setup");
-        let instance = wgpu::Instance::new(wgpu::Backends::all());
+        let backend = wgpu::util::backend_bits_from_env().unwrap_or_else(wgpu::Backends::all);
+        ne::log!("backend: {:?}", backend);
+        let instance = wgpu::Instance::new(backend);
+        
         let surface = unsafe { instance.create_surface(window) };
+
+        //TODO this crashes when we use opengl or dx11? does dx11 need to be installed on pc? are drivers outdated?
         let adapter = instance
             .request_adapter(&wgpu::RequestAdapterOptions {
-                power_preference: wgpu::PowerPreference::default(),
+                //will use the highest performance gpu.
+                power_preference: wgpu::PowerPreference::HighPerformance,
                 compatible_surface: Some(&surface),
                 force_fallback_adapter: false,
             })
             .await
-            .unwrap();
+            .unwrap(); //TODO maybe replace this unwrap with a match?
         warn!("device and queue");
         let (device, queue) = adapter
             .request_device(
@@ -180,15 +188,16 @@ impl State {
             .unwrap();
 
         warn!("Surface");
-        let config = wgpu::SurfaceConfiguration {
+        let surface_format= surface.get_supported_formats(&adapter)[0];
+        let surface_config = wgpu::SurfaceConfiguration {
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
-            format: surface.get_supported_formats(&adapter)[0],
+            format: surface_format,
             width: size.width,
             height: size.height,
             present_mode: window_settings.present_mode,
         };
 
-        surface.configure(&device, &config);
+        surface.configure(&device, &surface_config);
 
         let texture_bind_group_layout =
             device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
@@ -213,15 +222,16 @@ impl State {
                 label: Some("texture_bind_group_layout"),
             });
 
-        let camera = look_at_camera::Camera::new(
-            CameraFields{
-            aspect: (config.width as f32 / config.height as f32),
-            fovy: 45.0, znear: 0.1, zfar: 100.0,
-            ..look_at_camera::CameraFields::default()});
-        let camera_controller = look_at_camera::CameraController::new(7.0);
-
-        let mut camera_uniform = look_at_camera::CameraUniform::new();
-        camera_uniform.update_view_proj(&camera);
+            //TODO accessibility 
+            let camera = free_fly_camera::Camera::new(Vec3::new(0.0, 5.0, 10.0), -90.0, -20.0);
+            let projection =
+            free_fly_camera::Projection::new(surface_config.width, surface_config.height, 45.0, 0.1, 100.0);
+            //TODO accessibility 
+            let camera_controller = free_fly_camera::CameraController::new(4.0, 0.8);
+    
+            let mut camera_uniform = CameraUniform::new();
+            camera_uniform.update_view_proj(&camera, &projection);
+    
 
         //Buffer that will put camera-vpm-matrix into shader
         let camera_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
@@ -282,7 +292,10 @@ impl State {
         });
 
         warn!("Load model");
-        let obj_model = resources::load_model(
+        let mut models:Vec<model::Model> = Vec::new();
+        //TODO move
+        //load and add model to models
+        models.push(resources::load_model(
             //TODO Other models.
             "trapeprism2.obj",
             &device,
@@ -290,15 +303,15 @@ impl State {
             &texture_bind_group_layout,
         )
         .await
-        .unwrap();
+        .unwrap());
 
         let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("shader.wgsl"),
-            source: wgpu::ShaderSource::Wgsl(include_str!("../../../assets/shader.wgsl").into()),
+            source: wgpu::ShaderSource::Wgsl(include_str!("../../../assets/shaders/shader.wgsl").into()),
         });
 
         let depth_texture =
-            texture::Texture::create_depth_texture(&device, &config, "depth_texture");
+            texture::Texture::create_depth_texture(&device, &surface_config, "depth_texture");
 
         let render_pipeline_layout =
             device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
@@ -307,7 +320,8 @@ impl State {
                 push_constant_ranges: &[],
             });
 
-        let render_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+        let render_pipeline = 
+        device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
             label: Some("Render Pipeline"),
             layout: Some(&render_pipeline_layout),
             vertex: wgpu::VertexState {
@@ -319,7 +333,7 @@ impl State {
                 module: &shader,
                 entry_point: "fs_main",
                 targets: &[Some(wgpu::ColorTargetState {
-                    format: config.format,
+                    format: surface_config.format,
                     blend: Some(wgpu::BlendState {
                         color: wgpu::BlendComponent::REPLACE,
                         alpha: wgpu::BlendComponent::REPLACE,
@@ -357,15 +371,19 @@ impl State {
             multiview: None,
         });
 
+        //lol this is weird because these values are moved onto the struct? will the reference understand that??
+        #[cfg(feature="ui")]
+        let ui_state = EguiState::new(window, &surface, &device, &queue, &surface_config, &adapter, &surface_format);
         Self {
             surface,
             device,
             queue,
-            config,
+            surface_config,
             size,
             render_pipeline,
-            obj_model,
+            models,
             camera,
+            projection,
             camera_controller,
             camera_buffer,
             camera_bind_group,
@@ -375,18 +393,21 @@ impl State {
             depth_texture,
 
             is_right_mouse_pressed: false,
+            #[cfg(feature="ui")]
+            ui_state: ui_state,
+            
         }
     }
 
     fn resize(&mut self, new_size: winit::dpi::PhysicalSize<u32>) {
         if new_size.width > 0 && new_size.height > 0 {
-            self.camera.set_aspect(self.config.width as f32 / self.config.height as f32);
+            self.projection.resize(new_size.width, new_size.height);
             self.size = new_size;
-            self.config.width = new_size.width;
-            self.config.height = new_size.height;
-            self.surface.configure(&self.device, &self.config);
+            self.surface_config.width = new_size.width;
+            self.surface_config.height = new_size.height;
+            self.surface.configure(&self.device, &self.surface_config);
             self.depth_texture =
-                texture::Texture::create_depth_texture(&self.device, &self.config, "depth_texture");
+                texture::Texture::create_depth_texture(&self.device, &self.surface_config, "depth_texture");
         }
     }
     fn input(&mut self, event: &WindowEvent) -> bool {
@@ -399,7 +420,7 @@ impl State {
                         ..
                     },
                 ..
-            } => self.camera_controller.process_events(event),
+            } => self.camera_controller.process_keyboard(*key, *state),
             WindowEvent::MouseWheel { delta, .. } => {
                 self.camera_controller.process_scroll(delta);
                 true
@@ -416,35 +437,109 @@ impl State {
         }
 
     }
-
-    //updates camera, can be cleaner/faster/moved into camera.rs
+    //updates camera, can be cleaner/faster/moved into camera.rs... maybe
     fn update(&mut self, dt:f32) {
         self.camera_controller.update_camera(&mut self.camera,dt);
-        self.camera_uniform.update_view_proj(&self.camera);
+        self.camera_uniform.update_view_proj(&self.camera, &self.projection);
         self.queue.write_buffer(
             &self.camera_buffer,
             0,
             bytemuck::cast_slice(&[self.camera_uniform]),
         );
     }
-
-    fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
-        let output = self.surface.get_current_texture()?;
-        let view = output
+    //TODO double&triple buffer
+    //TODO isolate from state and measure performance..?
+    //TODO is window:&Window bad?
+    fn render(&mut self, window:&winit::window::Window) -> Result<(), wgpu::SurfaceError> {
+        let mut cmd_buffer = Vec::<wgpu::CommandBuffer>::new();
+        let output_frame = self.surface.get_current_texture()?;
+        let output_view = output_frame
             .texture
             .create_view(&wgpu::TextureViewDescriptor::default());
 
+            //Is it possible to reuse command_encoder instead of using the same one?
+        // let mut encoder = self
+        //     .device
+        //     .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+        //         label: Some("Render Encoder"),
+        //     });
+        //MESH RENDERING
+        //HOW TO CHAIN?
         let mut encoder = self
-            .device
-            .create_command_encoder(&wgpu::CommandEncoderDescriptor {
-                label: Some("Render Encoder"),
-            });
-
+        .device
+        .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+            label: Some("Render Encoder"),
+        });
         {
+
+                    let mut encoder = self
+        .device
+        .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+            label: Some("Render Encoder"),
+        });
+        // UI RENDERING! WIll be rendered on top of the previous output!!!
+        #[cfg(feature="ui")]
+        {
+
+            self.ui_state.update_time();
+
+            // Begin to draw the UI frame.
+            self.ui_state.begin_frame();
+            // Draw the demo application.
+            self.ui_state.draw_ui();
+    
+            // End the UI frame. We could now handle the output and draw the UI with the backend.
+            let full_output = self.ui_state.end_frame(window);
+            let paint_jobs = self.ui_state.platform.context().tessellate(full_output.shapes);
+    
+            // let mut encoder = self.device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
+            //     label: Some("encoder"),
+            // });
+    
+            // Upload all resources for the GPU.
+            let screen_descriptor = user_interface::render_pass::ScreenDescriptor {
+                physical_width: self.surface_config.width,
+                physical_height: self.surface_config.height,
+                scale_factor: window.scale_factor() as f32,
+            };
+            let tdelta: egui::TexturesDelta = full_output.textures_delta;
+            self.ui_state.render_pass
+                .add_textures(&self.device, &self.queue, &tdelta)
+                .expect("add texture ok");
+            self.ui_state.render_pass.update_buffers(&self.device, &self.queue, &paint_jobs, &screen_descriptor);
+    
+            // Record all render passes.
+            self.ui_state.render_pass
+                .execute(
+                    &mut encoder,
+                    &output_view,
+                    &paint_jobs,
+                    &screen_descriptor,
+                    Some(wgpu::Color::BLACK),
+                )
+                .unwrap();
+            // Submit the commands.
+            // self.queue.submit(iter::once(encoder.finish()));
+    
+            // Redraw egui
+            // output_frame.present();
+
+            //remove ui data
+            // self.ui_state.render_pass
+            // .remove_textures(tdelta)
+            // .expect("remove texture ok");
+            cmd_buffer.push(encoder.finish());
+        }
+    {
+    let mut encoder = self
+    .device
+    .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+        label: Some("Render Encoder")});
+             //TODO move this to state?
             let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("Render Pass"),
                 color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                    view: &view,
+                    view: &output_view,
                     resolve_target: None,
                     ops: wgpu::Operations {
                         load: wgpu::LoadOp::Clear(wgpu::Color {
@@ -465,55 +560,48 @@ impl State {
                     stencil_ops: None,
                 }),
             });
-
             render_pass.set_vertex_buffer(1, self.instance_buffer.slice(..));
             render_pass.set_pipeline(&self.render_pipeline);
 
-            //TODO BIG
-            //UNDERSTAD how is this rendererd
-            // understand how transforms work
-            // understand how locations work?
-
             //Is instanced draw just better..?
+            //Should instanced and individual be in different arrays?
+
             render_pass.draw_model_instanced(
-                &self.obj_model,
+                &self.models[0],
                 0..self.instances.len() as u32,
                 &self.camera_bind_group,
-            );           
-
+            );
             // render_pass.draw_model(&self.obj_model, &self.camera_bind_group);
+
+        }
+        // cmd_buffer.push(encoder.finish());
+
+
         }
 
-        self.queue.submit(iter::once(encoder.finish()));
-        output.present();
-
+        // cmd_buffer.push(encoder.finish());
+        //so .. this is not how it works...
+        self.queue.submit(cmd_buffer);
+        output_frame.present();
         Ok(())
+
     }
 }
 
-//TODO HOW TO SHORTEN THIS?
 fn main_loop(app: App) {
-    //TODO why is main_loop before exiting??????
-    println!("main_loop");
-
     //is this async implementation any good?
     pollster::block_on(init_renderer(app));
-
-    println!("main_loop done");
-
 }
 
 #[cfg_attr(target_arch = "wasm32", wasm_bindgen(start))]
 async fn init_renderer(mut app: App) {
-    println!("init_renderer");
-    // app.update(); //moved}
+    ne::debug!("init_renderer");
 
     let event_loop = EventLoop::new();
-    //TODO can this code be shrinked?
+
     let win_settings =  app.world.get_resource::<WindowSettings>()
         .cloned().unwrap_or_default();
     let window = create_window(&win_settings, &event_loop);
-
     let mut state = State::new(&window, win_settings).await;
 
     trace!("pre event_loop.run");
@@ -527,24 +615,31 @@ async fn init_renderer(mut app: App) {
     let mut app_exit_event_reader = ManualEventReader::<AppExit>::default();
 
     #[cfg(feature = "print_fps")]
-    let mut fpsd = FPSData::default();
+    let mut fpsd = ne_bench::fpsdata::FPSData::default();
 
     let event_handler = 
     move |event: Event<()>,
-        event_loop: &EventLoopWindowTarget<()>,
+        _: &EventLoopWindowTarget<()>, //not sure what to do with event_loop: &EventLoopWindowTarget
         control_flow: &mut ControlFlow| {
+            //maybe move this after if !state.input(event) {
+            #[cfg(feature="ui")]
+            let ui_event = &event;
+
         match event {
             event::Event::MainEventsCleared => {
                 window.request_redraw();
-                app.update(); //is this supposed to be here?
+                //are these supposed to be here?
+                app.update();
             },
             event::Event::WindowEvent {
+                //HOW DOES THIS EVENT GET HERE???
                     ref event,
                     window_id,
                 } if window_id == window.id() => {
                     let world = app.world.cell();
-    
                     if !state.input(event) {
+                        #[cfg(feature="ui")]
+                        state.ui_state.handle_event(ui_event);
                         match event {
                             WindowEvent::CloseRequested => {
                                 let mut window_close_requested_events =
@@ -635,7 +730,7 @@ async fn init_renderer(mut app: App) {
                                 world.resource_mut::<Events<OnCursorEntered>>();
                             cursor_entered_events.send(OnCursorEntered { id: window_id });
                         }
-                        WindowEvent::CursorLeft { device_id } => {
+                        WindowEvent::CursorLeft { .. } => {
                             let mut cursor_left_event 
                             = world.resource_mut::<Events<OnCursorLeft>>();
                             cursor_left_event.send(OnCursorLeft { id: window_id });
@@ -659,8 +754,10 @@ async fn init_renderer(mut app: App) {
                     event: DeviceEvent::MouseMotion{ delta, },
                     .. // We're not using device_id currently
                 } => if state.is_right_mouse_pressed {
-                    //
-                    state.camera_controller.process_mouse(delta.0, delta.1)
+                    state.camera_controller.process_mouse(delta.0, delta.1);
+                    window.set_cursor_visible(false);
+                } else {
+                    window.set_cursor_visible(true);
                 }
             event::Event::RedrawRequested(window_id) if window_id == window.id() => {
                     //hope this gets optimized somehow
@@ -687,12 +784,12 @@ async fn init_renderer(mut app: App) {
                             let time_passed = (now - FIRST_FRAME_TIME.unwrap()).as_secs_f32();
                             let average_fps = frame_count as f32/time_passed;
                             
-                            println!("fps:{:<14}fps | avg:{:<14}fps | 1%LOW:{:<10}fps",fps,average_fps, fpsd.get_lowest(fps));
+                            ne::log!("fps:{:<14}fps | avg:{:<14}fps | 1%LOW:{:<10}fps",fps,average_fps, fpsd.get_lowest(fps));
                         }
                     }
                     state.update(delta_time);
     
-                    match state.render() {
+                    match state.render(&window) {
                         Ok(_) => {}
                         // Reconfigure the surface if it's lost or outdated
                         Err(wgpu::SurfaceError::Lost | wgpu::SurfaceError::Outdated) => {
@@ -704,16 +801,10 @@ async fn init_renderer(mut app: App) {
                         Err(wgpu::SurfaceError::Timeout) => warn!("Surface timeout"),
                     }
 
-                    // //add event right here...
-                    // let redraw_event = app.world.get_resource::<Events<Redraw>>() {
-
-                    // }
-                    //sent an event from here, frame is done!
                     //TODO remove..?
                     let world = app.world.cell();
-                    let mut frame_events = world.resource_mut::<Events<FrameEvent>>();
-                    frame_events.send(FrameEvent {});
-
+                    let mut frame_events = world.resource_mut::<Events<OnRedrawRequested>>();
+                    frame_events.send(OnRedrawRequested {});
                 }
                 event::Event::RedrawEventsCleared => {
                     //measure
@@ -730,7 +821,7 @@ async fn init_renderer(mut app: App) {
                 }
             }
     };
-    println!("event loop run");
+    ne::log!("event loop run");
     run(event_loop, event_handler);
 }
 
@@ -745,15 +836,11 @@ where
 pub struct RenderPlugin;
 impl Plugin for RenderPlugin {
     fn setup(&self, app: &mut App) {
-
-        //TODO what's going onnnnn
-        println!("setup");
+        ne::debug!("setup RenderPlugin");
         app
         .add_event::<OnWindowResized>()
         .add_event::<AppExit>()
-        .add_event::<FrameEvent>()
-
-
+        .add_event::<OnRedrawRequested>()
         //TODO
         .add_event::<OnWindowCloseRequested>()
         .add_event::<OnWindowFocused>()
@@ -774,9 +861,6 @@ impl Plugin for RenderPlugin {
         .add_event::<WindowClosed>()
         .add_event::<WindowBackendScaleFactorChanged>()
 */
-
-
-
         // .init_resource::<Windows>()
         .set_runner(main_loop);
     }
@@ -897,13 +981,13 @@ pub fn get_fitting_videomode(
         }
         b - a
     }
-
+    //does this work..?
     modes.sort_by(|a, b| {
         use std::cmp::Ordering::*;
         match abs_diff(a.size().width, width).cmp(&abs_diff(b.size().width, width)) {
             Equal => {
                 match abs_diff(a.size().height, height).cmp(&abs_diff(b.size().height, height)) {
-                    Equal => b.refresh_rate().cmp(&a.refresh_rate()),
+                    Equal => b.refresh_rate_millihertz().cmp(&a.refresh_rate_millihertz()),
                     default => default,
                 }
             }
@@ -922,14 +1006,13 @@ fn create_window(win_settings: &WindowSettings, event_loop: &EventLoop<()>) -> W
     .with_transparent(win_settings.transparent)
     .with_resizable(win_settings.resizable)
     .with_decorations(win_settings.decorations);
-
     match win_settings.window_mode
     {
         //incomplete 
         WindowMode::Windowed => {},
         WindowMode::BorderlessFullscreen => {
             // let mut monitor_index = 0; //todo
-            let mut monitor = event_loop
+            let monitor = event_loop
             .available_monitors()
             .next()
             .expect("no monitor found!");
@@ -940,7 +1023,7 @@ fn create_window(win_settings: &WindowSettings, event_loop: &EventLoop<()>) -> W
         WindowMode::SizedFullscreen => todo!(),
         WindowMode::Fullscreen => {
             // let mut monitor_index = 0; //todo
-            let mut monitor = event_loop
+            let monitor = event_loop
             .available_monitors()
             .next()
             .expect("no monitor found!");
@@ -1197,4 +1280,4 @@ pub struct OnWindowBackendScaleFactorChanged {
 pub struct AppExit;
 /// An event that is sent when a frame has been rendered 
 /// Inside of RedrawRequested in the eventloop
-pub struct FrameEvent;
+pub struct OnRedrawRequested;

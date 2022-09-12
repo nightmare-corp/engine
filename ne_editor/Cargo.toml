@@ -20,16 +20,18 @@ ne = {path = "../crates/ne"}
 ne_files = {path = "../crates/ne_files"}
 ne_app = {path = "../crates/ne_app"}
 ne_window = {path = "../crates/ne_window"}
-ne_render = {path = "../crates/ne_render"}
+ne_render = {path = "../crates/ne_render", features = ["first_frame_time", "start_time", "ui"] }
 ne_gui = {path = "../crates/ne_gui"}
+# remove
+ne_bench = {path = "../crates/ne_bench"}
 
 
 # Bevy
 bevy_ecs = "0.8.1"
+bevy_asset = "0.8.1"
 # ne_minimum = {path = "../crates/ne_minimum"}
 # L = {path = "../crates/ne_log"} #, features = ["release_max_level_off"] 
 tracing = "0.1.35"
 tracing-subscriber = "0.3.14"
-chrono = "0.4.22"
 # [features]
 # default = ["path_checker"]
