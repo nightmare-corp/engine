@@ -5,9 +5,9 @@ use ::egui::FontDefinitions;
 use egui_demo_lib::DemoWindows;
 use egui_winit_platform::{Platform, PlatformDescriptor};
 
-use self::render_pass::RenderPassRecipe;
+use self::ui_render_pass::RenderPassRecipe;
 
-pub mod render_pass;
+pub mod ui_render_pass;
 
 // /// A custom event type for the winit app.
 // enum Event {

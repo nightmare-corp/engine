@@ -525,7 +525,7 @@ impl State {
             let paint_jobs = self.ui_state.platform.context().tessellate(full_output.shapes);
 
             // Upload all resources for the GPU.
-            let screen_descriptor = user_interface::render_pass::ScreenDescriptor {
+            let screen_descriptor = user_interface::ui_render_pass::ScreenDescriptor {
                 physical_width: self.surface_config.width,
                 physical_height: self.surface_config.height,
                 scale_factor: window.scale_factor() as f32,
@@ -546,18 +546,24 @@ impl State {
                     None,
                 )
                 .unwrap();
-            //remove ui data
-            // self.ui_state.render_pass
-            // .remove_textures(tdelta)
-            // .expect("remove texture ok");
+
+                cmd_buffer.push(encoder.finish());
+
+                self.queue.submit(cmd_buffer);
+                output_frame.present();
+
+                //remove ui data
+            self.ui_state.render_pass
+            .remove_textures(tdelta)
+            .expect("remove texture ok");
+
+            Ok(())
+
         }
         //push ui
-        cmd_buffer.push(encoder.finish());
+        
 
         //so .. this is not how it works...
-        self.queue.submit(cmd_buffer);
-        output_frame.present();
-        Ok(())
 
     }
 }
@@ -677,26 +683,9 @@ async fn init_renderer(mut app: App) {
                                     path_buf: path_buf.to_path_buf(),
                                 });
                             }
-                                                    //TODO implement multiple windows before implementing this one.
+                        //TODO implement multiple windows before implementing this one.
                         WindowEvent::CursorMoved { position, .. }
                         => {
-                            // TODO
-                            // let mut cursor_moved_event 
-                            //     = world.resource_mut::<Events<OnCursorMoved>>();
-
-                            //     //idk what's happening here
-                            //     let winit_window = winit_windows.get_window(window_id).unwrap();
-                            //     let inner_size = winit_window.inner_size();
-        
-                            //     // move origin to bottom left
-                            //     let y_position = inner_size.height as f64 - position.y;
-        
-                            //     let physical_position = DVec2::new(position.x, y_position);
-                            // cursor_moved_event.send(OnCursorMoved {
-                            //         id: window_id, 
-                            //         position: (physical_position / window.scale_factor()).as_vec2(), 
-                            //     })
-
                         }
                         WindowEvent::CursorEntered{.. /* device id needed? */ } 
                         => {
