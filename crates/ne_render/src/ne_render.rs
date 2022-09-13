@@ -16,7 +16,7 @@
 /// And maybe by moving from wgpu -> gfx/vulkan/dx12/dx11
 ///TODO EDITOR UI    #[cfg(feature = "editor_ui")]
 
-use std::{iter, path::PathBuf};
+use std::{path::PathBuf};
 
 use cameras::free_fly_camera;
 use ne_math::{Vec2, Vec3, Quat, Mat4};
@@ -558,7 +558,6 @@ impl State {
             .expect("remove texture ok");
 
             Ok(())
-
         }
         //push ui
         
@@ -646,7 +645,7 @@ async fn init_renderer(mut app: App) {
                                 = world.resource_mut::<Events<OnWindowResized>>();
                                 resize_events.send(OnWindowResized {
                                     id: window_id,
-                                    width: window.inner_size().width as f32,
+                                    width:  window.inner_size().width as f32,
                                     height: window.inner_size().height as f32,
                                 });
                             }
@@ -719,6 +718,7 @@ async fn init_renderer(mut app: App) {
                 } => if state.is_right_mouse_pressed {
                     state.camera_controller.process_mouse(delta.0, delta.1);
                     window.set_cursor_visible(false);
+                    _ = window.set_cursor_position(winit::dpi::PhysicalPosition::new(window.inner_size().width/2, window.inner_size().height/2));
                 } else {
                     window.set_cursor_visible(true);
                 }

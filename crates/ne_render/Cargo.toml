@@ -21,9 +21,8 @@ egui = { version = "0.19.0", optional = true, default-features = false, features
 ] }
 # Remove/Replace:
 egui_demo_lib = "0.19.0"
-# egui_wgpu_backend = "0.19.0"
+# TODO aquire fonts so this can be removed. low priority
 egui_winit_platform = "0.16.0"
-epi = "0.17" #Backend-agnostic interface for writing apps using egui
 
 type-map = "0.5.0"
 instant = "0.1"
