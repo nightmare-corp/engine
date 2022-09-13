@@ -455,7 +455,7 @@ impl State {
         let output_view = output_frame
             .texture
             .create_view(&wgpu::TextureViewDescriptor::default());
-        let mut cmd_buffer = Vec::<CommandBuffer>::new();
+        let mut cmd_buffers = Vec::<CommandBuffer>::new();
         
         //new encoder
         let mut encoder = self
@@ -464,7 +464,7 @@ impl State {
         label: Some("Render Encoder")});
         //perpare meshes
         {
-             //TODO move this to state?
+            //TODO move this to state
             let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("Render Pass"),
                 color_attachments: &[Some(wgpu::RenderPassColorAttachment {
@@ -492,10 +492,8 @@ impl State {
             });
             render_pass.set_vertex_buffer(1, self.instance_buffer.slice(..));
             render_pass.set_pipeline(&self.render_pipeline);
-
             //Is instanced draw just better..?
             //Should instanced and individual be in different arrays?
-
             render_pass.draw_model_instanced(
                 &self.models[0],
                 0..self.instances.len() as u32,
@@ -503,7 +501,7 @@ impl State {
             );
             // render_pass.draw_model(&self.obj_model, &self.camera_bind_group);
         }
-        cmd_buffer.push(encoder.finish());
+        cmd_buffers.push(encoder.finish());
         //new encoder
         let mut encoder = self
         .device
@@ -547,9 +545,10 @@ impl State {
                 )
                 .unwrap();
 
-                cmd_buffer.push(encoder.finish());
+                cmd_buffers.push(encoder.finish());
 
-                self.queue.submit(cmd_buffer);
+                // the number of submit() calls should be limited to a few per frame (e.g. 1-5).
+                self.queue.submit(cmd_buffers);
                 output_frame.present();
 
                 //remove ui data
@@ -1060,8 +1059,7 @@ pub enum MonitorSelection {
 /// These values are measured in logical pixels, so the user's
 /// scale factor does affect the size limits on the window.
 /// Please note that if the window is resizable, then when the window is
-/// maximized it may have a size outside of these limits. The functionality
-/// required to disable maximizing is not yet exposed by winit.
+/// maximized it may have a size outside of these limits...
 #[derive(Debug, Clone, Copy)]
 pub struct WindowResizeConstraints {
     pub min_width: f32,
@@ -1188,7 +1186,6 @@ pub struct OnCursorEntered {
 pub struct OnCursorLeft {
     pub id: WindowId,
 }
-
 
 /// An event that indicates a window has received or lost focus.
 #[derive(Debug, Clone)]

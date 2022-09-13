@@ -34,7 +34,7 @@ fn main() {
     // std::env::set_var("RUST_BACKTRACE", "1");
     // vulkan, metal, dx12, dx11, or gl
     // std::env::set_var("WGPU_BACKEND", "vulkan");
-
+    std::env::set_var("neprint", "true");
     const WIDTH: f32 = 1600.0;
     const HEIGHT: f32 = 900.0;
 
