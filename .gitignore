@@ -19,7 +19,6 @@ Cargo.lock
 logs/
 logs/*
 src/logs/*
-crates/
 
 # wish this worked.
 */logs/*

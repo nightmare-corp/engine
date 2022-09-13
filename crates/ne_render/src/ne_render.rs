@@ -16,7 +16,7 @@
 /// And maybe by moving from wgpu -> gfx/vulkan/dx12/dx11
 ///TODO EDITOR UI    #[cfg(feature = "editor_ui")]
 
-use std::{iter, path::PathBuf};
+use std::{path::PathBuf};
 
 use cameras::free_fly_camera;
 use ne_math::{Vec2, Vec3, Quat, Mat4};
@@ -26,7 +26,7 @@ use ne_app::{App, Plugin, Events, ManualEventReader};
 use ne_app::FIRST_FRAME_TIME;
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
-use wgpu::util::DeviceExt;
+use wgpu::{util::DeviceExt, CommandBuffer};
 use winit::{
     event::{*, self},
     event_loop::{ControlFlow, EventLoop, EventLoopWindowTarget},
@@ -451,90 +451,19 @@ impl State {
     //TODO isolate from state and measure performance..?
     //TODO is window:&Window bad?
     fn render(&mut self, window:&winit::window::Window) -> Result<(), wgpu::SurfaceError> {
-        let mut cmd_buffer = Vec::<wgpu::CommandBuffer>::new();
         let output_frame = self.surface.get_current_texture()?;
         let output_view = output_frame
             .texture
             .create_view(&wgpu::TextureViewDescriptor::default());
-
-            //Is it possible to reuse command_encoder instead of using the same one?
-        // let mut encoder = self
-        //     .device
-        //     .create_command_encoder(&wgpu::CommandEncoderDescriptor {
-        //         label: Some("Render Encoder"),
-        //     });
-        //MESH RENDERING
-        //HOW TO CHAIN?
+        let mut cmd_buffer = Vec::<CommandBuffer>::new();
+        
+        //new encoder
         let mut encoder = self
         .device
         .create_command_encoder(&wgpu::CommandEncoderDescriptor {
-            label: Some("Render Encoder"),
-        });
-        {
-
-                    let mut encoder = self
-        .device
-        .create_command_encoder(&wgpu::CommandEncoderDescriptor {
-            label: Some("Render Encoder"),
-        });
-        // UI RENDERING! WIll be rendered on top of the previous output!!!
-        #[cfg(feature="ui")]
-        {
-
-            self.ui_state.update_time();
-
-            // Begin to draw the UI frame.
-            self.ui_state.begin_frame();
-            // Draw the demo application.
-            self.ui_state.draw_ui();
-    
-            // End the UI frame. We could now handle the output and draw the UI with the backend.
-            let full_output = self.ui_state.end_frame(window);
-            let paint_jobs = self.ui_state.platform.context().tessellate(full_output.shapes);
-    
-            // let mut encoder = self.device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
-            //     label: Some("encoder"),
-            // });
-    
-            // Upload all resources for the GPU.
-            let screen_descriptor = user_interface::render_pass::ScreenDescriptor {
-                physical_width: self.surface_config.width,
-                physical_height: self.surface_config.height,
-                scale_factor: window.scale_factor() as f32,
-            };
-            let tdelta: egui::TexturesDelta = full_output.textures_delta;
-            self.ui_state.render_pass
-                .add_textures(&self.device, &self.queue, &tdelta)
-                .expect("add texture ok");
-            self.ui_state.render_pass.update_buffers(&self.device, &self.queue, &paint_jobs, &screen_descriptor);
-    
-            // Record all render passes.
-            self.ui_state.render_pass
-                .execute(
-                    &mut encoder,
-                    &output_view,
-                    &paint_jobs,
-                    &screen_descriptor,
-                    Some(wgpu::Color::BLACK),
-                )
-                .unwrap();
-            // Submit the commands.
-            // self.queue.submit(iter::once(encoder.finish()));
-    
-            // Redraw egui
-            // output_frame.present();
-
-            //remove ui data
-            // self.ui_state.render_pass
-            // .remove_textures(tdelta)
-            // .expect("remove texture ok");
-            cmd_buffer.push(encoder.finish());
-        }
-    {
-    let mut encoder = self
-    .device
-    .create_command_encoder(&wgpu::CommandEncoderDescriptor {
         label: Some("Render Encoder")});
+        //perpare meshes
+        {
              //TODO move this to state?
             let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("Render Pass"),
@@ -548,6 +477,7 @@ impl State {
                             b: 0.3,
                             a: 1.0,
                         }),
+                        // load: wgpu::LoadOp::Load,
                         store: true,
                     },
                 })],
@@ -572,18 +502,67 @@ impl State {
                 &self.camera_bind_group,
             );
             // render_pass.draw_model(&self.obj_model, &self.camera_bind_group);
-
         }
-        // cmd_buffer.push(encoder.finish());
+        cmd_buffer.push(encoder.finish());
+        //new encoder
+        let mut encoder = self
+        .device
+        .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+            label: Some("Render Encoder"),
+        });
+        // UI RENDERING! WIll be rendered on top of the previous output!!!
+        #[cfg(feature="ui")]
+        {
+            self.ui_state.update_time();
 
+            // Begin to draw the UI frame.
+            self.ui_state.begin_frame();
+            // Draw the demo application.
+            self.ui_state.draw_ui();
 
+            // End the UI frame. We could now handle the output and draw the UI with the backend.
+            let full_output = self.ui_state.end_frame(window);
+            let paint_jobs = self.ui_state.platform.context().tessellate(full_output.shapes);
+
+            // Upload all resources for the GPU.
+            let screen_descriptor = user_interface::ui_render_pass::ScreenDescriptor {
+                physical_width: self.surface_config.width,
+                physical_height: self.surface_config.height,
+                scale_factor: window.scale_factor() as f32,
+            };
+            let tdelta: egui::TexturesDelta = full_output.textures_delta;
+            self.ui_state.render_pass
+                .add_textures(&self.device, &self.queue, &tdelta)
+                .expect("add texture ok");
+            self.ui_state.render_pass.update_buffers(&self.device, &self.queue, &paint_jobs, &screen_descriptor);
+
+            // Record all render passes.
+            self.ui_state.render_pass
+                .execute(
+                    &mut encoder,
+                    &output_view,
+                    &paint_jobs,
+                    &screen_descriptor,
+                    None,
+                )
+                .unwrap();
+
+                cmd_buffer.push(encoder.finish());
+
+                self.queue.submit(cmd_buffer);
+                output_frame.present();
+
+                //remove ui data
+            self.ui_state.render_pass
+            .remove_textures(tdelta)
+            .expect("remove texture ok");
+
+            Ok(())
         }
+        //push ui
+        
 
-        // cmd_buffer.push(encoder.finish());
         //so .. this is not how it works...
-        self.queue.submit(cmd_buffer);
-        output_frame.present();
-        Ok(())
 
     }
 }
@@ -666,7 +645,7 @@ async fn init_renderer(mut app: App) {
                                 = world.resource_mut::<Events<OnWindowResized>>();
                                 resize_events.send(OnWindowResized {
                                     id: window_id,
-                                    width: window.inner_size().width as f32,
+                                    width:  window.inner_size().width as f32,
                                     height: window.inner_size().height as f32,
                                 });
                             }
@@ -703,26 +682,9 @@ async fn init_renderer(mut app: App) {
                                     path_buf: path_buf.to_path_buf(),
                                 });
                             }
-                                                    //TODO implement multiple windows before implementing this one.
+                        //TODO implement multiple windows before implementing this one.
                         WindowEvent::CursorMoved { position, .. }
                         => {
-                            // TODO
-                            // let mut cursor_moved_event 
-                            //     = world.resource_mut::<Events<OnCursorMoved>>();
-
-                            //     //idk what's happening here
-                            //     let winit_window = winit_windows.get_window(window_id).unwrap();
-                            //     let inner_size = winit_window.inner_size();
-        
-                            //     // move origin to bottom left
-                            //     let y_position = inner_size.height as f64 - position.y;
-        
-                            //     let physical_position = DVec2::new(position.x, y_position);
-                            // cursor_moved_event.send(OnCursorMoved {
-                            //         id: window_id, 
-                            //         position: (physical_position / window.scale_factor()).as_vec2(), 
-                            //     })
-
                         }
                         WindowEvent::CursorEntered{.. /* device id needed? */ } 
                         => {
@@ -756,6 +718,7 @@ async fn init_renderer(mut app: App) {
                 } => if state.is_right_mouse_pressed {
                     state.camera_controller.process_mouse(delta.0, delta.1);
                     window.set_cursor_visible(false);
+                    _ = window.set_cursor_position(winit::dpi::PhysicalPosition::new(window.inner_size().width/2, window.inner_size().height/2));
                 } else {
                     window.set_cursor_visible(true);
                 }
