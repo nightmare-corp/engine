@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2021"
 description = "State of the art"
 keywords = ["game", "nightmare", "engine", "gamedev", "graphics" ] 
+homepage = "https://nightmare-corp.com"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

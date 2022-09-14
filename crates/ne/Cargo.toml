@@ -2,12 +2,15 @@
 name = "ne"
 version = "0.1.0"
 edition = "2021"
-
+description = "nightmare_engine essentials"
+homepage = "https://nightmare-corp.com"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [features]
 
 [dependencies]
 ne_log = {path = "../ne_log"}
+# Bevy
+bevy_ecs = "0.8.1"
 # ne_files = {path = "../ne_files"}
 
 [lib]

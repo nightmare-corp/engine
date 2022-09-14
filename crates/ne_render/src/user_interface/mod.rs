@@ -7,7 +7,7 @@ use self::{ui_render_pass::RenderPassRecipe};
 use self::{egui_window::{Platform, PlatformDescriptor}};
 mod egui_window;
 pub mod ui_render_pass;
-
+pub mod editor_widget;
 pub struct EguiState {
     pub platform:Platform,
     pub render_pass:RenderPassRecipe,

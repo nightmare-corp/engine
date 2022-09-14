@@ -19,6 +19,7 @@
 use std::{path::PathBuf};
 
 use cameras::free_fly_camera;
+use bevy_ecs::prelude::*;
 use ne_math::{Vec2, Vec3, Quat, Mat4};
 use ne::{warn, info, trace};
 use ne_app::{App, Plugin, Events, ManualEventReader};
@@ -49,6 +50,11 @@ mod texture;
 mod render_modules;
 
 const NUM_INSTANCES_PER_ROW: u32 = 50;
+
+//TODO TODO
+#[derive(Component)]
+struct e1;
+
 
 struct Instance {
     position: Vec3,
@@ -110,6 +116,14 @@ impl InstanceRaw {
         }
     }
 }
+// //TODO ecs approach
+// #[derive(Component)]
+// struct Player {
+//     name: String,
+// }
+
+
+
 
 //I hope I implemented lifetime correct
 struct State {
@@ -132,8 +146,8 @@ struct State {
     camera_bind_group: wgpu::BindGroup,
 
     instances: Vec<Instance>,
-    // #[allow(dead_code)]
     instance_buffer: wgpu::Buffer,
+    
     depth_texture: texture::Texture,
 
     is_right_mouse_pressed:bool,
@@ -143,7 +157,7 @@ struct State {
 }
 
 impl State {
-    async fn new(window: &Window, window_settings: WindowSettings) -> Self {
+    async fn new(app:&mut App, window: &Window, window_settings: WindowSettings) -> Self {
         ne::log!("size of struct {} ", std::mem::size_of::<State>());
 
         let size = window.inner_size();
@@ -222,8 +236,8 @@ impl State {
                 label: Some("texture_bind_group_layout"),
             });
 
-            //TODO accessibility 
-            let camera = free_fly_camera::Camera::new(Vec3::new(0.0, 5.0, 10.0), -90.0, -20.0);
+            //TODO accessibility camera location
+            let camera = free_fly_camera::Camera::new(Vec3::new(0.0, 4.0, 0.0), -90.0, -20.0);
             let projection =
             free_fly_camera::Projection::new(surface_config.width, surface_config.height, 45.0, 0.1, 100.0);
             //TODO accessibility 
@@ -240,6 +254,11 @@ impl State {
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
         });
 
+        //
+        // TODO make generic
+        //
+        
+        //This sets the world space of each cube
         const SPACE_BETWEEN: f32 = 3.0;
         let instances = (0..NUM_INSTANCES_PER_ROW)
             .flat_map(|z| {
@@ -247,7 +266,8 @@ impl State {
                     let x = SPACE_BETWEEN * (x as f32 - NUM_INSTANCES_PER_ROW as f32 / 2.0);
                     let z = SPACE_BETWEEN * (z as f32 - NUM_INSTANCES_PER_ROW as f32 / 2.0);
 
-                    let position = Vec3 { x, y: 0.0, z };
+                    //TODO everything is now put on coord 0,0,0
+                    let position = Vec3 { x: x, y: 0.0, z: z };
 
                     //How to know if position is zero???
                     let rotation = if let Some(pos) = position.try_normalize() {
@@ -260,12 +280,18 @@ impl State {
             })
             .collect::<Vec<_>>();
 
+            //This translates instance into a matrix which will be moved to gpu. 
         let instance_data = instances.iter().map(Instance::to_raw).collect::<Vec<_>>();
         let instance_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Instance Buffer"),
             contents: bytemuck::cast_slice(&instance_data),
             usage: wgpu::BufferUsages::VERTEX,
         });
+
+        //      ^^^^^^^
+        // TODO make generic
+        //
+        
 
         let camera_bind_group_layout =
             device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
@@ -450,7 +476,7 @@ impl State {
     //TODO double&triple buffer
     //TODO isolate from state and measure performance..?
     //TODO is window:&Window bad?
-    fn render(&mut self, window:&winit::window::Window) -> Result<(), wgpu::SurfaceError> {
+    fn render(&mut self, app:&mut App, window:&winit::window::Window) -> Result<(), wgpu::SurfaceError> {
         let output_frame = self.surface.get_current_texture()?;
         let output_view = output_frame
             .texture
@@ -556,13 +582,9 @@ impl State {
             .remove_textures(tdelta)
             .expect("remove texture ok");
 
-            Ok(())
         }
-        //push ui
-        
-
-        //so .. this is not how it works...
-
+        //this is not how it works... I don't think
+        Ok(()) 
     }
 }
 
@@ -580,7 +602,7 @@ async fn init_renderer(mut app: App) {
     let win_settings =  app.world.get_resource::<WindowSettings>()
         .cloned().unwrap_or_default();
     let window = create_window(&win_settings, &event_loop);
-    let mut state = State::new(&window, win_settings).await;
+    let mut state = State::new(&mut app, &window, win_settings).await;
 
     trace!("pre event_loop.run");
 
@@ -751,7 +773,7 @@ async fn init_renderer(mut app: App) {
                     }
                     state.update(delta_time);
     
-                    match state.render(&window) {
+                    match state.render(&mut app, &window ) {
                         Ok(_) => {}
                         // Reconfigure the surface if it's lost or outdated
                         Err(wgpu::SurfaceError::Lost | wgpu::SurfaceError::Outdated) => {

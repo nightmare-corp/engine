@@ -1,8 +1,8 @@
 // I don't know how to write tests, this will do for now!
 
-// use core::time;
-use bevy_ecs::prelude::{EventReader, EventWriter};
-use nightmare_engine::*;
+use bevy_ecs::prelude::EventReader;
+use bevy_ecs::prelude::{EventWriter};
+
 
 use ne_app::{get_time_passed, App};
 use ne_render::{AppExit, OnRedrawRequested, OnWindowCloseRequested, RenderPlugin, WindowSettings};
@@ -38,7 +38,7 @@ fn main() {
     const WIDTH: f32 = 1600.0;
     const HEIGHT: f32 = 900.0;
 
-    L::init_log!(tracing::Level::ERROR);
+    ne::L::init_log!(tracing::Level::ERROR);
     App::new()
         .insert_resource(WindowSettings {
             title: "Nightmare_Editor".to_string(),
@@ -62,8 +62,9 @@ fn exit_window(mut window_close_requested: EventReader<OnWindowCloseRequested>) 
     }
 }
 //random conclusions:
+//egui significantly impacts fps the more windows are on.
 //fps counter has minimal performance impact on --release but significant on debug.
-//window down and window focused cost the same, except on lower resolutions. This still has to be optimized ofcourse
+//window down and window focused cost the same, except on lower resolutions. This still has to be optimized ofcourse.
 
 //But all of this should be with a obitting/spinning camera instead of
 //a frozen camera.
