@@ -19,7 +19,6 @@
 use std::{path::PathBuf};
 
 use cameras::free_fly_camera;
-use bevy_ecs::prelude::*;
 use ne_math::{Vec2, Vec3, Quat, Mat4};
 use ne::{warn, info, trace};
 use ne_app::{App, Plugin, Events, ManualEventReader};
@@ -36,7 +35,7 @@ use winit::{
 //export windowbuilder
 pub use winit::window::{Window,WindowBuilder};
 
-use model::{DrawModel, Vertex};
+use model::{DrawModel, Vertex, RuntimeModel};
 use crate::{cameras::free_fly_camera::CameraUniform};
 #[cfg(feature="ui")]
 use user_interface::EguiState;
@@ -49,12 +48,62 @@ mod texture;
 
 mod render_modules;
 
-const NUM_INSTANCES_PER_ROW: u32 = 50;
+const NUM_INSTANCES_PER_ROW: u32 = 1;
+//======================================================
+//                      HERE
+//======================================================
+//will disappear on runtime?
+//no is put in scene view ui.
+//TODO make sure it's removed in game build
 
-//TODO TODO
-#[derive(Component)]
-struct e1;
+// pub struct ModelDescriptor {
+//     path:String, //optimize for multiple meshes.
+//     location:Vec3,
+//     //rotation:Quat
+//     // scale:vec3,
+// }
+// pub struct SceneLoader {
+//     pub push_model_data:Vec<ModelDescriptor>,
+// }
+// impl SceneLoader {
+//     pub fn new(models: Option<Vec<ModelDescriptor>>) -> Self { 
+//         match models
+//         {
+//             Some(models) => Self { models },
+//             None => Self { push_model_data:Vec::<ModelDescriptor>::new() },
+//         }
+//     }
+//     fn push_model_data(&mut self, model_descriptor:ModelDescriptor)
+//     {
+//         self.push_model_data.push(model_descriptor);
+//     }
+// }
+// pub struct Scene {
+//     runtime_models:Vec<RuntimeModel>
+// }
+// impl Scene {
+//     pub fn new(scene:SceneLoader,device:&Device, queue:&Queue, texture) -> Self { 
+//         let runtime_models = Vec::<RuntimeModel>::new();
+//         for descriptor in scene.push_model_data.iter() {
+//             runtime_models.push( 
+//                 resources::load_model(
+//                     &descriptor.path/* "trapeprism2.obj" */,
+//                     &device,
+//                     &queue,
+//                     &texture_bind_group_layout,);
+//         }
+//         Self { 
 
+//         }
+//     }
+//     pub fn get_models(&self) -> Vec<RuntimeModel>
+//     {
+//         self.runtime_models   
+//     }
+// }
+//======================================================
+//                        UP
+//======================================================
 
 struct Instance {
     position: Vec3,
@@ -122,9 +171,6 @@ impl InstanceRaw {
 //     name: String,
 // }
 
-
-
-
 //I hope I implemented lifetime correct
 struct State {
     surface: wgpu::Surface,
@@ -134,7 +180,7 @@ struct State {
     size: winit::dpi::PhysicalSize<u32>,
     render_pipeline: wgpu::RenderPipeline,
 
-    models: Vec<model::Model>,
+    models: Vec<model::RuntimeModel>,
     
     camera: free_fly_camera::Camera,
     projection: free_fly_camera::Projection,
@@ -155,9 +201,9 @@ struct State {
     #[cfg(feature="ui")]
     ui_state:user_interface::EguiState,
 }
-
 impl State {
     async fn new(app:&mut App, window: &Window, window_settings: WindowSettings) -> Self {
+
         ne::log!("size of struct {} ", std::mem::size_of::<State>());
 
         let size = window.inner_size();
@@ -210,9 +256,7 @@ impl State {
             height: size.height,
             present_mode: window_settings.present_mode,
         };
-
         surface.configure(&device, &surface_config);
-
         let texture_bind_group_layout =
             device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
                 entries: &[
@@ -235,9 +279,8 @@ impl State {
                 ],
                 label: Some("texture_bind_group_layout"),
             });
-
-            //TODO accessibility camera location
-            let camera = free_fly_camera::Camera::new(Vec3::new(0.0, 4.0, 0.0), -90.0, -20.0);
+            //TODO accessibility: camera location
+            let camera = free_fly_camera::Camera::new(Vec3::new(0.0, 4.0, 10.0), -90.0, 0.0);
             let projection =
             free_fly_camera::Projection::new(surface_config.width, surface_config.height, 45.0, 0.1, 100.0);
             //TODO accessibility 
@@ -257,7 +300,6 @@ impl State {
         //
         // TODO make generic
         //
-        
         //This sets the world space of each cube
         const SPACE_BETWEEN: f32 = 3.0;
         let instances = (0..NUM_INSTANCES_PER_ROW)
@@ -318,9 +360,19 @@ impl State {
         });
 
         warn!("Load model");
-        let mut models:Vec<model::Model> = Vec::new();
+        let mut models:Vec<model::RuntimeModel> = Vec::new();
         //TODO move
+        
+        //This is where model loading happens...
+        //TODO rework as ecs
+        // app.
+        //TODO 
+        
         //load and add model to models
+
+
+
+
         models.push(resources::load_model(
             //TODO Other models.
             "trapeprism2.obj",
@@ -333,7 +385,7 @@ impl State {
 
         let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("shader.wgsl"),
-            source: wgpu::ShaderSource::Wgsl(include_str!("../../../assets/shaders/shader.wgsl").into()),
+            source: wgpu::ShaderSource::Wgsl(include_str!("../../../engine_assets/shaders/shader.wgsl").into()),
         });
 
         let depth_texture =
@@ -399,7 +451,7 @@ impl State {
 
         //lol this is weird because these values are moved onto the struct? will the reference understand that??
         #[cfg(feature="ui")]
-        let ui_state = EguiState::new(window, &surface, &device, &queue, &surface_config, &adapter, &surface_format);
+        let ui_state = EguiState::new(window, &device, &surface_format  /*,  &queue, &surface_config, &adapter, &surface, */);
         Self {
             surface,
             device,

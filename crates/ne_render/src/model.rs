@@ -1,4 +1,5 @@
 use std::ops::Range;
+use bevy_ecs::prelude::Component;
 
 use crate::texture;
 
@@ -46,7 +47,8 @@ pub struct Material {
     pub diffuse_texture: texture::Texture,
     pub bind_group: wgpu::BindGroup,
 }
-
+//TODO TODO
+#[derive(Component)]
 pub struct Mesh {
     pub name: String,
     pub vertex_buffer: wgpu::Buffer,
@@ -55,7 +57,7 @@ pub struct Mesh {
     pub material: usize,
 }
 
-pub struct Model {
+pub struct RuntimeModel {
     pub meshes: Vec<Mesh>,
     pub materials: Vec<Material>,
 }
@@ -75,10 +77,10 @@ pub trait DrawModel<'a> {
         camera_bind_group: &'a wgpu::BindGroup,
     );
 
-    fn draw_model(&mut self, model: &'a Model, camera_bind_group: &'a wgpu::BindGroup);
+    fn draw_model(&mut self, model: &'a RuntimeModel, camera_bind_group: &'a wgpu::BindGroup);
     fn draw_model_instanced(
         &mut self,
-        model: &'a Model,
+        model: &'a RuntimeModel,
         instances: Range<u32>,
         camera_bind_group: &'a wgpu::BindGroup,
     );
@@ -111,14 +113,14 @@ where
         self.draw_indexed(0..mesh.num_elements, 0, instances);
     }
 
-    fn draw_model(&mut self, model: &'b Model, camera_bind_group: &'b wgpu::BindGroup) {
+    fn draw_model(&mut self, model: &'b RuntimeModel, camera_bind_group: &'b wgpu::BindGroup) {
         self.draw_model_instanced(model, 0..1, camera_bind_group);
     }
 
 ///draw many of this mesh
     fn draw_model_instanced(
         &mut self,
-        model: &'b Model,
+        model: &'b RuntimeModel,
         instances: Range<u32>,
         camera_bind_group: &'b wgpu::BindGroup,
     ) {

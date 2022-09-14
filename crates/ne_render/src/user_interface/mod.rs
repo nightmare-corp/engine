@@ -21,13 +21,13 @@ impl EguiState {
     /// A simple egui + wgpu + winit based example.
     pub fn new(
         window:&winit::window::Window,
-        surface:&wgpu::Surface, 
         device:&wgpu::Device,
-        queue:&wgpu::Queue,
-        surface_config:&wgpu::SurfaceConfiguration,
-        adapter:&wgpu::Adapter,
-        //adapter needed?
         surface_format:&wgpu::TextureFormat,
+        // surface:&wgpu::Surface, 
+        // queue:&wgpu::Queue,
+        // surface_config:&wgpu::SurfaceConfiguration,
+        // adapter:&wgpu::Adapter,
+        //adapter needed?
         ) -> Self { 
         //TODO
         let size = window.inner_size();

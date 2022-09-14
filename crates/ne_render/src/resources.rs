@@ -28,10 +28,7 @@ pub async fn load_string(file_name: &str) -> anyhow::Result<String> {
                 .text()
                 .await?;
         } else {
-
-            //TODO what to do for path here?
-            //What is this path now?
-            let s = env!("CARGO_MANIFEST_DIR").to_owned()+"/../../assets";
+            let s = env!("CARGO_MANIFEST_DIR").to_owned()+"/../../engine_assets";
             ne::log!("{}", s);
             let path = std::path::Path::new(&s)
                 .join(file_name);
@@ -54,7 +51,7 @@ pub async fn load_binary(file_name: &str) -> anyhow::Result<Vec<u8>> {
                 .await?
                 .to_vec();
         } else {
-            let s = env!("CARGO_MANIFEST_DIR").to_owned()+"/../../assets";
+            let s = env!("CARGO_MANIFEST_DIR").to_owned()+"/../../engine_assets";
             let path = std::path::Path::new(&s)
                 .join(file_name);
             let data = std::fs::read(path)?;
@@ -78,7 +75,7 @@ pub async fn load_model(
     device: &wgpu::Device,
     queue: &wgpu::Queue,
     layout: &wgpu::BindGroupLayout,
-) -> anyhow::Result<model::Model> {
+) -> anyhow::Result<model::RuntimeModel> {
     let obj_text = load_string(file_name).await?;
     let obj_cursor = Cursor::new(obj_text);
     let mut obj_reader = BufReader::new(obj_cursor);
@@ -162,5 +159,5 @@ pub async fn load_model(
         })
         .collect::<Vec<_>>();
 
-    Ok(model::Model { meshes, materials })
+    Ok(model::RuntimeModel { meshes, materials })
 }
