@@ -15,18 +15,16 @@
 /// And by making the renderer feed less work to the gpu
 /// And maybe by moving from wgpu -> gfx/vulkan/dx12/dx11
 ///TODO EDITOR UI    #[cfg(feature = "editor_ui")]
-
+pub use ne_math::{Vec2, Vec3, Quat, Mat4};
 use std::{path::PathBuf};
-
 use cameras::free_fly_camera;
-use ne_math::{Vec2, Vec3, Quat, Mat4};
 use ne::{warn, info, trace};
 use ne_app::{App, Plugin, Events, ManualEventReader};
 #[cfg(feature = "first_frame_time")]
 use ne_app::FIRST_FRAME_TIME;
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
-use wgpu::{util::DeviceExt, CommandBuffer};
+use wgpu::{util::DeviceExt, CommandBuffer, Queue, Device};
 use winit::{
     event::{*, self},
     event_loop::{ControlFlow, EventLoop, EventLoopWindowTarget},
@@ -52,55 +50,83 @@ const NUM_INSTANCES_PER_ROW: u32 = 1;
 //======================================================
 //                      HERE
 //======================================================
-//will disappear on runtime?
-//no is put in scene view ui.
-//TODO make sure it's removed in game build
+// will disappear on runtime?
+// no is put in scene view ui.
+// TODO make sure it's removed in game build
 
-// pub struct ModelDescriptor {
-//     path:String, //optimize for multiple meshes.
-//     location:Vec3,
-//     //rotation:Quat
-//     // scale:vec3,
-// }
-// pub struct SceneLoader {
-//     pub push_model_data:Vec<ModelDescriptor>,
-// }
-// impl SceneLoader {
-//     pub fn new(models: Option<Vec<ModelDescriptor>>) -> Self { 
-//         match models
-//         {
-//             Some(models) => Self { models },
-//             None => Self { push_model_data:Vec::<ModelDescriptor>::new() },
-//         }
-//     }
-//     fn push_model_data(&mut self, model_descriptor:ModelDescriptor)
-//     {
-//         self.push_model_data.push(model_descriptor);
-//     }
-// }
-// pub struct Scene {
-//     runtime_models:Vec<RuntimeModel>
-// }
-// impl Scene {
-//     pub fn new(scene:SceneLoader,device:&Device, queue:&Queue, texture) -> Self { 
-//         let runtime_models = Vec::<RuntimeModel>::new();
-//         for descriptor in scene.push_model_data.iter() {
-//             runtime_models.push( 
-//                 resources::load_model(
-//                     &descriptor.path/* "trapeprism2.obj" */,
-//                     &device,
-//                     &queue,
-//                     &texture_bind_group_layout,);
-//         }
-//         Self { 
+/// path:String is relative path from engine_assets (TODO for now)
+/// location:Vec3 is location in world space.
+pub struct ModelDescriptor {
+    pub path:String, //optimize for multiple meshes.
+    pub location:Vec3,
+    //rotation:Quat
+    // scale:vec3,
+}
+pub struct SceneLoader {
+    pub model_data:Vec<ModelDescriptor>,
+}
 
-//         }
-//     }
-//     pub fn get_models(&self) -> Vec<RuntimeModel>
-//     {
-//         self.runtime_models   
-//     }
-// }
+impl Default for SceneLoader {
+    fn default() -> Self {
+        SceneLoader::new(None)
+    }
+}
+impl SceneLoader {
+    pub fn new(models: Option<Vec<ModelDescriptor>>) -> Self { 
+        match models
+        {
+            Some(model_data) => Self { model_data },
+            None => Self { model_data:Vec::<ModelDescriptor>::new() },
+        }
+    }
+    fn push_model_data(&mut self, model_descriptor:ModelDescriptor)
+    {
+        self.model_data.push(model_descriptor);
+    }
+}
+pub struct Scene {
+    runtime_models:Vec<RuntimeModel>
+}
+impl Scene {
+    /// Will load everything from SceneLoader
+    pub async fn new(scene:SceneLoader,device:&Device, queue:&Queue,
+                     texture_bind_group_layout: &wgpu::BindGroupLayout,) -> Self {
+        let mut runtime_models = Vec::<RuntimeModel>::new();
+
+        //load models for each descriptor
+        for descriptor in scene.model_data.iter() {
+            let m = resources::load_model(
+                //TODO this seems wrong
+                &*descriptor.path/* "trapeprism2.obj" */,
+                device,
+                queue,
+                texture_bind_group_layout, )
+                .await;
+            //TODO is this better than unwrap?
+            match m
+            {
+                Ok(model) => runtime_models.push(model),
+                Err(err) => println!("model failed to load help"),
+            }
+        }
+        //load other parts of scene
+
+        //done
+        Self { 
+            runtime_models
+        }
+    }
+    pub fn get_models(&self) -> &Vec<RuntimeModel>
+    {
+        &self.runtime_models
+    }
+    //TODO what if it fails?
+    pub fn add_model(&mut self, runtime_models:RuntimeModel)
+    {
+        self.runtime_models.push(runtime_models);
+    }
+}
+use Scene as CurrentScene; //will be used as a resource...
 //======================================================
 //                        UP
 //======================================================
@@ -167,7 +193,7 @@ impl InstanceRaw {
 }
 // //TODO ecs approach
 // #[derive(Component)]
-// struct Player {
+// struct model {
 //     name: String,
 // }
 
@@ -180,8 +206,6 @@ struct State {
     size: winit::dpi::PhysicalSize<u32>,
     render_pipeline: wgpu::RenderPipeline,
 
-    models: Vec<model::RuntimeModel>,
-    
     camera: free_fly_camera::Camera,
     projection: free_fly_camera::Projection,
     camera_controller: free_fly_camera::CameraController,
@@ -300,17 +324,17 @@ impl State {
         //
         // TODO make generic
         //
-        //This sets the world space of each cube
+        //This sets the world space of each cube, but that is weird..? Let's try removing it
         const SPACE_BETWEEN: f32 = 3.0;
         let instances = (0..NUM_INSTANCES_PER_ROW)
             .flat_map(|z| {
                 (0..NUM_INSTANCES_PER_ROW).map(move |x| {
                     let x = SPACE_BETWEEN * (x as f32 - NUM_INSTANCES_PER_ROW as f32 / 2.0);
                     let z = SPACE_BETWEEN * (z as f32 - NUM_INSTANCES_PER_ROW as f32 / 2.0);
-
+        
                     //TODO everything is now put on coord 0,0,0
                     let position = Vec3 { x: x, y: 0.0, z: z };
-
+        
                     //How to know if position is zero???
                     let rotation = if let Some(pos) = position.try_normalize() {
                         Quat::from_axis_angle(pos, ne_math::to_radians(45.0))
@@ -322,7 +346,8 @@ impl State {
             })
             .collect::<Vec<_>>();
 
-            //This translates instance into a matrix which will be moved to gpu. 
+            //This translates instance into a matrix which will be moved to gpu.
+        //TODO Is it this????
         let instance_data = instances.iter().map(Instance::to_raw).collect::<Vec<_>>();
         let instance_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Instance Buffer"),
@@ -358,30 +383,45 @@ impl State {
             }],
             label: Some("camera_bind_group"),
         });
-
-        warn!("Load model");
-        let mut models:Vec<model::RuntimeModel> = Vec::new();
         //TODO move
-        
-        //This is where model loading happens...
-        //TODO rework as ecs
-        // app.
-        //TODO 
-        
-        //load and add model to models
+        warn!("Load scene");
 
-
-
-
-        models.push(resources::load_model(
-            //TODO Other models.
-            "trapeprism2.obj",
-            &device,
-            &queue,
-            &texture_bind_group_layout,
-        )
-        .await
-        .unwrap());
+        let scene_loader = app.world.remove_resource::<SceneLoader>();
+        let scene = match scene_loader
+        {
+            Some(scene_loader) => {
+                println!("Some scene loader wow");
+                //initialize once we have models vector
+                CurrentScene::new(
+                    scene_loader,
+                    &device,
+                    &queue,
+                    &texture_bind_group_layout).await
+            }
+            None => {
+                //initialize once we have models vector
+                CurrentScene::new(
+                                      SceneLoader::default(),
+                                            &device,
+                                            &queue,
+                                            &texture_bind_group_layout).await
+            }
+        };
+        app.world.insert_resource::<CurrentScene>(scene);
+        let mut scene = app.world.get_resource_mut::<CurrentScene>().unwrap();
+        warn!("Load model");
+        //TODO move
+        //TODO we don't need this if everything works...
+        // scene.add_model(resources::load_model(
+        //     //TODO Other models.
+        //     "trapeprism2.obj",
+        //     &device,
+        //     &queue,
+        //     &texture_bind_group_layout,
+        //     )
+            //TODO understand await, async
+            // .await
+            // .unwrap());
 
         let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("shader.wgsl"),
@@ -459,7 +499,6 @@ impl State {
             surface_config,
             size,
             render_pipeline,
-            models,
             camera,
             projection,
             camera_controller,
@@ -473,7 +512,6 @@ impl State {
             is_right_mouse_pressed: false,
             #[cfg(feature="ui")]
             ui_state: ui_state,
-            
         }
     }
 
@@ -570,14 +608,23 @@ impl State {
             });
             render_pass.set_vertex_buffer(1, self.instance_buffer.slice(..));
             render_pass.set_pipeline(&self.render_pipeline);
-            //Is instanced draw just better..?
-            //Should instanced and individual be in different arrays?
-            render_pass.draw_model_instanced(
-                &self.models[0],
-                0..self.instances.len() as u32,
-                &self.camera_bind_group,
-            );
-            // render_pass.draw_model(&self.obj_model, &self.camera_bind_group);
+            let a = app.world.get_resource::<CurrentScene>().unwrap().get_models();
+            //nah that doesnt work..
+            for model in a.iter()
+            {
+                render_pass.draw_model_instanced(
+                    model,
+                    0..1,
+                    &self.camera_bind_group,
+                );
+            }
+            //something like this would be faster tho.. but we will have some kind of other models that can
+            //only be drawn as instances: InstancedModels. For e.g. trees in a forest.
+            // render_pass.draw_model_instanced(
+            //     &self.models[0],
+            //     0..self.instances.len() as u32,
+            //     &self.camera_bind_group,
+            // );
         }
         cmd_buffers.push(encoder.finish());
         //new encoder
@@ -791,7 +838,7 @@ async fn init_renderer(mut app: App) {
                 } => if state.is_right_mouse_pressed {
                     state.camera_controller.process_mouse(delta.0, delta.1);
                     window.set_cursor_visible(false);
-                    _ = window.set_cursor_position(winit::dpi::PhysicalPosition::new(window.inner_size().width/2, window.inner_size().height/2));
+                    window.set_cursor_position(winit::dpi::PhysicalPosition::new(window.inner_size().width/2, window.inner_size().height/2));
                 } else {
                     window.set_cursor_visible(true);
                 }

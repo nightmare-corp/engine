@@ -1,5 +1,6 @@
 use std::ops::Range;
 use bevy_ecs::prelude::Component;
+use wgpu::BindGroup;
 
 use crate::texture;
 
@@ -76,7 +77,6 @@ pub trait DrawModel<'a> {
         instances: Range<u32>,
         camera_bind_group: &'a wgpu::BindGroup,
     );
-
     fn draw_model(&mut self, model: &'a RuntimeModel, camera_bind_group: &'a wgpu::BindGroup);
     fn draw_model_instanced(
         &mut self,
@@ -116,8 +116,7 @@ where
     fn draw_model(&mut self, model: &'b RuntimeModel, camera_bind_group: &'b wgpu::BindGroup) {
         self.draw_model_instanced(model, 0..1, camera_bind_group);
     }
-
-///draw many of this mesh
+    ///draw many of this mesh
     fn draw_model_instanced(
         &mut self,
         model: &'b RuntimeModel,

@@ -4,7 +4,9 @@ use ne::L;
 use nightmare_engine::*;
 
 use ne_app::App;
-use ne_render::{OnWindowCloseRequested, OnWindowResized, RenderPlugin, WindowSettings};
+use ne_render::{ModelDescriptor, OnWindowCloseRequested,
+                OnWindowResized, RenderPlugin, Scene,
+                SceneLoader, Vec3, WindowSettings};
 use ne_gui::*;
 
 //TODO
@@ -21,6 +23,18 @@ fn main() {
     L::init_log!(tracing::Level::ERROR);
     const WIDTH: f32 = 1600.0;
     const HEIGHT: f32 = 900.0;
+    let mut sl = SceneLoader::default();
+
+    //This whole idea is quite stupid.
+    //tweak it a little
+    let md =  ModelDescriptor {
+        path: "trapeprism2.obj".to_string(),
+        location: Vec3::ZERO };
+    let md2 =  ModelDescriptor {
+        path: "trapeprism2.obj".to_string(),
+        location: Vec3::new(1.0,1.0,1.0) };
+    sl.model_data.push(md);
+    sl.model_data.push(md2);
 
     //TODO replace WindowSettings with WindowBuilder
     App::new()
@@ -33,7 +47,7 @@ fn main() {
             window_mode: ne_render::WindowMode::Windowed,
             ..WindowSettings::default()
         })
-        // .add_startup_system(setup_scene)
+        .insert_resource(sl)
 
         //TODO currently working on a windowplugin
         // .add_plugin(WindowPlugin)
