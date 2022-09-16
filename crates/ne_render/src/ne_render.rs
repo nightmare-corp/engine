@@ -94,10 +94,11 @@ impl Scene {
         let mut runtime_models = Vec::<RuntimeModel>::new();
 
         //load models for each descriptor
-        for descriptor in scene.model_data.iter() {
+        //TODO why does it only process cubes?
+        for model_descriptor in scene.model_data.iter() {
             let m = resources::load_model(
                 //TODO this seems wrong
-                &*descriptor.path/* "trapeprism2.obj" */,
+                &*model_descriptor.path/* "trapeprism2.obj" */,
                 device,
                 queue,
                 texture_bind_group_layout, )
@@ -106,7 +107,7 @@ impl Scene {
             match m
             {
                 Ok(model) => runtime_models.push(model),
-                Err(err) => println!("model failed to load help"),
+                Err(err) => println!("model failed to load help {:?}", err),
             }
         }
         //load other parts of scene
@@ -358,7 +359,6 @@ impl State {
         //      ^^^^^^^
         // TODO make generic
         //
-        
 
         let camera_bind_group_layout =
             device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {

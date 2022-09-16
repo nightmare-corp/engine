@@ -88,6 +88,8 @@ pub async fn load_model(
             ..Default::default()
         },
         |p| async move {
+
+            //TODO panics when loading sphere..?
             let mat_text = load_string(&p).await.unwrap();
             tobj::load_mtl_buf(&mut BufReader::new(Cursor::new(mat_text)))
         },

@@ -20,18 +20,17 @@ fn main() {
     // vulkan, metal, dx12, dx11, or gl
     // std::env::set_var("WGPU_BACKEND", "dx11");
 
-    L::init_log!(tracing::Level::ERROR);
+    L::init_log!(tracing::Level::WARN);
     const WIDTH: f32 = 1600.0;
     const HEIGHT: f32 = 900.0;
     let mut sl = SceneLoader::default();
 
-    //This whole idea is quite stupid.
-    //tweak it a little
+    //TODO why does it only accept cube and trapeprism2?
     let md =  ModelDescriptor {
         path: "trapeprism2.obj".to_string(),
         location: Vec3::ZERO };
     let md2 =  ModelDescriptor {
-        path: "trapeprism2.obj".to_string(),
+        path: "shapes/cube.obj".to_string(),
         location: Vec3::new(1.0,1.0,1.0) };
     sl.model_data.push(md);
     sl.model_data.push(md2);
