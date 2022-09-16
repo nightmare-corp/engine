@@ -33,8 +33,8 @@ use winit::{
 //export windowbuilder
 pub use winit::window::{Window,WindowBuilder};
 
-use model::{DrawModel, Vertex, RuntimeModel};
-use crate::{cameras::free_fly_camera::CameraUniform};
+use model::{Vertex, RuntimeModel};
+use crate::{cameras::free_fly_camera::CameraUniform, transform::{Instance, InstanceRaw}};
 #[cfg(feature="ui")]
 use user_interface::EguiState;
 #[cfg(feature="ui")]
@@ -43,7 +43,7 @@ mod cameras;
 mod model;
 mod resources;
 mod texture;
-
+pub mod transform;
 mod render_modules;
 
 const NUM_INSTANCES_PER_ROW: u32 = 1;
@@ -132,71 +132,6 @@ use Scene as CurrentScene; //will be used as a resource...
 //                        UP
 //======================================================
 
-struct Instance {
-    position: Vec3,
-    rotation: Quat,
-}
-
-impl Instance {
-    fn to_raw(&self) -> InstanceRaw {
-        InstanceRaw {
-            model: (Mat4::from_translation(self.position)
-                * Mat4::from_quat(self.rotation))
-            .to_cols_array_2d(),
-        }
-    }
-}
-
-#[repr(C)]
-#[derive(Debug, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
-struct InstanceRaw {
-    #[allow(dead_code)]
-    model: [[f32; 4]; 4],
-}
-
-impl InstanceRaw {
-    fn desc<'a>() -> wgpu::VertexBufferLayout<'a> {
-        use std::mem;
-        wgpu::VertexBufferLayout {
-            array_stride: mem::size_of::<InstanceRaw>() as wgpu::BufferAddress,
-            // We need to switch from using a step mode of Vertex to Instance
-            // This means that our shaders will only change to use the next
-            // instance when the shader starts processing a new instance
-            step_mode: wgpu::VertexStepMode::Instance,
-            attributes: &[
-                wgpu::VertexAttribute {
-                    offset: 0,
-                    // While our vertex shader only uses locations 0, and 1 now, in later tutorials we'll
-                    // be using 2, 3, and 4, for Vertex. We'll start at slot 5 not conflict with them later
-                    shader_location: 5,
-                    format: wgpu::VertexFormat::Float32x4,
-                },
-                // A mat4 takes up 4 vertex slots as it is technically 4 vec4s. We need to define a slot
-                // for each vec4. We don't have to do this in code though.
-                wgpu::VertexAttribute {
-                    offset: mem::size_of::<[f32; 4]>() as wgpu::BufferAddress,
-                    shader_location: 6,
-                    format: wgpu::VertexFormat::Float32x4,
-                },
-                wgpu::VertexAttribute {
-                    offset: mem::size_of::<[f32; 8]>() as wgpu::BufferAddress,
-                    shader_location: 7,
-                    format: wgpu::VertexFormat::Float32x4,
-                },
-                wgpu::VertexAttribute {
-                    offset: mem::size_of::<[f32; 12]>() as wgpu::BufferAddress,
-                    shader_location: 8,
-                    format: wgpu::VertexFormat::Float32x4,
-                },
-            ],
-        }
-    }
-}
-// //TODO ecs approach
-// #[derive(Component)]
-// struct model {
-//     name: String,
-// }
 
 //I hope I implemented lifetime correct
 struct State {
@@ -574,15 +509,18 @@ impl State {
         let mut cmd_buffers = Vec::<CommandBuffer>::new();
         
         //new encoder
-        let mut encoder = self
-        .device
-        .create_command_encoder(&wgpu::CommandEncoderDescriptor {
-        label: Some("Render Encoder")});
         //perpare meshes
+        let a = app.world.get_resource::<CurrentScene>().unwrap().get_models();
+        for model in a.iter()
+        {
+            let mut encoder = self
+            .device
+            .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+            label: Some("Model Render Encoder")});
         {
             //TODO move this to state
             let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                label: Some("Render Pass"),
+                label: Some("Model Render Pass"),
                 color_attachments: &[Some(wgpu::RenderPassColorAttachment {
                     view: &output_view,
                     resolve_target: None,
@@ -606,18 +544,30 @@ impl State {
                     stencil_ops: None,
                 }),
             });
-            render_pass.set_vertex_buffer(1, self.instance_buffer.slice(..));
+
             render_pass.set_pipeline(&self.render_pipeline);
-            let a = app.world.get_resource::<CurrentScene>().unwrap().get_models();
-            //nah that doesnt work..
-            for model in a.iter()
-            {
-                render_pass.draw_model_instanced(
-                    model,
-                    0..1,
-                    &self.camera_bind_group,
-                );
-            }
+            render_pass.set_vertex_buffer(1, self.instance_buffer.slice(..));
+            model::DrawModel::draw_model_instanced(&mut render_pass, model, 0..1, &self.camera_bind_group);
+
+            //TODO performance?
+            //let mesh = &model.mesh;
+            //let material = &model.material;
+//
+            //render_pass.set_vertex_buffer(1, self.instance_buffer.slice(..));
+            //render_pass.set_vertex_buffer(0, mesh.vertex_buffer.slice(..));
+            ////model matrix, maybe make it so that not every object has a model matrix
+            //// self.set_vertex_buffer(1, mesh.model_matrix_buffer.slice(..));
+            //render_pass.set_index_buffer(mesh.index_buffer.slice(..), wgpu::IndexFormat::Uint32);
+            //render_pass.set_bind_group(0, &material.bind_group, &[]);
+            //render_pass.set_bind_group(1, &self.camera_bind_group, &[]);
+//
+            ////TODO instances?
+            //let a = (0..1 as u32);
+            //render_pass.draw_indexed(0..mesh.num_elements, 0, a);
+
+
+        }
+            cmd_buffers.push(encoder.finish());
             //something like this would be faster tho.. but we will have some kind of other models that can
             //only be drawn as instances: InstancedModels. For e.g. trees in a forest.
             // render_pass.draw_model_instanced(
@@ -626,7 +576,7 @@ impl State {
             //     &self.camera_bind_group,
             // );
         }
-        cmd_buffers.push(encoder.finish());
+        
         //new encoder
         let mut encoder = self
         .device

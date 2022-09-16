@@ -1,24 +1,20 @@
-use bevy_asset::Assets;
-use bevy_ecs::{prelude::EventReader, system::{Commands, ResMut}};
+use bevy_ecs::{prelude::EventReader};
 use ne::L;
-use nightmare_engine::*;
 
 use ne_app::App;
 use ne_render::{ModelDescriptor, OnWindowCloseRequested,
                 OnWindowResized, RenderPlugin, Scene,
                 SceneLoader, Vec3, WindowSettings};
-use ne_gui::*;
 
 //TODO
 mod interface;
-
-fn gui_event_system() {}
 
 // use ne_window::WindowPlugin;
 fn main() {
     // std::env::set_var("RUST_BACKTRACE", "1");
     // vulkan, metal, dx12, dx11, or gl
-    // std::env::set_var("WGPU_BACKEND", "dx11");
+    std::env::set_var("WGPU_BACKEND", "vulkan");
+    std::env::set_var("neprint", "true");
 
     L::init_log!(tracing::Level::WARN);
     const WIDTH: f32 = 1600.0;
@@ -27,12 +23,12 @@ fn main() {
 
     //TODO why does it only accept cube and trapeprism2?
     let md =  ModelDescriptor {
-        path: "trapeprism2.obj".to_string(),
-        location: Vec3::ZERO };
-    let md2 =  ModelDescriptor {
         path: "shapes/cube.obj".to_string(),
-        location: Vec3::new(1.0,1.0,1.0) };
+        location: Vec3::ZERO };
     sl.model_data.push(md);
+    let md2 =  ModelDescriptor {
+        path: "trapeprism2.obj".to_string(),
+        location: Vec3::new(1.0,1.0,1.0) };
     sl.model_data.push(md2);
 
     //TODO replace WindowSettings with WindowBuilder
@@ -56,18 +52,6 @@ fn main() {
         .add_system(exit_window)
         .run();
 }
-
-//Commands are used to modify World...? but how
-// fn setup_scene(    
-//     mut commands: Commands,
-//     mut meshes: ResMut<Assets<Mesh>>,
-//     mut materials: ResMut<Assets<StandardMaterial>>,
-// )
-// {
-//     ne::log!("HELLLOOO");
-// }
-
-
 
 //on WindowResized
 fn resize_sys(mut window_resized_events: EventReader<OnWindowResized>) {
