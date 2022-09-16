@@ -257,10 +257,8 @@ impl State {
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
         });
 
-        //
-        // TODO make generic
-        //
-        //This sets the world space of each cube, but that is weird..? Let's try removing it
+        //This sets the world space of each cube?
+        //this is the model matrix I think.
         const SPACE_BETWEEN: f32 = 3.0;
         let instances = (0..NUM_INSTANCES_PER_ROW)
             .flat_map(|z| {
@@ -282,9 +280,11 @@ impl State {
             })
             .collect::<Vec<_>>();
 
-            //This translates instance into a matrix which will be moved to gpu.
         //TODO Is it this????
+        println!("{:?}", instances[0]);
+
         let instance_data = instances.iter().map(Instance::to_raw).collect::<Vec<_>>();
+        println!("{:?}", instance_data);
         let instance_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Instance Buffer"),
             contents: bytemuck::cast_slice(&instance_data),
@@ -546,9 +546,17 @@ impl State {
             });
 
             render_pass.set_pipeline(&self.render_pipeline);
-            render_pass.set_vertex_buffer(1, self.instance_buffer.slice(..));
-            model::DrawModel::draw_model_instanced(&mut render_pass, model, 0..1, &self.camera_bind_group);
-
+            //BufferSlice { buffer: Buffer { context: Context { type: "Native" }, id: Buffer { id: (1, 1, Vulkan), error_sink: Mutex { data: ErrorSink } }, map_context: Mutex { data: MapContext { total_size: 64, initial_range: 0..0, sub_ranges: [] } }, usage: VERTEX }, offset: 0, size: None }
+            for mesh in &model.meshes {
+                let material = &model.materials[mesh.material];
+                render_pass.set_vertex_buffer(0, mesh.vertex_buffer.slice(..));
+                render_pass.set_vertex_buffer(1, self.instance_buffer.slice(..));
+                render_pass.set_index_buffer(mesh.index_buffer.slice(..), wgpu::IndexFormat::Uint32);
+                render_pass.set_bind_group(0, &material.bind_group, &[]);
+                render_pass.set_bind_group(1, &self.camera_bind_group, &[]);
+                render_pass.draw_indexed(0..mesh.num_elements, 0, 0..1);
+                // model::DrawModel::draw_model_instanced(&mut render_pass, model, 0..1, &self.camera_bind_group);
+            }
             //TODO performance?
             //let mesh = &model.mesh;
             //let material = &model.material;

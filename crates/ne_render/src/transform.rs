@@ -1,5 +1,5 @@
 use ne_math::{Vec3, Quat, Mat4};
-
+#[derive(Debug)]
 pub struct Instance {
     pub position: Vec3,
     pub rotation: Quat,
@@ -10,7 +10,6 @@ impl Default for Instance {
         Self { position: Default::default(), rotation: Default::default() }
     }
 }
-
 impl Instance {
     pub fn to_raw(&self) -> InstanceRaw {
         InstanceRaw {
