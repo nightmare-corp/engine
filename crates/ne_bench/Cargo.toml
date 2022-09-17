@@ -3,9 +3,11 @@ name = "ne_bench"
 version = "0.1.0"
 edition = "2021"
 description = "Collection of diagnostic tools for nightmare_engine"
+homepage = "https://nightmare-corp.com"
 [lib]
 path = "src/ne_bench.rs" 
 
 [dependencies]
+ne = { path = "../ne"}
 ne_app = { path = "../ne_app" }
 instant = "0.1"

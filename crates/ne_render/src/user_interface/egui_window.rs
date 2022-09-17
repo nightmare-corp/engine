@@ -33,7 +33,7 @@ fn handle_links(output: &egui::PlatformOutput) {
         // This does not handle open_url.new_tab
         // webbrowser does not support web anyway
         if let Err(err) = webbrowser::open(&open_url.url) {
-            eprintln!("Failed to open url: {}", err);
+            ene::log!("Failed to open url: {}", err);
         }
     }
 }
@@ -43,7 +43,7 @@ fn handle_clipboard(output: &egui::PlatformOutput, clipboard: Option<&mut Clipbo
     if !output.copied_text.is_empty() {
         if let Some(clipboard) = clipboard {
             if let Err(err) = clipboard.set_contents(output.copied_text.clone()) {
-                eprintln!("Copy/Cut error: {}", err);
+                ene::log!("Copy/Cut error: {}", err);
             }
         }
     }
@@ -217,7 +217,7 @@ impl Platform {
                             {
                                 Some(count) => count,
                                 None => {
-                                    eprintln!("Pointer emulation error: Unbalanced touch start/stop events from Winit");
+                                    ne::log!("Pointer emulation error: Unbalanced touch start/stop events from Winit");
                                     0
                                 }
                             };

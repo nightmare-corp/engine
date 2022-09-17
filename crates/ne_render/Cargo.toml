@@ -2,6 +2,7 @@
 name = "ne_render"
 version = "0.1.0"
 edition = "2021"
+homepage = "https://nightmare-corp.com"
 
 [features]
 print_fps = []
@@ -15,10 +16,13 @@ ne_app = {path = "../ne_app", features = [ "start_time", "first_frame_time" ] }
 ne_window = {path = "../ne_window"}
 ne_math = {path = "../ne_math"}
 ne_bench = {path = "../ne_bench"}
+# Bevy
+bevy_ecs = "0.8.1"
 # ne_gui = {path = "../ne_gui", optional = true}
 egui = { version = "0.19.0", optional = true, default-features = false, features = [
     "bytemuck", 
 ] }
+
 # Remove/Replace:
 egui_demo_lib = "0.19.0"
 # TODO aquire fonts so this can be removed. low priority

@@ -3,6 +3,7 @@ name = "ne_log"
 version = "0.1.0"
 edition = "2021"
 description = "Provides logging"
+homepage = "https://nightmare-corp.com"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
