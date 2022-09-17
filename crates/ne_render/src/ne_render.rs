@@ -129,8 +129,6 @@ use Scene as CurrentScene; //will be used as a resource...
 //======================================================
 //                        UP
 //======================================================
-
-
 //I hope I implemented lifetime correct
 struct State {
     surface: wgpu::Surface,

@@ -74,11 +74,12 @@ pub struct InstancedMesh {
     // pub ids
     pub mesh:Mesh,
     pub model_transforms:Vec<Transform>,
-    matrix_buffer:wgpu::Buffer,
+    //TODO remove pub
+    pub matrix_buffer:wgpu::Buffer,
     //Is this also useful to save?
     // pub model_matrices:Vec<Transform>,
 }
-/* impl InstancedMesh {
+impl InstancedMesh {
     //TODO would be pretty cool if it could either accept a Vec or a single element, maybe tuples?
     fn new(device:&Device, model_transforms:Vec<Transform>, mesh:Mesh) -> Self {
         //create from above data
@@ -92,6 +93,7 @@ pub struct InstancedMesh {
     ///If transform is None then it will be Transform::default();
     fn add_instance(&mut self, transform:Option<Transform>, device:&Device)
     {
+        todo!();
         //TODO optimize also if it expects many more resize the vec +=10/20/50/100  
 
         //turn transform into model_matrix -> clone into buffer -> save this buffer.
@@ -119,9 +121,9 @@ pub struct InstancedMesh {
         // self.world_transforms.push();
     }
     ///TODO optimize maybe
-    fn add_many_instance_internal(&mut self, device:&Device, transforms:Vec<Transform>, )
+    fn add_many_instance_internal(&mut self, device:&Device, transforms:&mut Vec<Transform>, )
     {
-        self.model_transforms.append(&mut transforms);
+        self.model_transforms.append(transforms);
         self.update_matrix_buffer(device);
     }
     /// world_transforms -> matrix_buffer 
@@ -139,7 +141,7 @@ pub struct InstancedMesh {
         })
     }
 } 
- */
+
 #[derive(Component)]
 pub struct Mesh {
     pub name: String,
