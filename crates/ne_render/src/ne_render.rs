@@ -1,4 +1,3 @@
-#![warn(missing_docs)]
 use ne_math::Transform;
 ///thank you https://github.com/sotrh/learn-wgpu
 /// This is the first iteration renderer it needs to do: 
