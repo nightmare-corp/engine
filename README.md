@@ -1,4 +1,4 @@
-![Logo](engine_assets\images\nightmare_engine_logo.png)
+![Logo](engine_assets/images/nightmare_engine_logo.png)
 
 
   <h1>Nightmare_Engine - a top secret game engine</h1>
