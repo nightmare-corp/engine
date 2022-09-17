@@ -3,9 +3,9 @@ use ne::L;
 
 use ne_app::App;
 use ne_render::{ModelDescriptor, OnWindowCloseRequested,
-                OnWindowResized, RenderPlugin, Scene,
+                OnWindowResized, RenderPlugin,
                 SceneLoader, Vec3, WindowSettings};
-
+use ne_math::{Transform, Quat};
 //TODO
 mod interface;
 
@@ -24,11 +24,12 @@ fn main() {
     //TODO why does it only accept cube and trapeprism2?
     let md =  ModelDescriptor {
         path: "shapes/cube.obj".to_string(),
-        location: Vec3::ZERO };
+        transform: Transform { position: Vec3::ZERO, rotation: Quat::default()},
+        };
     sl.model_data.push(md);
     let md2 =  ModelDescriptor {
         path: "trapeprism2.obj".to_string(),
-        location: Vec3::new(1.0,1.0,1.0) };
+        transform: Transform { position: Vec3::new(1.0,1.0,1.0), rotation: Quat::default()}, };
     sl.model_data.push(md2);
 
     //TODO replace WindowSettings with WindowBuilder

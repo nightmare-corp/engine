@@ -1,3 +1,4 @@
+use ne_math::Transform;
 ///thank you https://github.com/sotrh/learn-wgpu
 /// This is the first iteration renderer it needs to do: 
 /// 1) Render separate meshes
@@ -34,7 +35,8 @@ use winit::{
 pub use winit::window::{Window,WindowBuilder};
 
 use model::{Vertex, RuntimeModel};
-use crate::{cameras::free_fly_camera::CameraUniform, transform::{Transform, TransformRaw}};
+use math::{TransformRaw, ToTransformRaw};
+use crate::{cameras::free_fly_camera::CameraUniform};
 #[cfg(feature="ui")]
 use user_interface::EguiState;
 #[cfg(feature="ui")]
@@ -43,9 +45,8 @@ mod cameras;
 mod model;
 mod resources;
 mod texture;
-pub mod transform;
 mod render_modules;
-
+pub mod math;
 const NUM_INSTANCES_PER_ROW: u32 = 2;
 //======================================================
 //                      HERE
@@ -58,7 +59,7 @@ const NUM_INSTANCES_PER_ROW: u32 = 2;
 /// location:Vec3 is location in world space.
 pub struct ModelDescriptor {
     pub path:String, //optimize for multiple meshes.
-    pub location:Vec3,
+    pub transform:Transform,
     //rotation:Quat
     // scale:vec3,
 }
@@ -283,7 +284,7 @@ impl State {
         //TODO Is it this????
         println!("{:?}", instances[0]);
 
-        let instance_data = instances.iter().map(Transform::to_raw).collect::<Vec<_>>();
+        let instance_data = instances.iter().map(ToTransformRaw::to_raw).collect::<Vec<_>>();
         println!("{:?}", instance_data);
         let instance_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Instance Buffer"),

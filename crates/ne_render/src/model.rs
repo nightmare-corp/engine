@@ -1,8 +1,9 @@
 use std::ops::Range;
 use bevy_ecs::prelude::Component;
+use ne_math::Transform;
 use wgpu::BindGroup;
 
-use crate::{texture, transform::{Transform, TransformRaw}};
+use crate::{texture};
 
 pub trait Vertex {
     fn desc<'a>() -> wgpu::VertexBufferLayout<'a>;

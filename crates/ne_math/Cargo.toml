@@ -9,3 +9,4 @@ homepage = "https://nightmare-corp.com"
 [dependencies]
 # TODO serde and bytemuck
 glam = { version = "0.21.3", features = ["serde", "bytemuck"] }
+bytemuck = { version = "1.4", features = [ "derive" ] }
