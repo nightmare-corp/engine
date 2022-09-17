@@ -2,7 +2,7 @@ use std::ops::Range;
 use bevy_ecs::prelude::Component;
 use wgpu::BindGroup;
 
-use crate::texture;
+use crate::{texture, transform::{Transform, TransformRaw}};
 
 pub trait Vertex {
     fn desc<'a>() -> wgpu::VertexBufferLayout<'a>;
@@ -48,7 +48,62 @@ pub struct Material {
     pub diffuse_texture: texture::Texture,
     pub bind_group: wgpu::BindGroup,
 }
-//TODO TODO
+
+///Will hold all of the same meshes and draw on screen for each model matrix in vec!
+pub struct StaticMeshManager {
+    // pub ids
+    pub world_transforms:Vec<Transform>,
+    matrix_buffer:wgpu::Buffer,
+    //Is this also useful to save?
+    // pub model_matrices:Vec<Transform>,
+    
+    //is it useful to save Transformations before raw calculations? maybe it is tbh
+    ///Only one mesh
+    pub meshes:Mesh,
+}
+
+/* impl StaticMeshManager {
+    ///If transform is None then it will be Transform::default();
+    fn add_instance(&mut self, transform:Option<Transform>, )
+    {
+        //TODO optimize also if it expects many more resize the vec +=10/20/50/100  
+
+        //turn transform into model_matrix -> clone into buffer -> save this buffer.
+
+        //if transform is none set transform as default...? possible?
+
+        //I want it to be called right after renderner??
+        //this is why commands are interesting
+        //lets implement commands just to make sure that we always 100% of the time get it called after renderer intialization
+        //but on construct needs to be called before the loop.
+        //is what I think
+        //let me have a look.
+
+        let t = transform.unwrap_or_default();
+        {
+            let raw = t.to_raw();
+            let instance_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                label: Some("Instance Buffer"),
+                contents: bytemuck::cast_slice(&instance_data),
+                usage: wgpu::BufferUsages::VERTEX,
+            });
+            self.model_matrices.push();
+            
+        }
+        self.world_transforms.push();
+    }
+    fn add_many_instance(&mut self, transforms:Vec<Transform>, )
+    {
+        //TODO optimize also if it expects many more resize the vec +=10/20/50/100  
+
+        //turn transform into model_matrix -> clone into buffer -> save this buffer.
+
+        //if transform is none set transform as default...? possible?
+        self.model_matrices.push();
+        self.world_transforms.push(transform.unwrap_or_default());
+    }
+} */
+
 #[derive(Component)]
 pub struct Mesh {
     pub name: String,
@@ -58,8 +113,10 @@ pub struct Mesh {
     pub num_elements: u32,
     pub material: usize,
 }
-
+//contains only one *type* of mesh.
 pub struct RuntimeModel {
+    //it will draw by mesh
+    // pub model_projections: wgpu::Buffer,
     pub meshes: Vec<Mesh>,
     pub materials: Vec<Material>,
 }

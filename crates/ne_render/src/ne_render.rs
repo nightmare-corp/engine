@@ -34,7 +34,7 @@ use winit::{
 pub use winit::window::{Window,WindowBuilder};
 
 use model::{Vertex, RuntimeModel};
-use crate::{cameras::free_fly_camera::CameraUniform, transform::{Instance, InstanceRaw}};
+use crate::{cameras::free_fly_camera::CameraUniform, transform::{Transform, TransformRaw}};
 #[cfg(feature="ui")]
 use user_interface::EguiState;
 #[cfg(feature="ui")]
@@ -46,7 +46,7 @@ mod texture;
 pub mod transform;
 mod render_modules;
 
-const NUM_INSTANCES_PER_ROW: u32 = 1;
+const NUM_INSTANCES_PER_ROW: u32 = 2;
 //======================================================
 //                      HERE
 //======================================================
@@ -151,7 +151,7 @@ struct State {
     camera_buffer: wgpu::Buffer,
     camera_bind_group: wgpu::BindGroup,
 
-    instances: Vec<Instance>,
+    instances: Vec<Transform>,
     instance_buffer: wgpu::Buffer,
     
     depth_texture: texture::Texture,
@@ -275,7 +275,7 @@ impl State {
                     } else {
                         Quat::from_axis_angle(Vec3::Z, 0.0)
                     };
-                    Instance { position, rotation }
+                    Transform { position, rotation }
                 })
             })
             .collect::<Vec<_>>();
@@ -283,7 +283,7 @@ impl State {
         //TODO Is it this????
         println!("{:?}", instances[0]);
 
-        let instance_data = instances.iter().map(Instance::to_raw).collect::<Vec<_>>();
+        let instance_data = instances.iter().map(Transform::to_raw).collect::<Vec<_>>();
         println!("{:?}", instance_data);
         let instance_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Instance Buffer"),
@@ -380,7 +380,7 @@ impl State {
             vertex: wgpu::VertexState {
                 module: &shader,
                 entry_point: "vs_main",
-                buffers: &[model::ModelVertex::desc(), InstanceRaw::desc()],
+                buffers: &[model::ModelVertex::desc(), TransformRaw::desc()],
             },
             fragment: Some(wgpu::FragmentState {
                 module: &shader,
@@ -554,7 +554,7 @@ impl State {
                 render_pass.set_index_buffer(mesh.index_buffer.slice(..), wgpu::IndexFormat::Uint32);
                 render_pass.set_bind_group(0, &material.bind_group, &[]);
                 render_pass.set_bind_group(1, &self.camera_bind_group, &[]);
-                render_pass.draw_indexed(0..mesh.num_elements, 0, 0..1);
+                render_pass.draw_indexed(0..mesh.num_elements, 0, 0..2);
                 // model::DrawModel::draw_model_instanced(&mut render_pass, model, 0..1, &self.camera_bind_group);
             }
             //TODO performance?

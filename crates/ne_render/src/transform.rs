@@ -1,18 +1,18 @@
 use ne_math::{Vec3, Quat, Mat4};
 #[derive(Debug)]
-pub struct Instance {
+pub struct Transform {
     pub position: Vec3,
     pub rotation: Quat,
 }
 
-impl Default for Instance {
+impl Default for Transform {
     fn default() -> Self {
-        Self { position: Default::default(), rotation: Default::default() }
+        Self { position: Vec3::ZERO, rotation: Quat::default() }
     }
 }
-impl Instance {
-    pub fn to_raw(&self) -> InstanceRaw {
-        InstanceRaw {
+impl Transform {
+    pub fn to_raw(&self) -> TransformRaw {
+        TransformRaw {
             model: (Mat4::from_translation(self.position)
                 * Mat4::from_quat(self.rotation))
             .to_cols_array_2d(),
@@ -22,16 +22,16 @@ impl Instance {
 
 #[repr(C)]
 #[derive(Debug, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
-pub struct InstanceRaw {
+pub struct TransformRaw {
     #[allow(dead_code)]
     model: [[f32; 4]; 4],
 }
 
-impl InstanceRaw {
+impl TransformRaw {
     pub fn desc<'a>() -> wgpu::VertexBufferLayout<'a> {
         use std::mem;
         wgpu::VertexBufferLayout {
-            array_stride: mem::size_of::<InstanceRaw>() as wgpu::BufferAddress,
+            array_stride: mem::size_of::<TransformRaw>() as wgpu::BufferAddress,
             // We need to switch from using a step mode of Vertex to Instance
             // This means that our shaders will only change to use the next
             // instance when the shader starts processing a new instance
