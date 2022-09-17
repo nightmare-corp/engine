@@ -9,7 +9,9 @@ use ne_math::{Transform, Quat};
 //TODO
 mod interface;
 
-// use ne_window::WindowPlugin;
+//Yet to implement ne_app correctly, the functions are called in a certain order.
+//If a add_model function is called before the renderer is initialized than, that would be bad.
+//That's why we need commands, to give instructions that will be called after the initalization of all plugin.
 fn main() {
     // std::env::set_var("RUST_BACKTRACE", "1");
     // vulkan, metal, dx12, dx11, or gl
