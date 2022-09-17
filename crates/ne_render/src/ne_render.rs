@@ -1,3 +1,4 @@
+#![warn(missing_docs)]
 use ne_math::Transform;
 ///thank you https://github.com/sotrh/learn-wgpu
 /// This is the first iteration renderer it needs to do: 
@@ -34,11 +35,10 @@ use winit::{
 //export windowbuilder
 pub use winit::window::{Window,WindowBuilder};
 
-use model::{Vertex, RuntimeModel};
-use math::{TransformRaw, ToTransformRaw};
-use crate::{cameras::free_fly_camera::CameraUniform};
-#[cfg(feature="ui")]
-use user_interface::EguiState;
+use model::{InstancedMeshManager, RuntimeModel};
+use math::{ToTransformRaw};
+use crate::{cameras::free_fly_camera::CameraUniform, user_interface::EguiState, math::TransformRaw, model::Vertex};
+
 #[cfg(feature="ui")]
 mod user_interface;
 mod cameras;
@@ -51,22 +51,16 @@ const NUM_INSTANCES_PER_ROW: u32 = 2;
 //======================================================
 //                      HERE
 //======================================================
-// will disappear on runtime?
-// no is put in scene view ui.
-// TODO make sure it's removed in game build
-
-/// path:String is relative path from engine_assets (TODO for now)
-/// location:Vec3 is location in world space.
+/// ### Arguments
+/// * `path:String` is relative path from engine_assets... TODO FOR NOW, so path = "shapes/cube.obj" => "\engine_assets\shapes\cube.obj"
+/// * `location:Vec3` is location in world space.
 pub struct ModelDescriptor {
     pub path:String, //optimize for multiple meshes.
     pub transform:Transform,
-    //rotation:Quat
-    // scale:vec3,
 }
 pub struct SceneLoader {
     pub model_data:Vec<ModelDescriptor>,
 }
-
 impl Default for SceneLoader {
     fn default() -> Self {
         SceneLoader::new(None)
@@ -80,24 +74,29 @@ impl SceneLoader {
             None => Self { model_data:Vec::<ModelDescriptor>::new() },
         }
     }
+    ///Add model data to the scene loader
     fn push_model_data(&mut self, model_descriptor:ModelDescriptor)
     {
         self.model_data.push(model_descriptor);
     }
 }
+/// Holds all scene components, the dvd for the dvd player
+/// ### Arguments
+/// * `models` - StaticMeshManagerManager,
 pub struct Scene {
     runtime_models:Vec<RuntimeModel>
+    //TODO
+    // mesh_manager:InstancedMeshManager,
 }
 impl Scene {
     /// Will load everything from SceneLoader
     pub async fn new(scene:SceneLoader,device:&Device, queue:&Queue,
                      texture_bind_group_layout: &wgpu::BindGroupLayout,) -> Self {
-        let mut runtime_models = Vec::<RuntimeModel>::new();
-
+        let mut models = InstancedMeshManager::default();let mut runtime_models = Vec::<RuntimeModel>::new();
         //load models for each descriptor
         //TODO why does it only process cubes?
         for model_descriptor in scene.model_data.iter() {
-            let m = resources::load_model(
+            let m = resources::load_model_old(
                 //TODO this seems wrong
                 &*model_descriptor.path/* "trapeprism2.obj" */,
                 device,
@@ -112,7 +111,6 @@ impl Scene {
             }
         }
         //load other parts of scene
-
         //done
         Self { 
             runtime_models
@@ -152,7 +150,6 @@ struct State {
     camera_buffer: wgpu::Buffer,
     camera_bind_group: wgpu::BindGroup,
 
-    instances: Vec<Transform>,
     instance_buffer: wgpu::Buffer,
     
     depth_texture: texture::Texture,
@@ -164,20 +161,17 @@ struct State {
 }
 impl State {
     async fn new(app:&mut App, window: &Window, window_settings: WindowSettings) -> Self {
-
-        ne::log!("size of struct {} ", std::mem::size_of::<State>());
-
+        //================================================================================================================
+        //Window and wgpu initialization
+        //================================================================================================================
+        // ne::log!("size of struct {} ", std::mem::size_of::<State>());
         let size = window.inner_size();
-
         // The instance is a handle to our GPU
-        // BackendBit::PRIMARY => Vulkan + Metal + DX12 + Browser WebGPU
         warn!("WGPU setup");
         let backend = wgpu::util::backend_bits_from_env().unwrap_or_else(wgpu::Backends::all);
         ne::log!("backend: {:?}", backend);
         let instance = wgpu::Instance::new(backend);
-        
         let surface = unsafe { instance.create_surface(window) };
-
         //TODO this crashes when we use opengl or dx11? does dx11 need to be installed on pc? are drivers outdated?
         let adapter = instance
             .request_adapter(&wgpu::RequestAdapterOptions {
@@ -207,7 +201,6 @@ impl State {
             )
             .await
             .unwrap();
-
         warn!("Surface");
         let surface_format= surface.get_supported_formats(&adapter)[0];
         let surface_config = wgpu::SurfaceConfiguration {
@@ -240,23 +233,53 @@ impl State {
                 ],
                 label: Some("texture_bind_group_layout"),
             });
-            //TODO accessibility: camera location
-            let camera = free_fly_camera::Camera::new(Vec3::new(0.0, 4.0, 10.0), -90.0, 0.0);
-            let projection =
-            free_fly_camera::Projection::new(surface_config.width, surface_config.height, 45.0, 0.1, 100.0);
-            //TODO accessibility 
-            let camera_controller = free_fly_camera::CameraController::new(4.0, 0.8);
-    
-            let mut camera_uniform = CameraUniform::new();
-            camera_uniform.update_view_proj(&camera, &projection);
-    
+        //================================================================================================================
+        //camera buffer
+        //================================================================================================================
+        //TODO accessibility: camera location
+        let camera = free_fly_camera::Camera::new(Vec3::new(0.0, 4.0, 10.0), -90.0, 0.0);
+        let projection =
+        free_fly_camera::Projection::new(surface_config.width, surface_config.height, 45.0, 0.1, 100.0);
+        //TODO accessibility 
+        let camera_controller = free_fly_camera::CameraController::new(4.0, 0.8);
+        
+        let mut camera_uniform = CameraUniform::new();
+        camera_uniform.update_view_proj(&camera, &projection);
 
-        //Buffer that will put camera-vpm-matrix into shader
         let camera_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Camera Buffer"),
             contents: bytemuck::cast_slice(&[camera_uniform]),
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
         });
+        let camera_bind_group_layout =
+            device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                entries: &[wgpu::BindGroupLayoutEntry {
+                    binding: 0,
+                    visibility: wgpu::ShaderStages::VERTEX,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Uniform,
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
+                }],
+                label: Some("camera_bind_group_layout"),
+            });
+        let camera_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+            layout: &camera_bind_group_layout,
+            entries: &[wgpu::BindGroupEntry {
+                binding: 0,
+                resource: camera_buffer.as_entire_binding(),
+            }],
+            label: Some("camera_bind_group"),
+        });
+        //================================================================================================================
+        //Scene loading
+        //================================================================================================================
+        //This sets the world space of each cube?
+        //this is the model matrix I think.
+        //TODO
+        // let models = 
 
         //This sets the world space of each cube?
         //this is the model matrix I think.
@@ -292,36 +315,7 @@ impl State {
             usage: wgpu::BufferUsages::VERTEX,
         });
 
-        //      ^^^^^^^
-        // TODO make generic
-        //
-
-        let camera_bind_group_layout =
-            device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-                entries: &[wgpu::BindGroupLayoutEntry {
-                    binding: 0,
-                    visibility: wgpu::ShaderStages::VERTEX,
-                    ty: wgpu::BindingType::Buffer {
-                        ty: wgpu::BufferBindingType::Uniform,
-                        has_dynamic_offset: false,
-                        min_binding_size: None,
-                    },
-                    count: None,
-                }],
-                label: Some("camera_bind_group_layout"),
-            });
-
-        let camera_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-            layout: &camera_bind_group_layout,
-            entries: &[wgpu::BindGroupEntry {
-                binding: 0,
-                resource: camera_buffer.as_entire_binding(),
-            }],
-            label: Some("camera_bind_group"),
-        });
-        //TODO move
         warn!("Load scene");
-
         let scene_loader = app.world.remove_resource::<SceneLoader>();
         let scene = match scene_loader
         {
@@ -441,7 +435,7 @@ impl State {
             camera_buffer,
             camera_bind_group,
             camera_uniform,
-            instances,
+
             instance_buffer,
             depth_texture,
 

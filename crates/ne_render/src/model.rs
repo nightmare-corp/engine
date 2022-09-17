@@ -1,9 +1,9 @@
 use std::ops::Range;
 use bevy_ecs::prelude::Component;
 use ne_math::Transform;
-use wgpu::BindGroup;
+use wgpu::{BindGroup, Device, util::DeviceExt};
 
-use crate::{texture};
+use crate::{texture, math::ToTransformRaw};
 
 pub trait Vertex {
     fn desc<'a>() -> wgpu::VertexBufferLayout<'a>;
@@ -50,22 +50,47 @@ pub struct Material {
     pub bind_group: wgpu::BindGroup,
 }
 
+pub(crate) struct InstancedMeshManager{
+    loaded_paths:Vec<String>,
+    sm:Vec<InstancedMesh>,
+}
+impl InstancedMeshManager {
+
+}
+impl Default for InstancedMeshManager {
+    fn default() -> Self {
+        Self {
+            loaded_paths: Vec::new(), 
+            sm: Vec::new(),
+        }
+    }
+}
 ///Will hold all of the same meshes and draw on screen for each model matrix in vec!
-pub struct StaticMeshManager {
+/// ### Arguments
+/// * `world_transforms` - Vec< Transform>,
+/// * `matrix_buffer` - wgpu::Buffer,
+/// * `meshes` - Mesh
+pub struct InstancedMesh {
     // pub ids
-    pub world_transforms:Vec<Transform>,
+    pub mesh:Mesh,
+    pub model_transforms:Vec<Transform>,
     matrix_buffer:wgpu::Buffer,
     //Is this also useful to save?
     // pub model_matrices:Vec<Transform>,
-    
-    //is it useful to save Transformations before raw calculations? maybe it is tbh
-    ///Only one mesh
-    pub meshes:Mesh,
 }
-
-/* impl StaticMeshManager {
+/* impl InstancedMesh {
+    //TODO would be pretty cool if it could either accept a Vec or a single element, maybe tuples?
+    fn new(device:&Device, model_transforms:Vec<Transform>, mesh:Mesh) -> Self {
+        //create from above data
+        let matrix_buffer:wgpu::Buffer = Self::transforms_to_buffer(device, &model_transforms);
+        Self {
+            mesh,
+            model_transforms,
+            matrix_buffer,
+        }
+    }
     ///If transform is None then it will be Transform::default();
-    fn add_instance(&mut self, transform:Option<Transform>, )
+    fn add_instance(&mut self, transform:Option<Transform>, device:&Device)
     {
         //TODO optimize also if it expects many more resize the vec +=10/20/50/100  
 
@@ -80,31 +105,41 @@ pub struct StaticMeshManager {
         //is what I think
         //let me have a look.
 
-        let t = transform.unwrap_or_default();
-        {
-            let raw = t.to_raw();
-            let instance_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                label: Some("Instance Buffer"),
-                contents: bytemuck::cast_slice(&instance_data),
-                usage: wgpu::BufferUsages::VERTEX,
-            });
-            self.model_matrices.push();
+        // let t = transform.unwrap_or_default();
+        // {
+        //     let raw = t.to_raw();
+        //     let instance_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+        //         label: Some("Instance Buffer"),
+        //         contents: bytemuck::cast_slice(&instance_data),
+        //         usage: wgpu::BufferUsages::VERTEX,
+        //     });
+        //     self.model_matrices.push();
             
-        }
-        self.world_transforms.push();
+        // }
+        // self.world_transforms.push();
     }
-    fn add_many_instance(&mut self, transforms:Vec<Transform>, )
+    ///TODO optimize maybe
+    fn add_many_instance_internal(&mut self, device:&Device, transforms:Vec<Transform>, )
     {
-        //TODO optimize also if it expects many more resize the vec +=10/20/50/100  
-
-        //turn transform into model_matrix -> clone into buffer -> save this buffer.
-
-        //if transform is none set transform as default...? possible?
-        self.model_matrices.push();
-        self.world_transforms.push(transform.unwrap_or_default());
+        self.model_transforms.append(&mut transforms);
+        self.update_matrix_buffer(device);
     }
-} */
-
+    /// world_transforms -> matrix_buffer 
+    fn update_matrix_buffer(&mut self, device:&Device) {
+        self.matrix_buffer = Self::transforms_to_buffer(device, &self.model_transforms);
+    }
+    //TODO move function
+    fn transforms_to_buffer(device:&Device, transforms:&Vec<Transform>) -> wgpu::Buffer
+    {
+        let instance_data = transforms.iter().map(ToTransformRaw::to_raw).collect::<Vec<_>>();
+        device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("Instance Buffer"),
+            contents: bytemuck::cast_slice(&instance_data),
+            usage: wgpu::BufferUsages::VERTEX,
+        })
+    }
+} 
+ */
 #[derive(Component)]
 pub struct Mesh {
     pub name: String,
