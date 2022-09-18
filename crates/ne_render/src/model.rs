@@ -81,7 +81,7 @@ pub struct InstancedMesh {
 }
 impl InstancedMesh {
     //TODO would be pretty cool if it could either accept a Vec or a single element, maybe tuples?
-    fn new(device:&Device, model_transforms:Vec<Transform>, mesh:Mesh) -> Self {
+    pub fn new(device:&Device, model_transforms:Vec<Transform>, mesh:Mesh) -> Self {
         //create from above data
         let matrix_buffer:wgpu::Buffer = Self::transforms_to_buffer(device, &model_transforms);
         Self {

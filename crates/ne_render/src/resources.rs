@@ -1,6 +1,8 @@
 use std::io::{BufReader, Cursor};
 
 use cfg_if::cfg_if;
+use ne::{warn, info, trace};
+
 use wgpu::util::DeviceExt;
 
 use crate::{model::{self, InstancedMeshManager}, texture};
@@ -29,11 +31,10 @@ pub async fn load_string(file_name: &str) -> anyhow::Result<String> {
                 .await?;
         } else {
             let s = env!("CARGO_MANIFEST_DIR").to_owned()+"/../../engine_assets";
-            ne::log!("{}", s);
             let path = std::path::Path::new(&s)
                 .join(file_name);
 
-                ne::log!("{}", path.display());
+                info!("loading: {}", path.display());
             let txt = std::fs::read_to_string(path)?;
         }
     }
