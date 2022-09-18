@@ -1,5 +1,3 @@
-//!essentials every nightmare_engine crate needs.
-
 pub use ne_log as L;
 use L::tracing;
 

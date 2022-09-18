@@ -1,6 +1,6 @@
 
 use bevy_ecs::{prelude::EventReader};
-use ne::L;
+use ne::{L, info};
 use ne_app::App;
 use ne_render::{ModelDescriptor, OnWindowCloseRequested,
                 OnWindowResized, RenderPlugin,
@@ -54,7 +54,7 @@ fn main() {
 //on WindowResized
 fn resize_sys(mut window_resized_events: EventReader<OnWindowResized>) {
     for event in window_resized_events.iter().rev() {
-        ne::log!("window is resized w: {}, h:{}", event.width, event.height);
+        ne::info!("window is resized w: {}, h:{}", event.width, event.height);
     }
 }
 fn exit_window(mut window_close_requested: EventReader<OnWindowCloseRequested>) {
