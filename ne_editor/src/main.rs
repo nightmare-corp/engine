@@ -1,7 +1,6 @@
 
 use bevy_ecs::{prelude::EventReader};
 use ne::L;
-
 use ne_app::App;
 use ne_render::{ModelDescriptor, OnWindowCloseRequested,
                 OnWindowResized, RenderPlugin,
@@ -18,8 +17,8 @@ fn main() {
     // vulkan, metal, dx12, dx11, or gl
     std::env::set_var("WGPU_BACKEND", "vulkan");
     std::env::set_var("neprint", "true");
-
     L::init_log!(tracing::Level::WARN);
+    
     const WIDTH: f32 = 1600.0;
     const HEIGHT: f32 = 900.0;
     let mut sl = SceneLoader::default();
@@ -42,16 +41,11 @@ fn main() {
             title: "Nightmare_Editor".to_string(),
             width: WIDTH,
             height: HEIGHT,
-            // present_mode: PresentMode::AutoVsync,
             window_mode: ne_render::WindowMode::Windowed,
             ..WindowSettings::default()
         })
         .insert_resource(sl)
-
-        //TODO currently working on a windowplugin
-        // .add_plugin(WindowPlugin)
         .add_plugin(RenderPlugin)
-        // .add_plugin(interface::EditorPlugin)
         .add_system(resize_sys)
         .add_system(exit_window)
         .run();
