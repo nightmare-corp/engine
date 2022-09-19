@@ -1,5 +1,5 @@
 use std::ops::Range;
-use bevy_ecs::prelude::Component;
+use bevy_ecs::prelude::{Component, Bundle};
 use ne_math::Transform;
 use wgpu::{BindGroup, Device, util::DeviceExt};
 
@@ -52,19 +52,36 @@ pub struct Material {
 
 pub(crate) struct InstancedMeshManager{
     loaded_paths:Vec<String>,
-    sm:Vec<InstancedMesh>,
-}
-impl InstancedMeshManager {
-
+    meshes:Vec<InstancedMesh>,
 }
 impl Default for InstancedMeshManager {
     fn default() -> Self {
         Self {
             loaded_paths: Vec::new(), 
-            sm: Vec::new(),
+            meshes: Vec::new(),
         }
     }
+
 }
+impl InstancedMeshManager {
+    // pub fn add_instance(&mut self, path:String, transform:Transform) 
+    // {
+    //     if !self.loaded_paths.contains(&path) {
+    //         self.insert_new_mesh(&path);
+    //         self.loaded_paths.push(path);
+    //     }
+    // }
+    // pub fn add_instances(&mut self, path:String, transforms:Vec<Transform>) 
+    // {
+
+    // }
+    // pub fn insert_new_mesh(&mut self, path:&String)
+    // {
+        
+    //     self.meshes.push()
+    // }
+}
+
 ///Will hold all of the same meshes and draw on screen for each model matrix in vec!
 /// ### Arguments
 /// * `world_transforms` - Vec< Transform>,
@@ -73,6 +90,8 @@ impl Default for InstancedMeshManager {
 pub struct InstancedMesh {
     // pub ids
     pub mesh:Mesh,
+    //don't understand how this works:
+    // pub material:Vec<Materials>,
     pub model_transforms:Vec<Transform>,
     //TODO remove pub
     pub matrix_buffer:wgpu::Buffer,
@@ -100,7 +119,7 @@ impl InstancedMesh {
 
         //if transform is none set transform as default...? possible?
 
-        //I want it to be called right after renderner??
+        //I want it to be called right after renderer??
         //this is why commands are interesting
         //lets implement commands just to make sure that we always 100% of the time get it called after renderer intialization
         //but on construct needs to be called before the loop.
@@ -142,7 +161,6 @@ impl InstancedMesh {
     }
 } 
 
-#[derive(Component)]
 pub struct Mesh {
     pub name: String,
     pub vertex_buffer: wgpu::Buffer,
@@ -155,10 +173,15 @@ pub struct Mesh {
 pub struct RuntimeModel {
     //it will draw by mesh
     // pub model_projections: wgpu::Buffer,
-    pub meshes: Vec<Mesh>,
+    pub mesh: Mesh,
     pub materials: Vec<Material>,
 }
-
+impl RuntimeModel {
+    pub fn new(mesh:Mesh, materials:Vec<Material>) -> Self
+    {
+        Self{mesh,materials}
+    }
+}
 pub trait DrawModel<'a> {
     // fn draw_mesh(
     //     &mut self,

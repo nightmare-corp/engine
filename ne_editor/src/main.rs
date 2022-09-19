@@ -25,12 +25,12 @@ fn main() {
 
     //TODO why does it only accept cube and trapeprism2?
     let md =  ModelDescriptor {
-        path: "shapes/cube.obj".to_string(),
+        path: "trapeprism2.obj".to_string(),
         transform: Transform { position: Vec3::ZERO, rotation: Quat::default()},
         };
     sl.model_data.push(md);
     let md2 =  ModelDescriptor {
-        path: "trapeprism2.obj".to_string(),
+        path: "shapes/cube.obj".to_string(),
         transform: Transform { position: Vec3::new(1.0,1.0,1.0), rotation: Quat::default()}, };
     sl.model_data.push(md2);
 
@@ -50,7 +50,6 @@ fn main() {
         .add_system(exit_window)
         .run();
 }
-
 //on WindowResized
 fn resize_sys(mut window_resized_events: EventReader<OnWindowResized>) {
     for event in window_resized_events.iter().rev() {
@@ -58,7 +57,7 @@ fn resize_sys(mut window_resized_events: EventReader<OnWindowResized>) {
     }
 }
 fn exit_window(mut window_close_requested: EventReader<OnWindowCloseRequested>) {
-    for event in window_close_requested.iter().rev() {
+    for _ in window_close_requested.iter().rev() {
         //TODO GUI would you like to save? Yes, No, Cancel.
         ne::log!("Would you like to save?");
         ne::log!("exiting program");

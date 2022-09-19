@@ -10,6 +10,16 @@
                     "kind": "build",
                     "isDefault": true
                 }
+            },
+            {
+                "label": "frame_counter",
+                "command": "cargo run -p frame_counter --release",
+                "type": "shell",
+                "problemMatcher": [],
+                "group": {
+                    "kind": "build",
+                    "isDefault": true
+                }
             }
         ]
 }

@@ -83,8 +83,7 @@ impl SceneLoader {
 /// ### Arguments
 /// * `models` - StaticMeshManagerManager,
 pub struct Scene {
-    runtime_models:Vec<RuntimeModel>
-    //TODO
+    mesh_manager:Vec<RuntimeModel>
     // mesh_manager:InstancedMeshManager,
 }
 impl Scene {
@@ -95,7 +94,7 @@ impl Scene {
         //load models for each descriptor
         //TODO why does it only process cubes?
         for model_descriptor in scene.model_data.iter() {
-            let m = resources::load_model_old(
+            let m = resources::load_model(
                 //TODO this seems wrong
                 &*model_descriptor.path/* "trapeprism2.obj" */,
                 device,
@@ -105,24 +104,30 @@ impl Scene {
             //TODO is this better than unwrap?
             match m
             {
-                Ok(model) => runtime_models.push(model),
+                Ok(m) => runtime_models.push(RuntimeModel { mesh: m.0, materials: m.1 }),
                 Err(err) => println!("model failed to load help {:?}", err),
             }
+        }
+        for runtime_model in runtime_models.iter() 
+        {
+            println!("{}", runtime_model.mesh.name);
+            println!("{:?}", runtime_model.mesh.vertex_buffer);
+            println!("{:?}", runtime_model.mesh.index_buffer);
         }
         //load other parts of scene
         //done
         Self { 
-            runtime_models
+            mesh_manager: runtime_models
         }
     }
     pub fn get_models(&self) -> &Vec<RuntimeModel>
     {
-        &self.runtime_models
+        &self.mesh_manager
     }
     //TODO what if it fails?
     pub fn add_model(&mut self, runtime_models:RuntimeModel)
     {
-        self.runtime_models.push(runtime_models);
+        self.mesh_manager.push(runtime_models);
     }
 }
 use Scene as CurrentScene; //will be used as a resource...
@@ -317,7 +322,6 @@ impl State {
         let scene = match scene_loader
         {
             Some(scene_loader) => {
-                println!("Some scene loader wow");
                 //initialize once we have models vector
                 CurrentScene::new(
                     scene_loader,
@@ -539,7 +543,8 @@ impl State {
 
             render_pass.set_pipeline(&self.render_pipeline);
             //BufferSlice { buffer: Buffer { context: Context { type: "Native" }, id: Buffer { id: (1, 1, Vulkan), error_sink: Mutex { data: ErrorSink } }, map_context: Mutex { data: MapContext { total_size: 64, initial_range: 0..0, sub_ranges: [] } }, usage: VERTEX }, offset: 0, size: None }
-            for mesh in &model.meshes {
+            let mesh = &model.mesh;
+            {
                 let material = &model.materials[mesh.material];
                 render_pass.set_vertex_buffer(0, mesh.vertex_buffer.slice(..));
                 render_pass.set_vertex_buffer(1, self.instance_buffer.slice(..));
