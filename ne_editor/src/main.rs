@@ -2,9 +2,9 @@
 use bevy_ecs::{prelude::EventReader};
 use ne::{L, info};
 use ne_app::App;
-use ne_render::{ModelDescriptor, OnWindowCloseRequested,
+use ne_render::{OnWindowCloseRequested,
                 OnWindowResized, RenderPlugin,
-                SceneLoader, Vec3, WindowSettings};
+                Vec3, WindowSettings};
 use ne_math::{Transform, Quat};
 //TODO
 mod interface;
@@ -21,18 +21,17 @@ fn main() {
     
     const WIDTH: f32 = 1600.0;
     const HEIGHT: f32 = 900.0;
-    let mut sl = SceneLoader::default();
-
-    //TODO why does it only accept cube and trapeprism2?
-    let md =  ModelDescriptor {
-        path: "trapeprism2.obj".to_string(),
-        transform: Transform { position: Vec3::ZERO, rotation: Quat::default()},
-        };
-    sl.model_data.push(md);
-    let md2 =  ModelDescriptor {
-        path: "shapes/cube.obj".to_string(),
-        transform: Transform { position: Vec3::new(1.0,1.0,1.0), rotation: Quat::default()}, };
-    sl.model_data.push(md2);
+    // let mut sl = SceneLoader::default();
+    // //TODO why does it only accept cube and trapeprism2?
+    // let md =  ModelDescriptor {
+    //     path: "trapeprism2.obj".to_string(),
+    //     transform: Transform { position: Vec3::ZERO, rotation: Quat::default()},
+    //     };
+    // sl.model_data.push(md);
+    // let md2 =  ModelDescriptor {
+    //     path: "shapes/cube.obj".to_string(),
+    //     transform: Transform { position: Vec3::new(1.0,1.0,1.0), rotation: Quat::default()}, };
+    // sl.model_data.push(md2);
 
     //TODO replace WindowSettings with WindowBuilder
     App::new()
@@ -44,7 +43,7 @@ fn main() {
             window_mode: ne_render::WindowMode::Windowed,
             ..WindowSettings::default()
         })
-        .insert_resource(sl)
+        // .insert_resource(sl)
         .add_plugin(RenderPlugin)
         .add_system(resize_sys)
         .add_system(exit_window)
