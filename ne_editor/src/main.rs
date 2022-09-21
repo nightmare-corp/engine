@@ -7,7 +7,6 @@ use ne_render::{RenderPlugin,
                 use ne_render::PresentMode::Fifo;
 use ne_math::{Transform, Quat};
 use ne_window::events::{OnWindowResized, OnWindowCloseRequested};
-//TODO
 mod interface;
 
 //Yet to implement ne_app correctly, the functions are called in a certain order.
@@ -23,7 +22,6 @@ fn main() {
     const WIDTH: f32 = 1600.0;
     const HEIGHT: f32 = 900.0;
     // let mut sl = SceneLoader::default();
-    // //TODO why does it only accept cube and trapeprism2?
     // let md =  ModelDescriptor {
     //     path: "trapeprism2.obj".to_string(),
     //     transform: Transform { position: Vec3::ZERO, rotation: Quat::default()},
@@ -34,7 +32,6 @@ fn main() {
     //     transform: Transform { position: Vec3::new(1.0,1.0,1.0), rotation: Quat::default()}, };
     // sl.model_data.push(md2);
 
-    //TODO replace WindowSettings with WindowBuilder.. maybe
     App::new()
         .insert_resource(
             WindowSettings {

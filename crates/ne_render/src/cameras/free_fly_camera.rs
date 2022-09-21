@@ -28,8 +28,6 @@ impl Camera {
         let (sin_pitch, cos_pitch) = self.pitch.sin_cos();
         let (sin_yaw, cos_yaw) = self.yaw.sin_cos();
 
-
-        //TODO BIG TODO
         //this be weird
         look_to_rh(
             self.position,

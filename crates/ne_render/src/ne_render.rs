@@ -8,7 +8,6 @@ use ne_math::Transform;
 /// 6) Mesh loading from .gltf and .obj and maybe fbx files
 /// 7) Level saving/loading from .nscene
 /// 8) Effective editing of .nscene file...
-///TODO EDITOR UI    #[cfg(feature = "editor_ui")]
 pub use ne_math::{Vec2, Vec3, Quat, Mat4};
 use ne_window::events::{OnWindowResized, OnWindowScaleFactorChanged, AppExit, OnRedrawRequested, 
     OnWindowCloseRequested, OnFileDragAndDrop, OnCursorEntered, OnCursorLeft, OnReceivedCharacter, OnWindowFocused};
@@ -80,7 +79,6 @@ impl State {
         ne::log!("backend: {:?}", backend);
         let instance = wgpu::Instance::new(backend);
         let surface = unsafe { instance.create_surface(window) };
-        //TODO this crashes when we use opengl or dx11? does dx11 need to be installed on pc? are drivers outdated?
         let adapter = instance
             .request_adapter(&wgpu::RequestAdapterOptions {
                 //will use the highest performance gpu.
@@ -309,39 +307,31 @@ impl State {
             .create_view(&wgpu::TextureViewDescriptor::default());
         let mut cmd_buffers = Vec::<CommandBuffer>::new();
         
-
-        // //new encoder
-        // let mut encoder = self
-        // .device
-        // .create_command_encoder(&wgpu::CommandEncoderDescriptor {
-        //     label: Some("Render Encoder"),
-        // });
+        //new encoder
+        let mut encoder = self.create_encoder();
+        //clear frame and set background color.
         {
-
+            let mut rpass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                label: None,
+                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                    resolve_target: None,
+                    ops: wgpu::Operations {
+                        load: wgpu::LoadOp::Clear(wgpu::Color {
+                            r: 0.1,
+                            g: 0.2,
+                            b: 0.3,
+                            a: 1.0,
+                        }),
+                        store: true,
+                    },
+                    view: &output_view,
+                })],
+                depth_stencil_attachment: None,
+            });
         }
+        cmd_buffers.push(encoder.finish());
 
-        //TODO 
-        // CLEARS past frame 
-        // let encoder = self.device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
-        // let mut rpass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-        //     label: None,
-        //     color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-        //         output_view,
-        //         resolve_target: None,
-        //         ops: wgpu::Operations {
-        //             load: wgpu::LoadOp::Clear(wgpu::Color {
-        //                 r: 0.1,
-        //                 g: 0.2,
-        //                 b: 0.3,
-        //                 a: 1.0,
-        //             }),
-        //             store: true,
-        //         },
-        //     })],
-        //     depth_stencil_attachment: None,
-        // });
-        // 
-        //TODO work on top of past texture (load texture)
+        //TODO how to make these meshes share buffers..? Obviously the same vertex/index buffer with a slightly different model buffer.        
         cmd_buffers.push(
         self.mesh1.render(&output_view, &self.device));
         //problem this one clears the one before... solution: nothing clears the renderer clear itself first.
@@ -349,12 +339,7 @@ impl State {
         self.mesh2.render(&output_view, &self.device));
 
         //new encoder
-        let mut encoder = self
-        .device
-        .create_command_encoder(&wgpu::CommandEncoderDescriptor {
-            label: Some("Render Encoder"),
-        });
-
+        let mut encoder = self.create_encoder();
         // UI RENDERING! WIll be rendered on top of the previous output!!!
         #[cfg(feature="ui")]
         {
@@ -394,10 +379,10 @@ impl State {
 
                 cmd_buffers.push(encoder.finish());
 
-            //remove ui data
-            // self.ui_state.render_pass
-            // .remove_textures(tdelta)
-            // .expect("remove texture ok");
+            // remove ui data for some reason..?
+            self.ui_state.render_pass
+            .remove_textures(tdelta)
+            .expect("remove texture ok");
         }
         // the number of submit() calls should be limited to a few per frame (e.g. 1-5).
         self.queue.submit(cmd_buffers);

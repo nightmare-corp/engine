@@ -8,7 +8,7 @@ homepage = "https://nightmare-corp.com"
 
 [dependencies]
 ne = {path = "../ne"}
-#TODO should only be activated when testing all dirs
+#should only be activated when testing all dirs
 # [target.'cfg(MACROTEST)'.dependencies]
 
 [lib]

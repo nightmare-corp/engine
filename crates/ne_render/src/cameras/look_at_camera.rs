@@ -20,7 +20,6 @@ pub struct CameraFields {
     pub yaw: f32,
     pub pitch: f32,
 }
-//TODO1 Why this NOT? :?
 impl Default for CameraFields {
     fn default() -> Self {
         CameraFields {
@@ -64,7 +63,6 @@ impl Camera {
         }
     }
     fn build_view_projection_matrix(&self) -> Mat4 {
-        //TODO rh->lh
         let view = ne_math::Mat4::look_at_rh(self.pos, self.target, self.up);
         let proj = ne_math::Mat4::perspective_rh(self.fovy, self.aspect, self.znear, self.zfar);
         proj * view
@@ -168,13 +166,10 @@ impl CameraController {
         }
     }
     pub fn update_camera(&mut self, camera: &mut Camera, dt: f32) {
-        //TODO CAMERA WASD TO MOVE
-        //TODO MOUSE TO ROTATE
         //MOUSE
         // calculate yaw and pitch
         camera.yaw += self.rotate_horizontal * self.mouse_sensitivity * dt;
         camera.pitch += -self.rotate_vertical * self.mouse_sensitivity * dt;
-        //|TODOrecalculate look at with rotation
         // camera.target
 
         // If process_mouse isn't called every frame, these values
@@ -190,7 +185,6 @@ impl CameraController {
         }
 
         let mut forward = camera.target - camera.pos;
-        //TODO somehow calculate forward from yaw and pitch
         forward.x = camera.yaw.sin() * camera.pitch.cos();
         forward.y = camera.yaw.cos() * camera.pitch.cos();
         forward.z = camera.pitch.sin();

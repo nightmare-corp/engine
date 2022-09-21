@@ -6,21 +6,18 @@ homepage = "https://nightmare-corp.com"
 [toolchain]
 channel = "nightly"
 [features]
-# TODO
 # dynamic linking, accelerates compile times during project development hopefully.
 # DISABLE ON RELEASE
 # dynamic = ["ne_dylib"]
 
 [dependencies]
 ne = { path = "crates/ne"}
-# TODO
 # ne_dylib = { path = "crates/ne_dylib", optional = true }
 # ne_internal = { path = "crates/ne_internal"}
 
 # this ... 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 [dev-dependencies]
-# TODO
 [workspace]
 members = [
     "ne_editor",

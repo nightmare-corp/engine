@@ -14,14 +14,6 @@ opt-level = 1
 [profile.dev.package."*"]
 opt-level = 3
 
-#TODO minimize binary size, while keeping similar fps.
-# [profile.release]
-# opt-level = 'z'     # Optimize for size.
-# lto = true          # Enable Link Time Optimization
-# codegen-units = 1   # Reduce number of codegen units to increase optimizations.
-# panic = 'abort'     # Abort on panic
-# strip = true        # Strip symbols from binary*
-
 [dependencies]
 nightmare_engine = {path = "../../" }
 
