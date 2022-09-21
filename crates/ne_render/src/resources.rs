@@ -1,359 +1,71 @@
-// use std::io::{BufReader, Cursor};
+/* use std::io::{BufReader, Cursor};
 
-// use cfg_if::cfg_if;
-// use ne::{warn, info, trace};
+use cfg_if::cfg_if;
+use wgpu::util::DeviceExt;
 
-// use wgpu::util::DeviceExt;
+use crate::{texture, mesh::Vertex};
 
-// use crate::{model::{self, InstancedMeshManager, Mesh, Material}, texture};
+fn create_vertices() -> (Vec<Vertex>, Vec<u16>) {
+    let vertex_data = [
+        // top (0, 0, 1)
+        vertex([-1, -1, 1], [0, 0]),
+        vertex([1, -1, 1], [1, 0]),
+        vertex([1, 1, 1], [1, 1]),
+        vertex([-1, 1, 1], [0, 1]),
+        // bottom (0, 0, -1)
+        vertex([-1, 1, -1], [1, 0]),
+        vertex([1, 1, -1], [0, 0]),
+        vertex([1, -1, -1], [0, 1]),
+        vertex([-1, -1, -1], [1, 1]),
+        // right (1, 0, 0)
+        vertex([1, -1, -1], [0, 0]),
+        vertex([1, 1, -1], [1, 0]),
+        vertex([1, 1, 1], [1, 1]),
+        vertex([1, -1, 1], [0, 1]),
+        // left (-1, 0, 0)
+        vertex([-1, -1, 1], [1, 0]),
+        vertex([-1, 1, 1], [0, 0]),
+        vertex([-1, 1, -1], [0, 1]),
+        vertex([-1, -1, -1], [1, 1]),
+        // front (0, 1, 0)
+        vertex([1, 1, -1], [1, 0]),
+        vertex([-1, 1, -1], [0, 0]),
+        vertex([-1, 1, 1], [0, 1]),
+        vertex([1, 1, 1], [1, 1]),
+        // back (0, -1, 0)
+        vertex([1, -1, 1], [0, 0]),
+        vertex([-1, -1, 1], [1, 0]),
+        vertex([-1, -1, -1], [1, 1]),
+        vertex([1, -1, -1], [0, 1]),
+    ];
 
-// //TODO path isnt right
-// #[cfg(target_arch = "wasm32")]
-// fn format_url(file_name: &str) -> reqwest::Url {
-//     let window = web_sys::window().unwrap();
-//     let location = window.location();
-//     let base = reqwest::Url::parse(&format!(
-//         "{}/{}/",
-//         location.origin().unwrap(),
-//         option_env!("RES_PATH").unwrap_or("res"),
-//     ))
-//     .unwrap();
-//     base.join(file_name).unwrap()
-// }
+    let index_data: &[u16] = &[
+        0, 1, 2, 2, 3, 0, // top
+        4, 5, 6, 6, 7, 4, // bottom
+        8, 9, 10, 10, 11, 8, // right
+        12, 13, 14, 14, 15, 12, // left
+        16, 17, 18, 18, 19, 16, // front
+        20, 21, 22, 22, 23, 20, // back
+    ];
 
-// pub async fn load_string(file_name: &str) -> anyhow::Result<String> {
-//     cfg_if! {
-//         if #[cfg(target_arch = "wasm32")] {
-//             let url = format_url(file_name);
-//             let txt = reqwest::get(url)
-//                 .await?
-//                 .text()
-//                 .await?;
-//         } else {
-//             let s = env!("CARGO_MANIFEST_DIR").to_owned()+"/../../engine_assets";
-//             let path = std::path::Path::new(&s)
-//                 .join(file_name);
+    (vertex_data.to_vec(), index_data.to_vec())
+}
 
-//                 info!("loading: {}", path.display());
-//             let txt = std::fs::read_to_string(path)?;
-//         }
-//     }
-
-//     Ok(txt)
-// }
-
-// pub async fn load_binary(file_name: &str) -> anyhow::Result<Vec<u8>> {
-//     cfg_if! {
-//         if #[cfg(target_arch = "wasm32")] {
-//             let url = format_url(file_name);
-//             let data = reqwest::get(url)
-//                 .await?
-//                 .bytes()
-//                 .await?
-//                 .to_vec();
-//         } else {
-//             let s = env!("CARGO_MANIFEST_DIR").to_owned()+"/../../engine_assets";
-//             let path = std::path::Path::new(&s)
-//                 .join(file_name);
-//             let data = std::fs::read(path)?;
-//         }
-//     }
-
-//     Ok(data)
-// }
-
-// pub async fn load_texture(
-//     file_name: &str,
-//     device: &wgpu::Device,
-//     queue: &wgpu::Queue,
-// ) -> anyhow::Result<texture::Texture> {
-//     let data = load_binary(file_name).await?;
-//     texture::Texture::from_bytes(device, queue, &data, file_name)
-// }
-// pub async fn load_instanced_mesh_manager(
-//     file_name: &str,
-//     device: &wgpu::Device,
-//     queue: &wgpu::Queue,
-//     layout: &wgpu::BindGroupLayout,
-// ) -> anyhow::Result<model::RuntimeModel> {
-//     let obj_text = load_string(file_name).await?;
-//     let obj_cursor = Cursor::new(obj_text);
-//     let mut obj_reader = BufReader::new(obj_cursor);
-
-//     let (models, obj_materials) = tobj::load_obj_buf_async(
-//         &mut obj_reader,
-//         &tobj::LoadOptions {
-//             triangulate: true,
-//             single_index: true,
-//             ..Default::default()
-//         },
-//         |p| async move {
-
-//             //TODO panics when loading sphere..?
-//             let mat_text = load_string(&p).await.unwrap();
-//             tobj::load_mtl_buf(&mut BufReader::new(Cursor::new(mat_text)))
-//         },
-//     )
-//     .await?;
-
-//     let mut materials = Vec::new();
-//     for m in obj_materials? {
-//         let diffuse_texture = load_texture(&m.diffuse_texture, device, queue).await?;
-//         let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-//             layout,
-//             entries: &[
-//                 wgpu::BindGroupEntry {
-//                     binding: 0,
-//                     resource: wgpu::BindingResource::TextureView(&diffuse_texture.view),
-//                 },
-//                 wgpu::BindGroupEntry {
-//                     binding: 1,
-//                     resource: wgpu::BindingResource::Sampler(&diffuse_texture.sampler),
-//                 },
-//             ],
-//             label: None,
-//         });
-
-//         materials.push(model::Material {
-//             name: m.name,
-//             diffuse_texture,
-//             bind_group,
-//         })
-//     }
-
-//     let mut meshes = models
-//         .into_iter()
-//         .map(|m| {
-//             let vertices = (0..m.mesh.positions.len() / 3)
-//                 .map(|i| model::ModelVertex {
-//                     position: [
-//                         m.mesh.positions[i * 3],
-//                         m.mesh.positions[i * 3 + 1],
-//                         m.mesh.positions[i * 3 + 2],
-//                     ],
-//                     tex_coords: [m.mesh.texcoords[i * 2], m.mesh.texcoords[i * 2 + 1]],
-//                     normal: [
-//                         m.mesh.normals[i * 3],
-//                         m.mesh.normals[i * 3 + 1],
-//                         m.mesh.normals[i * 3 + 2],
-//                     ],
-//                 })
-//                 .collect::<Vec<_>>();
-
-//             let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-//                 label: Some(&format!("{:?} Vertex Buffer", file_name)),
-//                 contents: bytemuck::cast_slice(&vertices),
-//                 usage: wgpu::BufferUsages::VERTEX,
-//             });
-//             let index_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-//                 label: Some(&format!("{:?} Index Buffer", file_name)),
-//                 contents: bytemuck::cast_slice(&m.mesh.indices),
-//                 usage: wgpu::BufferUsages::INDEX,
-//             });
-
-//             model::Mesh {
-//                 name: file_name.to_string(),
-//                 vertex_buffer,
-//                 index_buffer,
-//                 num_elements: m.mesh.indices.len() as u32,
-//                 material: m.mesh.material_id.unwrap_or(0),
-//             }
-//         })
-//         .collect::<Vec<_>>();
-//         let mesh = meshes.remove(0);
-//     Ok(model::RuntimeModel { mesh, materials })
-//     //TODO is it better to return a tuple (mesh, materials) ?
-// }
-
-// // #[deprecated]
-// pub async fn load_model(
-//     file_name: &str,
-//     device: &wgpu::Device,
-//     queue: &wgpu::Queue,
-//     layout: &wgpu::BindGroupLayout,
-// ) -> anyhow::Result<(Mesh,Vec<Material>)> {
-//     let obj_text = load_string(file_name).await?;
-//     let obj_cursor = Cursor::new(obj_text);
-//     let mut obj_reader = BufReader::new(obj_cursor);
-
-//     let (models, obj_materials) = tobj::load_obj_buf_async(
-//         &mut obj_reader,
-//         &tobj::LoadOptions {
-//             triangulate: true,
-//             single_index: true,
-//             ..Default::default()
-//         },
-//         |p| async move {
-
-//             //TODO panics when loading sphere..?
-//             let mat_text = load_string(&p).await.unwrap();
-//             tobj::load_mtl_buf(&mut BufReader::new(Cursor::new(mat_text)))
-//         },
-//     )
-//     .await?;
-
-//     let mut materials = Vec::new();
-//     for m in obj_materials? {
-//         let diffuse_texture = load_texture(&m.diffuse_texture, device, queue).await?;
-//         let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-//             layout,
-//             entries: &[
-//                 wgpu::BindGroupEntry {
-//                     binding: 0,
-//                     resource: wgpu::BindingResource::TextureView(&diffuse_texture.view),
-//                 },
-//                 wgpu::BindGroupEntry {
-//                     binding: 1,
-//                     resource: wgpu::BindingResource::Sampler(&diffuse_texture.sampler),
-//                 },
-//             ],
-//             label: None,
-//         });
-
-//         materials.push(model::Material {
-//             name: m.name,
-//             diffuse_texture,
-//             bind_group,
-//         })
-//     }
-
-//     let mut meshes = models
-//         .into_iter()
-//         .map(|m| {
-//             let vertices = (0..m.mesh.positions.len() / 3)
-//                 .map(|i| model::ModelVertex {
-//                     position: [
-//                         m.mesh.positions[i * 3],
-//                         m.mesh.positions[i * 3 + 1],
-//                         m.mesh.positions[i * 3 + 2],
-//                     ],
-//                     tex_coords: [m.mesh.texcoords[i * 2], m.mesh.texcoords[i * 2 + 1]],
-//                     normal: [
-//                         m.mesh.normals[i * 3],
-//                         m.mesh.normals[i * 3 + 1],
-//                         m.mesh.normals[i * 3 + 2],
-//                     ],
-//                 })
-//                 .collect::<Vec<_>>();
-
-//             let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-//                 label: Some(&format!("{:?} Vertex Buffer", file_name)),
-//                 contents: bytemuck::cast_slice(&vertices),
-//                 usage: wgpu::BufferUsages::VERTEX,
-//             });
-//             let index_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-//                 label: Some(&format!("{:?} Index Buffer", file_name)),
-//                 contents: bytemuck::cast_slice(&m.mesh.indices),
-//                 usage: wgpu::BufferUsages::INDEX,
-//             });
-
-//             model::Mesh {
-//                 name: file_name.to_string(),
-//                 vertex_buffer,
-//                 index_buffer,
-//                 num_elements: m.mesh.indices.len() as u32,
-//                 material: m.mesh.material_id.unwrap_or(0),
-//             }
-//         })
-//         .collect::<Vec<_>>();
-//         let mesh = meshes.remove(0);
-//     Ok( ( mesh, materials ))
-//     //TODO is it better to return a tuple (mesh, materials) ?
-// }
-
-// // #[deprecated]
-// pub async fn load_model_old(
-//     file_name: &str,
-//     device: &wgpu::Device,
-//     queue: &wgpu::Queue,
-//     layout: &wgpu::BindGroupLayout,
-// ) -> anyhow::Result<model::RuntimeModel> {
-//     let obj_text = load_string(file_name).await?;
-//     let obj_cursor = Cursor::new(obj_text);
-//     let mut obj_reader = BufReader::new(obj_cursor);
-
-//     let (models, obj_materials) = tobj::load_obj_buf_async(
-//         &mut obj_reader,
-//         &tobj::LoadOptions {
-//             triangulate: true,
-//             single_index: true,
-//             ..Default::default()
-//         },
-//         |p| async move {
-
-//             //TODO panics when loading sphere..?
-//             let mat_text = load_string(&p).await.unwrap();
-//             tobj::load_mtl_buf(&mut BufReader::new(Cursor::new(mat_text)))
-//         },
-//     )
-//     .await?;
-
-//     let mut materials = Vec::new();
-//     for m in obj_materials? {
-//         let diffuse_texture = load_texture(&m.diffuse_texture, device, queue).await?;
-//         let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-//             layout,
-//             entries: &[
-//                 wgpu::BindGroupEntry {
-//                     binding: 0,
-//                     resource: wgpu::BindingResource::TextureView(&diffuse_texture.view),
-//                 },
-//                 wgpu::BindGroupEntry {
-//                     binding: 1,
-//                     resource: wgpu::BindingResource::Sampler(&diffuse_texture.sampler),
-//                 },
-//             ],
-//             label: None,
-//         });
-
-//         materials.push(model::Material {
-//             name: m.name,
-//             diffuse_texture,
-//             bind_group,
-//         })
-//     }
-
-//     let mut meshes = models
-//         .into_iter()
-//         .map(|m| {
-//             let vertices = (0..m.mesh.positions.len() / 3)
-//                 .map(|i| model::ModelVertex {
-//                     position: [
-//                         m.mesh.positions[i * 3],
-//                         m.mesh.positions[i * 3 + 1],
-//                         m.mesh.positions[i * 3 + 2],
-//                     ],
-//                     tex_coords: [m.mesh.texcoords[i * 2], m.mesh.texcoords[i * 2 + 1]],
-//                     normal: [
-//                         m.mesh.normals[i * 3],
-//                         m.mesh.normals[i * 3 + 1],
-//                         m.mesh.normals[i * 3 + 2],
-//                     ],
-//                 })
-//                 .collect::<Vec<_>>();
-
-//             let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-//                 label: Some(&format!("{:?} Vertex Buffer", file_name)),
-//                 contents: bytemuck::cast_slice(&vertices),
-//                 usage: wgpu::BufferUsages::VERTEX,
-//             });
-//             let index_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-//                 label: Some(&format!("{:?} Index Buffer", file_name)),
-//                 contents: bytemuck::cast_slice(&m.mesh.indices),
-//                 usage: wgpu::BufferUsages::INDEX,
-//             });
-
-//             model::Mesh {
-//                 name: file_name.to_string(),
-//                 vertex_buffer,
-//                 index_buffer,
-//                 num_elements: m.mesh.indices.len() as u32,
-//                 material: m.mesh.material_id.unwrap_or(0),
-//             }
-//         })
-//         .collect::<Vec<_>>();
-//         let mesh = meshes.remove(0);
-//     Ok(model::RuntimeModel { mesh, materials })
-//     //TODO is it better to return a tuple (mesh, materials) ?
-// }
-
+fn create_texels(size: usize) -> Vec<u8> {
+    (0..size * size)
+        .map(|id| {
+            // get high five for recognizing this ;)
+            let cx = 3.0 * (id % size) as f32 / (size - 1) as f32 - 2.0;
+            let cy = 2.0 * (id / size) as f32 / (size - 1) as f32 - 1.0;
+            let (mut x, mut y, mut count) = (cx, cy, 0);
+            while count < 0xFF && x * x + y * y < 4.0 {
+                let old_x = x;
+                x = x * x - y * y + cx;
+                y = 2.0 * old_x * y + cy;
+                count += 1;
+            }
+            count
+        })
+        .collect()
+}
+ */

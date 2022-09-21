@@ -2,10 +2,11 @@
 use bevy_ecs::{prelude::EventReader};
 use ne::{L, info};
 use ne_app::App;
-use ne_render::{OnWindowCloseRequested,
-                OnWindowResized, RenderPlugin,
+use ne_render::{RenderPlugin,
                 Vec3, WindowSettings};
+                use ne_render::PresentMode::Fifo;
 use ne_math::{Transform, Quat};
+use ne_window::events::{OnWindowResized, OnWindowCloseRequested};
 //TODO
 mod interface;
 
@@ -33,13 +34,14 @@ fn main() {
     //     transform: Transform { position: Vec3::new(1.0,1.0,1.0), rotation: Quat::default()}, };
     // sl.model_data.push(md2);
 
-    //TODO replace WindowSettings with WindowBuilder
+    //TODO replace WindowSettings with WindowBuilder.. maybe
     App::new()
         .insert_resource(
             WindowSettings {
             title: "Nightmare_Editor".to_string(),
             width: WIDTH,
             height: HEIGHT,
+            present_mode: Fifo,
             window_mode: ne_render::WindowMode::Windowed,
             ..WindowSettings::default()
         })

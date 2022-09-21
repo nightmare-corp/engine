@@ -10,7 +10,7 @@ homepage = "https://nightmare-corp.com"
 ne_app = {path = "../ne_app"}
 ne_math = {path = "../ne_math"}
 uuid = "1.1.2"
-winit = "0.26"
+winit = "0.27.3"
 pollster = "0.2"
 instant = "0.1"
 

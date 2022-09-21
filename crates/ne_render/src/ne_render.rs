@@ -10,8 +10,8 @@ use ne_math::Transform;
 /// 8) Effective editing of .nscene file...
 ///TODO EDITOR UI    #[cfg(feature = "editor_ui")]
 pub use ne_math::{Vec2, Vec3, Quat, Mat4};
-use scene::Scene;
-use std::{path::PathBuf};
+use ne_window::events::{OnWindowResized, OnWindowScaleFactorChanged, AppExit, OnRedrawRequested, 
+    OnWindowCloseRequested, OnFileDragAndDrop, OnCursorEntered, OnCursorLeft, OnReceivedCharacter, OnWindowFocused};
 use cameras::free_fly_camera;
 use ne::{warn, info, trace};
 use ne_app::{App, Plugin, Events, ManualEventReader};
@@ -19,7 +19,7 @@ use ne_app::{App, Plugin, Events, ManualEventReader};
 use ne_app::FIRST_FRAME_TIME;
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
-use wgpu::{util::DeviceExt, CommandBuffer};
+use wgpu::{util::DeviceExt, CommandBuffer, CommandEncoder};
 use winit::{
     event::{*, self},
     event_loop::{ControlFlow, EventLoop, EventLoopWindowTarget},
@@ -28,7 +28,7 @@ use winit::{
 //export windowbuilder
 pub use winit::window::{Window,WindowBuilder};
 
-use crate::{cameras::free_fly_camera::CameraUniform, user_interface::EguiState};
+use crate::{cameras::free_fly_camera::CameraUniform, user_interface::EguiState, mesh::Example};
 
 #[cfg(feature="ui")]
 mod user_interface;
@@ -39,10 +39,18 @@ mod render_modules;
 mod mesh;
 
 pub mod math;
-pub mod model;
-pub mod scene;
+// pub mod scene;
+// use Scene as CurrentScene; //will be used as a resource...
 
-use Scene as CurrentScene; //will be used as a resource...
+struct CameraCollection {
+    pub camera: free_fly_camera::Camera,
+    pub projection: free_fly_camera::Projection,
+    pub camera_controller: free_fly_camera::CameraController,
+    pub camera_uniform: free_fly_camera::CameraUniform,
+    pub camera_buffer: wgpu::Buffer,
+    pub camera_bind_group: wgpu::BindGroup,
+}
+
 struct State {
     surface: wgpu::Surface,
     device: wgpu::Device,
@@ -50,19 +58,14 @@ struct State {
     surface_config: wgpu::SurfaceConfiguration,
     size: winit::dpi::PhysicalSize<u32>,
 
-    camera: free_fly_camera::Camera,
-    projection: free_fly_camera::Projection,
-    camera_controller: free_fly_camera::CameraController,
-    camera_uniform: free_fly_camera::CameraUniform,
-
-    //Can we change this into a buffer vector? or is that bad?
-    camera_buffer: wgpu::Buffer,
+    camera_collection: CameraCollection,
     
-    camera_bind_group: wgpu::BindGroup,
-    is_right_mouse_pressed:bool,
+    is_right_mouse_pressed: bool,
+    #[cfg(feature = "ui")]
+    ui_state: user_interface::EguiState,
 
-    #[cfg(feature="ui")]
-    ui_state:user_interface::EguiState,
+    mesh1:mesh::Example,
+    // mesh2:Mesh,
 }
 impl State {
     async fn new(app:&mut App, window: &Window, window_settings: WindowSettings) -> Self {
@@ -182,6 +185,13 @@ impl State {
         //Scene loading
         //================================================================================================================
         warn!("Load scene");
+        //load meshes
+        // let mesh1 = Mesh::load_mesh_from_path("obj", Transform::default());
+        // let mesh2 = Mesh::load_mesh_from_path("obj", Transform::default());
+        let mesh1 = Example::init(
+            &surface_config, &adapter, &device, &queue,
+        );
+
         // let scene_loader = app.world.remove_resource::<SceneLoader>();
         // let scene = match scene_loader
         // {
@@ -214,23 +224,26 @@ impl State {
             queue,
             surface_config,
             size,
-
-            camera,
-            projection,
-            camera_controller,
-            camera_buffer,
-            camera_bind_group,
-            camera_uniform,
-
+            camera_collection: CameraCollection {
+                camera,
+                projection,
+                camera_controller,
+                camera_buffer,
+                camera_bind_group,
+                camera_uniform,
+            },
             is_right_mouse_pressed: false,
             #[cfg(feature="ui")]
             ui_state: ui_state,
+
+            mesh1,
+            // mesh2,
         }
     }
 
     fn resize(&mut self, new_size: winit::dpi::PhysicalSize<u32>) {
         if new_size.width > 0 && new_size.height > 0 {
-            self.projection.resize(new_size.width, new_size.height);
+            self.camera_collection.projection.resize(new_size.width, new_size.height);
             self.size = new_size;
             self.surface_config.width = new_size.width;
             self.surface_config.height = new_size.height;
@@ -249,9 +262,9 @@ impl State {
                         ..
                     },
                 ..
-            } => self.camera_controller.process_keyboard(*key, *state),
+            } => self.camera_collection.camera_controller.process_keyboard(*key, *state),
             WindowEvent::MouseWheel { delta, .. } => {
-                self.camera_controller.process_scroll(delta);
+                self.camera_collection.camera_controller.process_scroll(delta);
                 true
             }
             WindowEvent::MouseInput {
@@ -268,57 +281,33 @@ impl State {
     }
     //updates camera, can be cleaner/faster/moved into camera.rs... maybe
     fn update(&mut self, dt:f32) {
-        self.camera_controller.update_camera(&mut self.camera,dt);
-        self.camera_uniform.update_view_proj(&self.camera, &self.projection);
+        self.camera_collection.camera_controller.update_camera(&mut self.camera_collection.camera, dt);
+        self.camera_collection.camera_uniform.update_view_proj(&self.camera_collection.camera, &self.camera_collection.projection);
         self.queue.write_buffer(
-            &self.camera_buffer,
+            &self.camera_collection.camera_buffer,
             0,
-            bytemuck::cast_slice(&[self.camera_uniform]),
+            bytemuck::cast_slice(&[self.camera_collection.camera_uniform]),
         );
     }
     //TODO double&triple buffer
     //TODO isolate from state and measure performance..?
     //TODO is window:&Window bad?
-    fn render(&mut self, app:&mut App, window:&winit::window::Window) -> Result<(), wgpu::SurfaceError> {
+
+    fn create_encoder(&self) -> CommandEncoder {
+        self
+        .device
+        .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+            label: Some("Render Encoder"),
+        })
+    }
+    fn render(&mut self, app:&mut App, window:&winit::window::Window) -> Result<(), wgpu::SurfaceError>  {
         let output_frame = self.surface.get_current_texture()?;
         let output_view = output_frame
             .texture
             .create_view(&wgpu::TextureViewDescriptor::default());
         let mut cmd_buffers = Vec::<CommandBuffer>::new();
-        
-        //new encoder
-        //perpare meshes
-        // let a = app.world.get_resource::<CurrentScene>().unwrap().get_models();
-        // for model in a.iter()
-        // {
-        //     let mut encoder = self
-        //     .device
-        //     .create_command_encoder(&wgpu::CommandEncoderDescriptor {
-        //     label: Some("Model Render Encoder")});
+        self.mesh1.render(&output_view, &self.device, &self.queue);
 
-            // render_pass.set_pipeline(&self.render_pipeline);
-            //BufferSlice { buffer: Buffer { context: Context { type: "Native" }, id: Buffer { id: (1, 1, Vulkan), error_sink: Mutex { data: ErrorSink } }, map_context: Mutex { data: MapContext { total_size: 64, initial_range: 0..0, sub_ranges: [] } }, usage: VERTEX }, offset: 0, size: None }
-            // let mesh = &model.mesh;
-            // {
-            //     let material = &model.materials[mesh.material];
-            //     render_pass.set_vertex_buffer(0, mesh.vertex_buffer.slice(..));
-            //     render_pass.set_vertex_buffer(1, self.instance_buffer.slice(..));
-            //     render_pass.set_index_buffer(mesh.index_buffer.slice(..), wgpu::IndexFormat::Uint32);
-            //     render_pass.set_bind_group(0, &material.bind_group, &[]);
-            //     render_pass.set_bind_group(1, &self.camera_bind_group, &[]);
-            //     render_pass.draw_indexed(0..mesh.num_elements, 0, 0..2);
-            //     // model::DrawModel::draw_model_instanced(&mut render_pass, model, 0..1, &self.camera_bind_group);
-            // }
-            // cmd_buffers.push(encoder.finish());
-            //something like this would be faster tho.. but we will have some kind of other models that can
-            //only be drawn as instances: InstancedModels. For e.g. trees in a forest.
-            // render_pass.draw_model_instanced(
-            //     &self.models[0],
-            //     0..self.instances.len() as u32,
-            //     &self.camera_bind_group,
-            // );
-        // }
-        
         //new encoder
         let mut encoder = self
         .device
@@ -372,13 +361,53 @@ impl State {
             self.ui_state.render_pass
             .remove_textures(tdelta)
             .expect("remove texture ok");
-
         }
+
+        Ok(()) 
+
+/*         
+{        cmd_buffers.push(self.mesh1.draw(self.create_encoder()))}
+{        cmd_buffers.push(self.mesh2.draw(self.create_encoder()))}
+
+        //new encoder
+        //perpare meshes
+        // let a = app.world.get_resource::<CurrentScene>().unwrap().get_models();
+        // for model in a.iter()
+        // {
+        //     let mut encoder = self
+        //     .device
+        //     .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+        //     label: Some("Model Render Encoder")});
+
+            // render_pass.set_pipeline(&self.render_pipeline);
+            //BufferSlice { buffer: Buffer { context: Context { type: "Native" }, id: Buffer { id: (1, 1, Vulkan), error_sink: Mutex { data: ErrorSink } }, map_context: Mutex { data: MapContext { total_size: 64, initial_range: 0..0, sub_ranges: [] } }, usage: VERTEX }, offset: 0, size: None }
+            // let mesh = &model.mesh;
+            // {
+            //     let material = &model.materials[mesh.material];
+            //     render_pass.set_vertex_buffer(0, mesh.vertex_buffer.slice(..));
+            //     render_pass.set_vertex_buffer(1, self.instance_buffer.slice(..));
+            //     render_pass.set_index_buffer(mesh.index_buffer.slice(..), wgpu::IndexFormat::Uint32);
+            //     render_pass.set_bind_group(0, &material.bind_group, &[]);
+            //     render_pass.set_bind_group(1, &self.camera_bind_group, &[]);
+            //     render_pass.draw_indexed(0..mesh.num_elements, 0, 0..2);
+            //     // model::DrawModel::draw_model_instanced(&mut render_pass, model, 0..1, &self.camera_bind_group);
+            // }
+            // cmd_buffers.push(encoder.finish());
+            //something like this would be faster tho.. but we will have some kind of other models that can
+            //only be drawn as instances: InstancedModels. For e.g. trees in a forest.
+            // render_pass.draw_model_instanced(
+            //     &self.models[0],
+            //     0..self.instances.len() as u32,
+            //     &self.camera_bind_group,
+            // );
+        // }
+        
+        
         //this is not how it works... I don't think
         Ok(()) 
-    }
+    } */
 }
-
+}
 fn main_loop(app: App) {
     //is this async implementation any good?
     pollster::block_on(init_renderer(app));
@@ -528,7 +557,7 @@ async fn init_renderer(mut app: App) {
                     event: DeviceEvent::MouseMotion{ delta, },
                     .. // We're not using device_id currently
                 } => if state.is_right_mouse_pressed {
-                    state.camera_controller.process_mouse(delta.0, delta.1);
+                    state.camera_collection.camera_controller.process_mouse(delta.0, delta.1);
                     window.set_cursor_visible(false);
                     window.set_cursor_position(winit::dpi::PhysicalPosition::new(window.inner_size().width/2, window.inner_size().height/2));
                 } else {
@@ -606,36 +635,15 @@ where
 {
     event_loop.run(event_handler)
 }
+
 // #[derive(Default)]
 ///sets runner using .set_runner()
 pub struct RenderPlugin;
 impl Plugin for RenderPlugin {
     fn setup(&self, app: &mut App) {
         ne::debug!("setup RenderPlugin");
-        app
-        .add_event::<OnWindowResized>()
-        .add_event::<AppExit>()
-        .add_event::<OnRedrawRequested>()
-        //TODO
-        .add_event::<OnWindowCloseRequested>()
-        .add_event::<OnWindowFocused>()
+        app.add_plugin(ne_window::WindowEventPlugin)
 
-//      .add_event::<OnWindowMoved>()
-        .add_event::<OnWindowScaleFactorChanged>()
-        .add_event::<OnFileDragAndDrop>()
-
-        .add_event::<OnCursorMoved>()
-        .add_event::<OnCursorEntered>()
-        .add_event::<OnCursorLeft>()
-
-        .add_event::<OnReceivedCharacter>()
-        //todo
-/*     
-        .add_event::<CreateWindow>()
-        .add_event::<WindowCreated>()
-        .add_event::<WindowClosed>()
-        .add_event::<WindowBackendScaleFactorChanged>()
-*/
         // .init_resource::<Windows>()
         .set_runner(main_loop);
     }
@@ -644,6 +652,7 @@ impl Plugin for RenderPlugin {
 /// Window functionality
 /// ================================================================================================
 
+pub use wgpu::PresentMode;
 /// Describes the information needed for creating a window.
 ///
 /// This should be set up before adding the [`WindowPlugin`](crate::WindowPlugin).
@@ -925,129 +934,3 @@ impl WindowResizeConstraints {
         }
     }
 }
-
-/// ================================================================================================
-/// Events
-/// ================================================================================================
-/// A window event that is sent whenever a window's logical size has changed.
-#[derive(Debug, Clone)]
-pub struct OnWindowResized {
-    pub id: winit::window::WindowId,
-    /// The new logical width of the window.
-    pub width: f32,
-    /// The new logical height of the window.
-    pub height: f32,
-}
-/// An event that is sent whenever a new window is created.
-///
-/// To create a new window, send a [`CreateWindow`] event - this
-/// event will be sent in the handler for that event.
-#[derive(Debug, Clone)]
-pub struct OnWindowCreated {
-    pub id: WindowId,
-}
-/// An event that is sent whenever the operating systems requests that a window
-/// be closed. This will be sent when the close button of the window is pressed.
-///
-/// If the default [`WindowPlugin`] is used, these events are handled
-/// by [closing] the corresponding [`Window`].  
-/// To disable this behaviour, set `close_when_requested` on the [`WindowPlugin`]
-/// to `false`.
-///
-/// [`WindowPlugin`]: crate::WindowPlugin
-/// [`Window`]: crate::Window
-/// [closing]: crate::Window::close
-#[derive(Debug, Clone)]
-pub struct OnWindowCloseRequested {
-    pub id: WindowId,
-}
-
-/// An event that is sent whenever a window is closed. This will be sent by the
-/// handler for [`Window::close`].
-///
-/// [`Window::close`]: crate::Window::close
-#[derive(Debug, Clone)]
-pub struct OnWindowClosed {
-    pub id: WindowId,
-}
-/// An event reporting that the mouse cursor has moved on a window.
-///
-/// The event is sent only if the cursor is over one of the application's windows.
-/// It is the translated version of [`WindowEvent::CursorMoved`] from the `winit` crate.
-///
-/// Not to be confused with the [`MouseMotion`] event from `bevy_input`.
-///
-/// [`WindowEvent::CursorMoved`]: https://docs.rs/winit/latest/winit/event/enum.WindowEvent.html#variant.CursorMoved
-/// [`MouseMotion`]: bevy_input::mouse::MouseMotion
-#[derive(Debug, Clone)]
-pub struct OnCursorMoved {
-    /// The identifier of the window the cursor has moved on.
-    pub id: WindowId,
-
-    /// The position of the cursor, in window coordinates.
-    pub position: Vec2,
-}
-/// An event that is sent whenever the user's cursor enters a window.
-#[derive(Debug, Clone)]
-pub struct OnCursorEntered {
-    pub id: WindowId,
-}
-/// An event that is sent whenever the user's cursor leaves a window.
-#[derive(Debug, Clone)]
-pub struct OnCursorLeft {
-    pub id: WindowId,
-}
-
-/// An event that indicates a window has received or lost focus.
-#[derive(Debug, Clone)]
-pub struct OnWindowFocused {
-    pub id: WindowId,
-    pub focused: bool,
-}
-
-/// Events related to files being dragged and dropped on a window.
-#[derive(Debug, Clone)]
-pub enum OnFileDragAndDrop {
-    DroppedFile { id: WindowId, path_buf: PathBuf },
-
-    HoveredFile { id: WindowId, path_buf: PathBuf },
-
-    HoveredFileCancelled { id: WindowId },
-}
-/// An event that is sent when a window is repositioned in physical pixels.
-#[derive(Debug, Clone)]
-pub struct OnWindowMoved {
-    pub id: WindowId,
-    pub position: Vec2,
-}
-//TODO implement these maybe:
-/* /// An event that indicates that a new window should be created.
-#[derive(Debug, Clone)]
-pub struct OnCreateWindow {
-    pub id: WindowId,
-    pub descriptor: WindowDescriptor,
-} */
-/// An event that is sent whenever a window receives a character from the OS or underlying system.
-#[derive(Debug, Clone)]
-pub struct OnReceivedCharacter {
-    pub id: WindowId,
-    pub char: char,
-}
-/// An event that indicates a window's scale factor has changed.
-#[derive(Debug, Clone)]
-pub struct OnWindowScaleFactorChanged {
-    pub id: WindowId,
-    pub scale_factor: f64,
-}
-/* /// An event that indicates a window's OS-reported scale factor has changed.
-#[derive(Debug, Clone)]
-pub struct OnWindowBackendScaleFactorChanged {
-    pub id: WindowId,
-    pub scale_factor: f64,
-} */
-// #[derive(Debug, Clone)]
-/// Reader in loop that will end the event loop.
-pub struct AppExit;
-/// An event that is sent when a frame has been rendered 
-/// Inside of RedrawRequested in the eventloop
-pub struct OnRedrawRequested;
