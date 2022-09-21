@@ -1,7 +1,8 @@
 //=========================================
 use bytemuck::{Pod, Zeroable};
+use ne_math::Vec3;
 use std::{borrow::Cow, f32::consts, future::Future, mem, pin::Pin, task};
-use wgpu::util::DeviceExt;
+use wgpu::{util::DeviceExt, CommandBuffer};
 
 
 #[repr(C)]
@@ -105,23 +106,27 @@ impl<F: Future<Output = Option<wgpu::Error>>> Future for ErrorFuture<F> {
 }
 
 pub struct Example {
-    vertex_buf: wgpu::Buffer,
-    index_buf: wgpu::Buffer,
+    vertex_buffer: wgpu::Buffer,
+    index_buffer: wgpu::Buffer,
     index_count: usize,
     bind_group: wgpu::BindGroup,
-    uniform_buf: wgpu::Buffer,
+    uniform_buffer: wgpu::Buffer,
     pipeline: wgpu::RenderPipeline,
+
+    location: Vec3,
 }
 
 impl Example {
-    fn generate_matrix(aspect_ratio: f32) -> ne_math::Mat4 {
+    fn generate_matrix(aspect_ratio: f32, location:Vec3) -> ne_math::Mat4 {
+        let model = ne_math::Mat4::from_translation(location);
+
         let projection = ne_math::Mat4::perspective_rh(consts::FRAC_PI_4, aspect_ratio, 1.0, 10.0);
         let view = ne_math::Mat4::look_at_rh(
             ne_math::Vec3::new(1.5f32, -5.0, 3.0),
             ne_math::Vec3::ZERO,
             ne_math::Vec3::Z,
         );
-        projection * view 
+        model * projection * view 
     }
     #[must_use]
     pub fn init(
@@ -129,18 +134,19 @@ impl Example {
         _adapter: &wgpu::Adapter,
         device: &wgpu::Device,
         queue: &wgpu::Queue,
+        location: Vec3,
     ) -> Self {
         // Create the vertex and index buffers
         let vertex_size = mem::size_of::<Vertex>();
         let (vertex_data, index_data) = create_vertices();
 
-        let vertex_buf = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+        let vertex_buffer= device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Vertex Buffer"),
             contents: bytemuck::cast_slice(&vertex_data),
             usage: wgpu::BufferUsages::VERTEX,
         });
 
-        let index_buf = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+        let index_buffer= device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Index Buffer"),
             contents: bytemuck::cast_slice(&index_data),
             usage: wgpu::BufferUsages::INDEX,
@@ -210,9 +216,9 @@ impl Example {
         );
 
         // Create other resources
-        let mx_total = Self::generate_matrix(config.width as f32 / config.height as f32);
+        let mx_total = Self::generate_matrix(config.width as f32 / config.height as f32, location);
         let mx_ref: &[f32; 16] = mx_total.as_ref();
-        let uniform_buf = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+        let uniform_buffer= device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Uniform Buffer"),
             contents: bytemuck::cast_slice(mx_ref),
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
@@ -225,7 +231,7 @@ impl Example {
             entries: &[
                 wgpu::BindGroupEntry {
                     binding: 0,
-                    resource: uniform_buf.as_entire_binding(),
+                    resource: uniform_buffer.as_entire_binding(),
                 },
                 wgpu::BindGroupEntry {
                     binding: 1,
@@ -257,7 +263,6 @@ impl Example {
                 },
             ],
         }];
-
         let pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
             label: None,
             layout: Some(&pipeline_layout),
@@ -279,15 +284,15 @@ impl Example {
             multisample: wgpu::MultisampleState::default(),
             multiview: None,
         });
-
         // Done
         Example {
-            vertex_buf,
-            index_buf,
+            vertex_buffer,
+            index_buffer,
             index_count: index_data.len(),
             bind_group,
-            uniform_buf,
+            uniform_buffer,
             pipeline,
+            location,
         }
     }
 
@@ -301,17 +306,16 @@ impl Example {
         _device: &wgpu::Device,
         queue: &wgpu::Queue,
     ) {
-        let mx_total = Self::generate_matrix(config.width as f32 / config.height as f32);
+        let mx_total = Self::generate_matrix(config.width as f32 / config.height as f32, self.location);
         let mx_ref: &[f32; 16] = mx_total.as_ref();
-        queue.write_buffer(&self.uniform_buf, 0, bytemuck::cast_slice(mx_ref));
+        queue.write_buffer(&self.uniform_buffer, 0, bytemuck::cast_slice(mx_ref));
     }
     #[must_use]
     pub fn render(
         &mut self,
         view: &wgpu::TextureView,
         device: &wgpu::Device,
-        queue: &wgpu::Queue,
-    ) {
+    ) -> CommandBuffer {
         device.push_error_scope(wgpu::ErrorFilter::Validation);
         let mut encoder =
             device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
@@ -322,12 +326,7 @@ impl Example {
                     view,
                     resolve_target: None,
                     ops: wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(wgpu::Color {
-                            r: 0.1,
-                            g: 0.2,
-                            b: 0.3,
-                            a: 1.0,
-                        }),
+                        load: wgpu::LoadOp::Load,
                         store: true,
                     },
                 })],
@@ -336,14 +335,13 @@ impl Example {
             rpass.push_debug_group("Prepare data for draw.");
             rpass.set_pipeline(&self.pipeline);
             rpass.set_bind_group(0, &self.bind_group, &[]);
-            rpass.set_index_buffer(self.index_buf.slice(..), wgpu::IndexFormat::Uint16);
-            rpass.set_vertex_buffer(0, self.vertex_buf.slice(..));
+            rpass.set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
+            rpass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
             rpass.pop_debug_group();
             rpass.insert_debug_marker("Draw!");
             rpass.draw_indexed(0..self.index_count as u32, 0, 0..1);
         }
-
-        queue.submit(Some(encoder.finish()));
+        encoder.finish()
     }
 }
 
@@ -400,11 +398,11 @@ pub struct Material {
 
 //oop
 pub struct Mesh {
-    vertex_buf: wgpu::Buffer,
-    index_buf: wgpu::Buffer,
+    vertex_buffer: wgpu::Buffer,
+    index_buffer: wgpu::Buffer,
     index_count: usize,
     bind_group: wgpu::BindGroup,
-    uniform_buf: wgpu::Buffer,
+    uniform_buffer: wgpu::Buffer,
     pipeline: wgpu::RenderPipeline,
 }
 
@@ -418,7 +416,7 @@ impl Mesh {
         //load these onto the gpu.
 
         //return the buffers which is just the locations on the gpu where things are stored.
-        Mesh { vertex_buf: todo!(), index_buf: todo!(), index_count: todo!(), bind_group: todo!(), uniform_buf: todo!(), pipeline: todo!() }
+        Mesh { vertex_buffer: todo!(), index_buffer: todo!(), index_count: todo!(), bind_group: todo!(), uniform_buffer: todo!(), pipeline: todo!() }
     }
     pub fn draw(&self, encoder: /* &mut  */CommandEncoder) -> CommandBuffer
     {

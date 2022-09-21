@@ -65,7 +65,7 @@ struct State {
     ui_state: user_interface::EguiState,
 
     mesh1:mesh::Example,
-    // mesh2:Mesh,
+    mesh2:mesh::Example,
 }
 impl State {
     async fn new(app:&mut App, window: &Window, window_settings: WindowSettings) -> Self {
@@ -189,9 +189,11 @@ impl State {
         // let mesh1 = Mesh::load_mesh_from_path("obj", Transform::default());
         // let mesh2 = Mesh::load_mesh_from_path("obj", Transform::default());
         let mesh1 = Example::init(
-            &surface_config, &adapter, &device, &queue,
+            &surface_config, &adapter, &device, &queue,Vec3{x: 1.0, y: 0.0, z: 0.0 }
         );
-
+        let mesh2 = Example::init(
+            &surface_config, &adapter, &device, &queue,Vec3{x: -1.0, y: 0.0, z: 0.0 }
+        );
         // let scene_loader = app.world.remove_resource::<SceneLoader>();
         // let scene = match scene_loader
         // {
@@ -237,7 +239,7 @@ impl State {
             ui_state: ui_state,
 
             mesh1,
-            // mesh2,
+            mesh2,
         }
     }
 
@@ -306,7 +308,45 @@ impl State {
             .texture
             .create_view(&wgpu::TextureViewDescriptor::default());
         let mut cmd_buffers = Vec::<CommandBuffer>::new();
-        self.mesh1.render(&output_view, &self.device, &self.queue);
+        
+
+        // //new encoder
+        // let mut encoder = self
+        // .device
+        // .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+        //     label: Some("Render Encoder"),
+        // });
+        {
+
+        }
+
+        //TODO 
+        // CLEARS past frame 
+        // let encoder = self.device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
+        // let mut rpass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+        //     label: None,
+        //     color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+        //         output_view,
+        //         resolve_target: None,
+        //         ops: wgpu::Operations {
+        //             load: wgpu::LoadOp::Clear(wgpu::Color {
+        //                 r: 0.1,
+        //                 g: 0.2,
+        //                 b: 0.3,
+        //                 a: 1.0,
+        //             }),
+        //             store: true,
+        //         },
+        //     })],
+        //     depth_stencil_attachment: None,
+        // });
+        // 
+        //TODO work on top of past texture (load texture)
+        cmd_buffers.push(
+        self.mesh1.render(&output_view, &self.device));
+        //problem this one clears the one before... solution: nothing clears the renderer clear itself first.
+        cmd_buffers.push(
+        self.mesh2.render(&output_view, &self.device));
 
         //new encoder
         let mut encoder = self
@@ -314,6 +354,7 @@ impl State {
         .create_command_encoder(&wgpu::CommandEncoderDescriptor {
             label: Some("Render Encoder"),
         });
+
         // UI RENDERING! WIll be rendered on top of the previous output!!!
         #[cfg(feature="ui")]
         {
@@ -353,15 +394,14 @@ impl State {
 
                 cmd_buffers.push(encoder.finish());
 
-                // the number of submit() calls should be limited to a few per frame (e.g. 1-5).
-                self.queue.submit(cmd_buffers);
-                output_frame.present();
-
-                //remove ui data
-            self.ui_state.render_pass
-            .remove_textures(tdelta)
-            .expect("remove texture ok");
+            //remove ui data
+            // self.ui_state.render_pass
+            // .remove_textures(tdelta)
+            // .expect("remove texture ok");
         }
+        // the number of submit() calls should be limited to a few per frame (e.g. 1-5).
+        self.queue.submit(cmd_buffers);
+        output_frame.present();
 
         Ok(()) 
 
