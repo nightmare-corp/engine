@@ -186,11 +186,16 @@ impl State {
         //load meshes
         // let mesh1 = Mesh::load_mesh_from_path("obj", Transform::default());
         // let mesh2 = Mesh::load_mesh_from_path("obj", Transform::default());
+
+        let transform1 = Transform{ position: Vec3{x: 1.0, y: 0.0, z: 0.0 }, rotation: Quat::default() };
+        let transform2 = Transform{ position: Vec3{x: -1.0, y: 0.0, z: 0.0 }, rotation: Quat::default() };
         let mesh1 = Example::init(
-            &surface_config, &adapter, &device, &queue,Vec3{x: 1.0, y: 0.0, z: 0.0 }
+            &camera_buffer,
+            &surface_config, &adapter, &device, &queue, transform1
         );
         let mesh2 = Example::init(
-            &surface_config, &adapter, &device, &queue,Vec3{x: -1.0, y: 0.0, z: 0.0 }
+            &camera_buffer,
+            &surface_config, &adapter, &device, &queue,transform2
         );
         // let scene_loader = app.world.remove_resource::<SceneLoader>();
         // let scene = match scene_loader
@@ -283,6 +288,8 @@ impl State {
     fn update(&mut self, dt:f32) {
         self.camera_collection.camera_controller.update_camera(&mut self.camera_collection.camera, dt);
         self.camera_collection.camera_uniform.update_view_proj(&self.camera_collection.camera, &self.camera_collection.projection);
+
+        //rewrite new camera buffer?
         self.queue.write_buffer(
             &self.camera_collection.camera_buffer,
             0,

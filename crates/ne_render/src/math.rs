@@ -46,17 +46,14 @@ impl TransformRaw {
     }
 }
 
-pub trait ToTransformRaw {
-    fn to_raw(&self) -> TransformRaw;
+pub trait ToMat4 {
+    fn to_raw(&self) -> Mat4;
 }
 
-impl ToTransformRaw for ne_math::Transform
+impl ToMat4 for ne_math::Transform
 {
-    fn to_raw(&self) -> TransformRaw {
-        TransformRaw {
-            model: (Mat4::from_translation(self.position)
-                * Mat4::from_quat(self.rotation))
-            .to_cols_array_2d(),
-        }
+    fn to_raw(&self) -> Mat4 {
+        Mat4::from_translation(self.position)
+                * Mat4::from_quat(self.rotation)
     }
 }

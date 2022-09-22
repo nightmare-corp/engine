@@ -1,8 +1,10 @@
 //=========================================
 use bytemuck::{Pod, Zeroable};
-use ne_math::Vec3;
+use ne_math::{Vec3, Transform, Mat4};
 use std::{borrow::Cow, f32::consts, future::Future, mem, pin::Pin, task};
 use wgpu::{util::DeviceExt, CommandBuffer};
+
+use crate::math::ToMat4;
 
 
 #[repr(C)]
@@ -110,15 +112,15 @@ pub struct Example {
     index_buffer: wgpu::Buffer,
     index_count: usize,
     bind_group: wgpu::BindGroup,
-    uniform_buffer: wgpu::Buffer,
+    // uniform_buffer: wgpu::Buffer,
     pipeline: wgpu::RenderPipeline,
-
-    location: Vec3,
+    transform: Transform,
 }
 
 impl Example {
-    fn generate_matrix(aspect_ratio: f32, location:Vec3) -> ne_math::Mat4 {
-        let model = ne_math::Mat4::from_translation(location);
+    fn generate_matrix(aspect_ratio: f32, model_matrix: Mat4) -> ne_math::Mat4 {
+        //TODO
+        // let model = ne_math::Mat4::from_translation(location);
 
         let projection = ne_math::Mat4::perspective_rh(consts::FRAC_PI_4, aspect_ratio, 1.0, 10.0);
         let view = ne_math::Mat4::look_at_rh(
@@ -126,15 +128,16 @@ impl Example {
             ne_math::Vec3::ZERO,
             ne_math::Vec3::Z,
         );
-        model * projection * view 
+        model_matrix * projection * view 
     }
     #[must_use]
     pub fn init(
+        view_projection: &wgpu::Buffer,
         config: &wgpu::SurfaceConfiguration,
         _adapter: &wgpu::Adapter,
         device: &wgpu::Device,
         queue: &wgpu::Queue,
-        location: Vec3,
+        transform: Transform,
     ) -> Self {
         // Create the vertex and index buffers
         let vertex_size = mem::size_of::<Vertex>();
@@ -216,13 +219,13 @@ impl Example {
         );
 
         // Create other resources
-        let mx_total = Self::generate_matrix(config.width as f32 / config.height as f32, location);
+        let mx_total = Self::generate_matrix(config.width as f32 / config.height as f32, transform.to_raw());
         let mx_ref: &[f32; 16] = mx_total.as_ref();
-        let uniform_buffer= device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+        let uniform_buffer= view_projection; /* device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Uniform Buffer"),
             contents: bytemuck::cast_slice(mx_ref),
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
-        });
+        }); */
 
         // Create bind group
         //DPDP what is this?
@@ -290,9 +293,9 @@ impl Example {
             index_buffer,
             index_count: index_data.len(),
             bind_group,
-            uniform_buffer,
+            // uniform_buffer,
             pipeline,
-            location,
+            transform,
         }
     }
 
@@ -306,9 +309,9 @@ impl Example {
         _device: &wgpu::Device,
         queue: &wgpu::Queue,
     ) {
-        let mx_total = Self::generate_matrix(config.width as f32 / config.height as f32, self.location);
+        let mx_total = Self::generate_matrix(config.width as f32 / config.height as f32, self.transform.to_raw());
         let mx_ref: &[f32; 16] = mx_total.as_ref();
-        queue.write_buffer(&self.uniform_buffer, 0, bytemuck::cast_slice(mx_ref));
+        // queue.write_buffer(&self.uniform_buffer, 0, bytemuck::cast_slice(mx_ref));
     }
     #[must_use]
     pub fn render(
