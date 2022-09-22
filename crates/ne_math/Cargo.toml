@@ -7,5 +7,5 @@ homepage = "https://nightmare-corp.com"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-# TODO serde and bytemuck
 glam = { version = "0.21.3", features = ["serde", "bytemuck"] }
+bytemuck = { version = "1.4", features = [ "derive" ] }

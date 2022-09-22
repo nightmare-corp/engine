@@ -18,7 +18,6 @@ macro_rules! find_file {
         r
     }};
 
-    //TODO
     // #[cfg(not(feature="path_checker"))]
     // {
     //     r

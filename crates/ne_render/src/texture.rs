@@ -93,9 +93,13 @@ impl Texture {
 
         let view = texture.create_view(&wgpu::TextureViewDescriptor::default());
         let sampler = device.create_sampler(&wgpu::SamplerDescriptor {
-            address_mode_u: wgpu::AddressMode::ClampToEdge,
-            address_mode_v: wgpu::AddressMode::ClampToEdge,
-            address_mode_w: wgpu::AddressMode::ClampToEdge,
+            //TODO accessibility
+            //ClampToEdge: Any texture coordinates outside the texture will return the color of the nearest pixel on the edges of the texture.
+            //Repeat: The texture will repeat as texture coordinates exceed the texture's dimensions.
+            //MirrorRepeat: Similar to Repeat, but the image will flip when going over boundaries.
+            address_mode_u: wgpu::AddressMode::Repeat,
+            address_mode_v: wgpu::AddressMode::Repeat,
+            address_mode_w: wgpu::AddressMode::Repeat,
             mag_filter: wgpu::FilterMode::Linear,
             min_filter: wgpu::FilterMode::Nearest,
             mipmap_filter: wgpu::FilterMode::Nearest,

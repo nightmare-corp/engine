@@ -3,7 +3,6 @@
 //! You need to create a [`RenderPass`] and feed it with the output data provided by egui.
 //! A basic usage example can be found [here](https://github.com/hasenbanck/egui_example).
 
-//TODO can this be made more generic?
 use std::{
     collections::{hash_map::Entry, HashMap},
     fmt::Formatter,

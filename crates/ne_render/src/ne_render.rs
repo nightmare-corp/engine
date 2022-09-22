@@ -1,4 +1,4 @@
-///thank you https://github.com/sotrh/learn-wgpu
+use ne_math::Transform;
 /// This is the first iteration renderer it needs to do: 
 /// 1) Render separate meshes
 /// 2) Render many instances of one mesh
@@ -8,15 +8,9 @@
 /// 6) Mesh loading from .gltf and .obj and maybe fbx files
 /// 7) Level saving/loading from .nscene
 /// 8) Effective editing of .nscene file...
-/// No need to think about optimzations yet. Just focus on implementing
-/// in a way that makes sense~!
-/// After that let's figure out how to make things faster
-/// Maybe by more effectively storing data (ecs)! And by using less buffers
-/// And by making the renderer feed less work to the gpu
-/// And maybe by moving from wgpu -> gfx/vulkan/dx12/dx11
-///TODO EDITOR UI    #[cfg(feature = "editor_ui")]
 pub use ne_math::{Vec2, Vec3, Quat, Mat4};
-use std::{path::PathBuf};
+use ne_window::events::{OnWindowResized, OnWindowScaleFactorChanged, AppExit, OnRedrawRequested, 
+    OnWindowCloseRequested, OnFileDragAndDrop, OnCursorEntered, OnCursorLeft, OnReceivedCharacter, OnWindowFocused};
 use cameras::free_fly_camera;
 use ne::{warn, info, trace};
 use ne_app::{App, Plugin, Events, ManualEventReader};
@@ -24,7 +18,7 @@ use ne_app::{App, Plugin, Events, ManualEventReader};
 use ne_app::FIRST_FRAME_TIME;
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
-use wgpu::{util::DeviceExt, CommandBuffer, Queue, Device};
+use wgpu::{util::DeviceExt, CommandBuffer, CommandEncoder};
 use winit::{
     event::{*, self},
     event_loop::{ControlFlow, EventLoop, EventLoopWindowTarget},
@@ -33,151 +27,58 @@ use winit::{
 //export windowbuilder
 pub use winit::window::{Window,WindowBuilder};
 
-use model::{Vertex, RuntimeModel};
-use crate::{cameras::free_fly_camera::CameraUniform, transform::{Transform, TransformRaw}};
-#[cfg(feature="ui")]
-use user_interface::EguiState;
+use crate::{cameras::free_fly_camera::CameraUniform, user_interface::EguiState, mesh::Example};
+
 #[cfg(feature="ui")]
 mod user_interface;
 mod cameras;
-mod model;
 mod resources;
 mod texture;
-pub mod transform;
 mod render_modules;
+mod mesh;
 
-const NUM_INSTANCES_PER_ROW: u32 = 2;
-//======================================================
-//                      HERE
-//======================================================
-// will disappear on runtime?
-// no is put in scene view ui.
-// TODO make sure it's removed in game build
+pub mod math;
+// pub mod scene;
+// use Scene as CurrentScene; //will be used as a resource...
 
-/// path:String is relative path from engine_assets (TODO for now)
-/// location:Vec3 is location in world space.
-pub struct ModelDescriptor {
-    pub path:String, //optimize for multiple meshes.
-    pub location:Vec3,
-    //rotation:Quat
-    // scale:vec3,
-}
-pub struct SceneLoader {
-    pub model_data:Vec<ModelDescriptor>,
+struct CameraCollection {
+    pub camera: free_fly_camera::Camera,
+    pub projection: free_fly_camera::Projection,
+    pub camera_controller: free_fly_camera::CameraController,
+    pub camera_uniform: free_fly_camera::CameraUniform,
+    pub camera_buffer: wgpu::Buffer,
+    pub camera_bind_group: wgpu::BindGroup,
 }
 
-impl Default for SceneLoader {
-    fn default() -> Self {
-        SceneLoader::new(None)
-    }
-}
-impl SceneLoader {
-    pub fn new(models: Option<Vec<ModelDescriptor>>) -> Self { 
-        match models
-        {
-            Some(model_data) => Self { model_data },
-            None => Self { model_data:Vec::<ModelDescriptor>::new() },
-        }
-    }
-    fn push_model_data(&mut self, model_descriptor:ModelDescriptor)
-    {
-        self.model_data.push(model_descriptor);
-    }
-}
-pub struct Scene {
-    runtime_models:Vec<RuntimeModel>
-}
-impl Scene {
-    /// Will load everything from SceneLoader
-    pub async fn new(scene:SceneLoader,device:&Device, queue:&Queue,
-                     texture_bind_group_layout: &wgpu::BindGroupLayout,) -> Self {
-        let mut runtime_models = Vec::<RuntimeModel>::new();
-
-        //load models for each descriptor
-        //TODO why does it only process cubes?
-        for model_descriptor in scene.model_data.iter() {
-            let m = resources::load_model(
-                //TODO this seems wrong
-                &*model_descriptor.path/* "trapeprism2.obj" */,
-                device,
-                queue,
-                texture_bind_group_layout, )
-                .await;
-            //TODO is this better than unwrap?
-            match m
-            {
-                Ok(model) => runtime_models.push(model),
-                Err(err) => println!("model failed to load help {:?}", err),
-            }
-        }
-        //load other parts of scene
-
-        //done
-        Self { 
-            runtime_models
-        }
-    }
-    pub fn get_models(&self) -> &Vec<RuntimeModel>
-    {
-        &self.runtime_models
-    }
-    //TODO what if it fails?
-    pub fn add_model(&mut self, runtime_models:RuntimeModel)
-    {
-        self.runtime_models.push(runtime_models);
-    }
-}
-use Scene as CurrentScene; //will be used as a resource...
-//======================================================
-//                        UP
-//======================================================
-
-
-//I hope I implemented lifetime correct
 struct State {
     surface: wgpu::Surface,
     device: wgpu::Device,
     queue: wgpu::Queue,
     surface_config: wgpu::SurfaceConfiguration,
     size: winit::dpi::PhysicalSize<u32>,
-    render_pipeline: wgpu::RenderPipeline,
 
-    camera: free_fly_camera::Camera,
-    projection: free_fly_camera::Projection,
-    camera_controller: free_fly_camera::CameraController,
-    camera_uniform: free_fly_camera::CameraUniform,
-
-    //Can we change this into a buffer vector? or is that bad?
-    camera_buffer: wgpu::Buffer,
-    camera_bind_group: wgpu::BindGroup,
-
-    instances: Vec<Transform>,
-    instance_buffer: wgpu::Buffer,
+    camera_collection: CameraCollection,
     
-    depth_texture: texture::Texture,
+    is_right_mouse_pressed: bool,
+    #[cfg(feature = "ui")]
+    ui_state: user_interface::EguiState,
 
-    is_right_mouse_pressed:bool,
-
-    #[cfg(feature="ui")]
-    ui_state:user_interface::EguiState,
+    mesh1:mesh::Example,
+    mesh2:mesh::Example,
 }
 impl State {
     async fn new(app:&mut App, window: &Window, window_settings: WindowSettings) -> Self {
-
-        ne::log!("size of struct {} ", std::mem::size_of::<State>());
-
+        //================================================================================================================
+        //Window and wgpu initialization
+        //================================================================================================================
+        // ne::log!("size of struct {} ", std::mem::size_of::<State>());
         let size = window.inner_size();
-
         // The instance is a handle to our GPU
-        // BackendBit::PRIMARY => Vulkan + Metal + DX12 + Browser WebGPU
         warn!("WGPU setup");
         let backend = wgpu::util::backend_bits_from_env().unwrap_or_else(wgpu::Backends::all);
         ne::log!("backend: {:?}", backend);
         let instance = wgpu::Instance::new(backend);
-        
         let surface = unsafe { instance.create_surface(window) };
-
-        //TODO this crashes when we use opengl or dx11? does dx11 need to be installed on pc? are drivers outdated?
         let adapter = instance
             .request_adapter(&wgpu::RequestAdapterOptions {
                 //will use the highest performance gpu.
@@ -206,7 +107,6 @@ impl State {
             )
             .await
             .unwrap();
-
         warn!("Surface");
         let surface_format= surface.get_supported_formats(&adapter)[0];
         let surface_config = wgpu::SurfaceConfiguration {
@@ -239,62 +139,24 @@ impl State {
                 ],
                 label: Some("texture_bind_group_layout"),
             });
-            //TODO accessibility: camera location
-            let camera = free_fly_camera::Camera::new(Vec3::new(0.0, 4.0, 10.0), -90.0, 0.0);
-            let projection =
-            free_fly_camera::Projection::new(surface_config.width, surface_config.height, 45.0, 0.1, 100.0);
-            //TODO accessibility 
-            let camera_controller = free_fly_camera::CameraController::new(4.0, 0.8);
-    
-            let mut camera_uniform = CameraUniform::new();
-            camera_uniform.update_view_proj(&camera, &projection);
-    
+        //================================================================================================================
+        //camera buffer
+        //================================================================================================================
+        //TODO accessibility: camera location
+        let camera = free_fly_camera::Camera::new(Vec3::new(0.0, 4.0, 10.0), -90.0, 0.0);
+        let projection =
+        free_fly_camera::Projection::new(surface_config.width, surface_config.height, 45.0, 0.1, 100.0);
+        //TODO accessibility 
+        let camera_controller = free_fly_camera::CameraController::new(4.0, 0.8);
+        
+        let mut camera_uniform = CameraUniform::new();
+        camera_uniform.update_view_proj(&camera, &projection);
 
-        //Buffer that will put camera-vpm-matrix into shader
         let camera_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Camera Buffer"),
             contents: bytemuck::cast_slice(&[camera_uniform]),
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
         });
-
-        //This sets the world space of each cube?
-        //this is the model matrix I think.
-        const SPACE_BETWEEN: f32 = 3.0;
-        let instances = (0..NUM_INSTANCES_PER_ROW)
-            .flat_map(|z| {
-                (0..NUM_INSTANCES_PER_ROW).map(move |x| {
-                    let x = SPACE_BETWEEN * (x as f32 - NUM_INSTANCES_PER_ROW as f32 / 2.0);
-                    let z = SPACE_BETWEEN * (z as f32 - NUM_INSTANCES_PER_ROW as f32 / 2.0);
-        
-                    //TODO everything is now put on coord 0,0,0
-                    let position = Vec3 { x: x, y: 0.0, z: z };
-        
-                    //How to know if position is zero???
-                    let rotation = if let Some(pos) = position.try_normalize() {
-                        Quat::from_axis_angle(pos, ne_math::to_radians(45.0))
-                    } else {
-                        Quat::from_axis_angle(Vec3::Z, 0.0)
-                    };
-                    Transform { position, rotation }
-                })
-            })
-            .collect::<Vec<_>>();
-
-        //TODO Is it this????
-        println!("{:?}", instances[0]);
-
-        let instance_data = instances.iter().map(Transform::to_raw).collect::<Vec<_>>();
-        println!("{:?}", instance_data);
-        let instance_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("Instance Buffer"),
-            contents: bytemuck::cast_slice(&instance_data),
-            usage: wgpu::BufferUsages::VERTEX,
-        });
-
-        //      ^^^^^^^
-        // TODO make generic
-        //
-
         let camera_bind_group_layout =
             device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
                 entries: &[wgpu::BindGroupLayoutEntry {
@@ -309,7 +171,6 @@ impl State {
                 }],
                 label: Some("camera_bind_group_layout"),
             });
-
         let camera_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
             layout: &camera_bind_group_layout,
             entries: &[wgpu::BindGroupEntry {
@@ -318,111 +179,46 @@ impl State {
             }],
             label: Some("camera_bind_group"),
         });
-        //TODO move
+        //================================================================================================================
+        //Scene loading
+        //================================================================================================================
         warn!("Load scene");
+        //load meshes
+        // let mesh1 = Mesh::load_mesh_from_path("obj", Transform::default());
+        // let mesh2 = Mesh::load_mesh_from_path("obj", Transform::default());
 
-        let scene_loader = app.world.remove_resource::<SceneLoader>();
-        let scene = match scene_loader
-        {
-            Some(scene_loader) => {
-                println!("Some scene loader wow");
-                //initialize once we have models vector
-                CurrentScene::new(
-                    scene_loader,
-                    &device,
-                    &queue,
-                    &texture_bind_group_layout).await
-            }
-            None => {
-                //initialize once we have models vector
-                CurrentScene::new(
-                                      SceneLoader::default(),
-                                            &device,
-                                            &queue,
-                                            &texture_bind_group_layout).await
-            }
-        };
-        app.world.insert_resource::<CurrentScene>(scene);
-        let mut scene = app.world.get_resource_mut::<CurrentScene>().unwrap();
-        warn!("Load model");
-        //TODO move
-        //TODO we don't need this if everything works...
-        // scene.add_model(resources::load_model(
-        //     //TODO Other models.
-        //     "trapeprism2.obj",
-        //     &device,
-        //     &queue,
-        //     &texture_bind_group_layout,
-        //     )
-            //TODO understand await, async
-            // .await
-            // .unwrap());
-
-        let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
-            label: Some("shader.wgsl"),
-            source: wgpu::ShaderSource::Wgsl(include_str!("../../../engine_assets/shaders/shader.wgsl").into()),
-        });
-
-        let depth_texture =
-            texture::Texture::create_depth_texture(&device, &surface_config, "depth_texture");
-
-        let render_pipeline_layout =
-            device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                label: Some("Render Pipeline Layout"),
-                bind_group_layouts: &[&texture_bind_group_layout, &camera_bind_group_layout],
-                push_constant_ranges: &[],
-            });
-
-        let render_pipeline = 
-        device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-            label: Some("Render Pipeline"),
-            layout: Some(&render_pipeline_layout),
-            vertex: wgpu::VertexState {
-                module: &shader,
-                entry_point: "vs_main",
-                buffers: &[model::ModelVertex::desc(), TransformRaw::desc()],
-            },
-            fragment: Some(wgpu::FragmentState {
-                module: &shader,
-                entry_point: "fs_main",
-                targets: &[Some(wgpu::ColorTargetState {
-                    format: surface_config.format,
-                    blend: Some(wgpu::BlendState {
-                        color: wgpu::BlendComponent::REPLACE,
-                        alpha: wgpu::BlendComponent::REPLACE,
-                    }),
-                    write_mask: wgpu::ColorWrites::ALL,
-                })],
-            }),
-            primitive: wgpu::PrimitiveState {
-                topology: wgpu::PrimitiveTopology::TriangleList,
-                strip_index_format: None,
-                front_face: wgpu::FrontFace::Ccw,
-                cull_mode: Some(wgpu::Face::Back),
-                // Setting this to anything other than Fill requires Features::POLYGON_MODE_LINE
-                // or Features::POLYGON_MODE_POINT
-                polygon_mode: wgpu::PolygonMode::Fill,
-                // Requires Features::DEPTH_CLIP_CONTROL
-                unclipped_depth: false,
-                // Requires Features::CONSERVATIVE_RASTERIZATION
-                conservative: false,
-            },
-            depth_stencil: Some(wgpu::DepthStencilState {
-                format: texture::Texture::DEPTH_FORMAT,
-                depth_write_enabled: true,
-                depth_compare: wgpu::CompareFunction::Less,
-                stencil: wgpu::StencilState::default(),
-                bias: wgpu::DepthBiasState::default(),
-            }),
-            multisample: wgpu::MultisampleState {
-                count: 1,
-                mask: !0,
-                alpha_to_coverage_enabled: false,
-            },
-            // If the pipeline will be used with a multiview render pass, this
-            // indicates how many array layers the attachments will have.
-            multiview: None,
-        });
+        let transform1 = Transform{ position: Vec3{x: 1.0, y: 0.0, z: 0.0 }, rotation: Quat::default() };
+        let transform2 = Transform{ position: Vec3{x: -1.0, y: 0.0, z: 0.0 }, rotation: Quat::default() };
+        let mesh1 = Example::init(
+            &camera_buffer,
+            &surface_config, &adapter, &device, &queue, transform1
+        );
+        let mesh2 = Example::init(
+            &camera_buffer,
+            &surface_config, &adapter, &device, &queue,transform2
+        );
+        // let scene_loader = app.world.remove_resource::<SceneLoader>();
+        // let scene = match scene_loader
+        // {
+        //     Some(scene_loader) => {
+        //         //initialize once we have models vector
+        //         CurrentScene::new(
+        //             scene_loader,
+        //             &device,
+        //             &queue,
+        //             &texture_bind_group_layout).await
+        //     }
+        //     None => {
+        //         //initialize once we have models vector
+        //         CurrentScene::new(
+        //             SceneLoader::default(),
+        //             &device,
+        //             &queue,
+        //             &texture_bind_group_layout).await
+        //     }
+        // };
+        // app.world.insert_resource::<CurrentScene>(scene);
+        // let mut scene = app.world.get_resource_mut::<CurrentScene>().unwrap();
 
         //lol this is weird because these values are moved onto the struct? will the reference understand that??
         #[cfg(feature="ui")]
@@ -433,32 +229,32 @@ impl State {
             queue,
             surface_config,
             size,
-            render_pipeline,
-            camera,
-            projection,
-            camera_controller,
-            camera_buffer,
-            camera_bind_group,
-            camera_uniform,
-            instances,
-            instance_buffer,
-            depth_texture,
-
+            camera_collection: CameraCollection {
+                camera,
+                projection,
+                camera_controller,
+                camera_buffer,
+                camera_bind_group,
+                camera_uniform,
+            },
             is_right_mouse_pressed: false,
             #[cfg(feature="ui")]
             ui_state: ui_state,
+
+            mesh1,
+            mesh2,
         }
     }
 
     fn resize(&mut self, new_size: winit::dpi::PhysicalSize<u32>) {
         if new_size.width > 0 && new_size.height > 0 {
-            self.projection.resize(new_size.width, new_size.height);
+            self.camera_collection.projection.resize(new_size.width, new_size.height);
             self.size = new_size;
             self.surface_config.width = new_size.width;
             self.surface_config.height = new_size.height;
             self.surface.configure(&self.device, &self.surface_config);
-            self.depth_texture =
-                texture::Texture::create_depth_texture(&self.device, &self.surface_config, "depth_texture");
+            // self.depth_texture =
+            //     texture::Texture::create_depth_texture(&self.device, &self.surface_config, "depth_texture");
         }
     }
     fn input(&mut self, event: &WindowEvent) -> bool {
@@ -471,9 +267,9 @@ impl State {
                         ..
                     },
                 ..
-            } => self.camera_controller.process_keyboard(*key, *state),
+            } => self.camera_collection.camera_controller.process_keyboard(*key, *state),
             WindowEvent::MouseWheel { delta, .. } => {
-                self.camera_controller.process_scroll(delta);
+                self.camera_collection.camera_controller.process_scroll(delta);
                 true
             }
             WindowEvent::MouseInput {
@@ -490,18 +286,28 @@ impl State {
     }
     //updates camera, can be cleaner/faster/moved into camera.rs... maybe
     fn update(&mut self, dt:f32) {
-        self.camera_controller.update_camera(&mut self.camera,dt);
-        self.camera_uniform.update_view_proj(&self.camera, &self.projection);
+        self.camera_collection.camera_controller.update_camera(&mut self.camera_collection.camera, dt);
+        self.camera_collection.camera_uniform.update_view_proj(&self.camera_collection.camera, &self.camera_collection.projection);
+
+        //rewrite new camera buffer?
         self.queue.write_buffer(
-            &self.camera_buffer,
+            &self.camera_collection.camera_buffer,
             0,
-            bytemuck::cast_slice(&[self.camera_uniform]),
+            bytemuck::cast_slice(&[self.camera_collection.camera_uniform]),
         );
     }
     //TODO double&triple buffer
     //TODO isolate from state and measure performance..?
     //TODO is window:&Window bad?
-    fn render(&mut self, app:&mut App, window:&winit::window::Window) -> Result<(), wgpu::SurfaceError> {
+
+    fn create_encoder(&self) -> CommandEncoder {
+        self
+        .device
+        .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+            label: Some("Render Encoder"),
+        })
+    }
+    fn render(&mut self, app:&mut App, window:&winit::window::Window) -> Result<(), wgpu::SurfaceError>  {
         let output_frame = self.surface.get_current_texture()?;
         let output_view = output_frame
             .texture
@@ -509,20 +315,12 @@ impl State {
         let mut cmd_buffers = Vec::<CommandBuffer>::new();
         
         //new encoder
-        //perpare meshes
-        let a = app.world.get_resource::<CurrentScene>().unwrap().get_models();
-        for model in a.iter()
+        let mut encoder = self.create_encoder();
+        //clear frame and set background color.
         {
-            let mut encoder = self
-            .device
-            .create_command_encoder(&wgpu::CommandEncoderDescriptor {
-            label: Some("Model Render Encoder")});
-        {
-            //TODO move this to state
-            let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                label: Some("Model Render Pass"),
+            let mut rpass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                label: None,
                 color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                    view: &output_view,
                     resolve_target: None,
                     ops: wgpu::Operations {
                         load: wgpu::LoadOp::Clear(wgpu::Color {
@@ -531,66 +329,24 @@ impl State {
                             b: 0.3,
                             a: 1.0,
                         }),
-                        // load: wgpu::LoadOp::Load,
                         store: true,
                     },
+                    view: &output_view,
                 })],
-                depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
-                    view: &self.depth_texture.view,
-                    depth_ops: Some(wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(1.0),
-                        store: true,
-                    }),
-                    stencil_ops: None,
-                }),
+                depth_stencil_attachment: None,
             });
-
-            render_pass.set_pipeline(&self.render_pipeline);
-            //BufferSlice { buffer: Buffer { context: Context { type: "Native" }, id: Buffer { id: (1, 1, Vulkan), error_sink: Mutex { data: ErrorSink } }, map_context: Mutex { data: MapContext { total_size: 64, initial_range: 0..0, sub_ranges: [] } }, usage: VERTEX }, offset: 0, size: None }
-            for mesh in &model.meshes {
-                let material = &model.materials[mesh.material];
-                render_pass.set_vertex_buffer(0, mesh.vertex_buffer.slice(..));
-                render_pass.set_vertex_buffer(1, self.instance_buffer.slice(..));
-                render_pass.set_index_buffer(mesh.index_buffer.slice(..), wgpu::IndexFormat::Uint32);
-                render_pass.set_bind_group(0, &material.bind_group, &[]);
-                render_pass.set_bind_group(1, &self.camera_bind_group, &[]);
-                render_pass.draw_indexed(0..mesh.num_elements, 0, 0..2);
-                // model::DrawModel::draw_model_instanced(&mut render_pass, model, 0..1, &self.camera_bind_group);
-            }
-            //TODO performance?
-            //let mesh = &model.mesh;
-            //let material = &model.material;
-//
-            //render_pass.set_vertex_buffer(1, self.instance_buffer.slice(..));
-            //render_pass.set_vertex_buffer(0, mesh.vertex_buffer.slice(..));
-            ////model matrix, maybe make it so that not every object has a model matrix
-            //// self.set_vertex_buffer(1, mesh.model_matrix_buffer.slice(..));
-            //render_pass.set_index_buffer(mesh.index_buffer.slice(..), wgpu::IndexFormat::Uint32);
-            //render_pass.set_bind_group(0, &material.bind_group, &[]);
-            //render_pass.set_bind_group(1, &self.camera_bind_group, &[]);
-//
-            ////TODO instances?
-            //let a = (0..1 as u32);
-            //render_pass.draw_indexed(0..mesh.num_elements, 0, a);
-
-
         }
-            cmd_buffers.push(encoder.finish());
-            //something like this would be faster tho.. but we will have some kind of other models that can
-            //only be drawn as instances: InstancedModels. For e.g. trees in a forest.
-            // render_pass.draw_model_instanced(
-            //     &self.models[0],
-            //     0..self.instances.len() as u32,
-            //     &self.camera_bind_group,
-            // );
-        }
-        
+        cmd_buffers.push(encoder.finish());
+
+        //TODO how to make these meshes share buffers..? Obviously the same vertex/index buffer with a slightly different model buffer.        
+        cmd_buffers.push(
+        self.mesh1.render(&output_view, &self.device));
+        //problem this one clears the one before... solution: nothing clears the renderer clear itself first.
+        cmd_buffers.push(
+        self.mesh2.render(&output_view, &self.device));
+
         //new encoder
-        let mut encoder = self
-        .device
-        .create_command_encoder(&wgpu::CommandEncoderDescriptor {
-            label: Some("Render Encoder"),
-        });
+        let mut encoder = self.create_encoder();
         // UI RENDERING! WIll be rendered on top of the previous output!!!
         #[cfg(feature="ui")]
         {
@@ -630,21 +386,60 @@ impl State {
 
                 cmd_buffers.push(encoder.finish());
 
-                // the number of submit() calls should be limited to a few per frame (e.g. 1-5).
-                self.queue.submit(cmd_buffers);
-                output_frame.present();
-
-                //remove ui data
+            // remove ui data for some reason..?
             self.ui_state.render_pass
             .remove_textures(tdelta)
             .expect("remove texture ok");
-
         }
+        // the number of submit() calls should be limited to a few per frame (e.g. 1-5).
+        self.queue.submit(cmd_buffers);
+        output_frame.present();
+
+        Ok(()) 
+
+/*         
+{        cmd_buffers.push(self.mesh1.draw(self.create_encoder()))}
+{        cmd_buffers.push(self.mesh2.draw(self.create_encoder()))}
+
+        //new encoder
+        //perpare meshes
+        // let a = app.world.get_resource::<CurrentScene>().unwrap().get_models();
+        // for model in a.iter()
+        // {
+        //     let mut encoder = self
+        //     .device
+        //     .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+        //     label: Some("Model Render Encoder")});
+
+            // render_pass.set_pipeline(&self.render_pipeline);
+            //BufferSlice { buffer: Buffer { context: Context { type: "Native" }, id: Buffer { id: (1, 1, Vulkan), error_sink: Mutex { data: ErrorSink } }, map_context: Mutex { data: MapContext { total_size: 64, initial_range: 0..0, sub_ranges: [] } }, usage: VERTEX }, offset: 0, size: None }
+            // let mesh = &model.mesh;
+            // {
+            //     let material = &model.materials[mesh.material];
+            //     render_pass.set_vertex_buffer(0, mesh.vertex_buffer.slice(..));
+            //     render_pass.set_vertex_buffer(1, self.instance_buffer.slice(..));
+            //     render_pass.set_index_buffer(mesh.index_buffer.slice(..), wgpu::IndexFormat::Uint32);
+            //     render_pass.set_bind_group(0, &material.bind_group, &[]);
+            //     render_pass.set_bind_group(1, &self.camera_bind_group, &[]);
+            //     render_pass.draw_indexed(0..mesh.num_elements, 0, 0..2);
+            //     // model::DrawModel::draw_model_instanced(&mut render_pass, model, 0..1, &self.camera_bind_group);
+            // }
+            // cmd_buffers.push(encoder.finish());
+            //something like this would be faster tho.. but we will have some kind of other models that can
+            //only be drawn as instances: InstancedModels. For e.g. trees in a forest.
+            // render_pass.draw_model_instanced(
+            //     &self.models[0],
+            //     0..self.instances.len() as u32,
+            //     &self.camera_bind_group,
+            // );
+        // }
+        
+        
         //this is not how it works... I don't think
         Ok(()) 
-    }
+    } */
 }
-
+}
 fn main_loop(app: App) {
     //is this async implementation any good?
     pollster::block_on(init_renderer(app));
@@ -794,7 +589,7 @@ async fn init_renderer(mut app: App) {
                     event: DeviceEvent::MouseMotion{ delta, },
                     .. // We're not using device_id currently
                 } => if state.is_right_mouse_pressed {
-                    state.camera_controller.process_mouse(delta.0, delta.1);
+                    state.camera_collection.camera_controller.process_mouse(delta.0, delta.1);
                     window.set_cursor_visible(false);
                     window.set_cursor_position(winit::dpi::PhysicalPosition::new(window.inner_size().width/2, window.inner_size().height/2));
                 } else {
@@ -872,36 +667,15 @@ where
 {
     event_loop.run(event_handler)
 }
+
 // #[derive(Default)]
 ///sets runner using .set_runner()
 pub struct RenderPlugin;
 impl Plugin for RenderPlugin {
     fn setup(&self, app: &mut App) {
         ne::debug!("setup RenderPlugin");
-        app
-        .add_event::<OnWindowResized>()
-        .add_event::<AppExit>()
-        .add_event::<OnRedrawRequested>()
-        //TODO
-        .add_event::<OnWindowCloseRequested>()
-        .add_event::<OnWindowFocused>()
+        app.add_plugin(ne_window::WindowEventPlugin)
 
-//      .add_event::<OnWindowMoved>()
-        .add_event::<OnWindowScaleFactorChanged>()
-        .add_event::<OnFileDragAndDrop>()
-
-        .add_event::<OnCursorMoved>()
-        .add_event::<OnCursorEntered>()
-        .add_event::<OnCursorLeft>()
-
-        .add_event::<OnReceivedCharacter>()
-        //todo
-/*     
-        .add_event::<CreateWindow>()
-        .add_event::<WindowCreated>()
-        .add_event::<WindowClosed>()
-        .add_event::<WindowBackendScaleFactorChanged>()
-*/
         // .init_resource::<Windows>()
         .set_runner(main_loop);
     }
@@ -910,6 +684,7 @@ impl Plugin for RenderPlugin {
 /// Window functionality
 /// ================================================================================================
 
+pub use wgpu::PresentMode;
 /// Describes the information needed for creating a window.
 ///
 /// This should be set up before adding the [`WindowPlugin`](crate::WindowPlugin).
@@ -1191,132 +966,3 @@ impl WindowResizeConstraints {
         }
     }
 }
-
-
-/// ================================================================================================
-/// Events
-/// ================================================================================================
-/// A window event that is sent whenever a window's logical size has changed.
-#[derive(Debug, Clone)]
-pub struct OnWindowResized {
-    pub id: winit::window::WindowId,
-    /// The new logical width of the window.
-    pub width: f32,
-    /// The new logical height of the window.
-    pub height: f32,
-}
-/// An event that is sent whenever a new window is created.
-///
-/// To create a new window, send a [`CreateWindow`] event - this
-/// event will be sent in the handler for that event.
-#[derive(Debug, Clone)]
-pub struct OnWindowCreated {
-    pub id: WindowId,
-}
-
-/// An event that is sent whenever the operating systems requests that a window
-/// be closed. This will be sent when the close button of the window is pressed.
-///
-/// If the default [`WindowPlugin`] is used, these events are handled
-/// by [closing] the corresponding [`Window`].  
-/// To disable this behaviour, set `close_when_requested` on the [`WindowPlugin`]
-/// to `false`.
-///
-/// [`WindowPlugin`]: crate::WindowPlugin
-/// [`Window`]: crate::Window
-/// [closing]: crate::Window::close
-#[derive(Debug, Clone)]
-pub struct OnWindowCloseRequested {
-    pub id: WindowId,
-}
-
-/// An event that is sent whenever a window is closed. This will be sent by the
-/// handler for [`Window::close`].
-///
-/// [`Window::close`]: crate::Window::close
-#[derive(Debug, Clone)]
-pub struct OnWindowClosed {
-    pub id: WindowId,
-}
-/// An event reporting that the mouse cursor has moved on a window.
-///
-/// The event is sent only if the cursor is over one of the application's windows.
-/// It is the translated version of [`WindowEvent::CursorMoved`] from the `winit` crate.
-///
-/// Not to be confused with the [`MouseMotion`] event from `bevy_input`.
-///
-/// [`WindowEvent::CursorMoved`]: https://docs.rs/winit/latest/winit/event/enum.WindowEvent.html#variant.CursorMoved
-/// [`MouseMotion`]: bevy_input::mouse::MouseMotion
-#[derive(Debug, Clone)]
-pub struct OnCursorMoved {
-    /// The identifier of the window the cursor has moved on.
-    pub id: WindowId,
-
-    /// The position of the cursor, in window coordinates.
-    pub position: Vec2,
-}
-/// An event that is sent whenever the user's cursor enters a window.
-#[derive(Debug, Clone)]
-pub struct OnCursorEntered {
-    pub id: WindowId,
-}
-/// An event that is sent whenever the user's cursor leaves a window.
-#[derive(Debug, Clone)]
-pub struct OnCursorLeft {
-    pub id: WindowId,
-}
-
-/// An event that indicates a window has received or lost focus.
-#[derive(Debug, Clone)]
-pub struct OnWindowFocused {
-    pub id: WindowId,
-    pub focused: bool,
-}
-
-/// Events related to files being dragged and dropped on a window.
-#[derive(Debug, Clone)]
-pub enum OnFileDragAndDrop {
-    DroppedFile { id: WindowId, path_buf: PathBuf },
-
-    HoveredFile { id: WindowId, path_buf: PathBuf },
-
-    HoveredFileCancelled { id: WindowId },
-}
-
-/// An event that is sent when a window is repositioned in physical pixels.
-#[derive(Debug, Clone)]
-pub struct OnWindowMoved {
-    pub id: WindowId,
-    pub position: Vec2,
-}
-//TODO implement these maybe:
-/* /// An event that indicates that a new window should be created.
-#[derive(Debug, Clone)]
-pub struct OnCreateWindow {
-    pub id: WindowId,
-    pub descriptor: WindowDescriptor,
-} */
-/// An event that is sent whenever a window receives a character from the OS or underlying system.
-#[derive(Debug, Clone)]
-pub struct OnReceivedCharacter {
-    pub id: WindowId,
-    pub char: char,
-}
-/// An event that indicates a window's scale factor has changed.
-#[derive(Debug, Clone)]
-pub struct OnWindowScaleFactorChanged {
-    pub id: WindowId,
-    pub scale_factor: f64,
-}
-/* /// An event that indicates a window's OS-reported scale factor has changed.
-#[derive(Debug, Clone)]
-pub struct OnWindowBackendScaleFactorChanged {
-    pub id: WindowId,
-    pub scale_factor: f64,
-} */
-// #[derive(Debug, Clone)]
-/// Reader in loop that will end the event loop.
-pub struct AppExit;
-/// An event that is sent when a frame has been rendered 
-/// Inside of RedrawRequested in the eventloop
-pub struct OnRedrawRequested;

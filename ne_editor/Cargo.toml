@@ -22,10 +22,10 @@ ne_files = {path = "../crates/ne_files"}
 ne_app = {path = "../crates/ne_app"}
 ne_window = {path = "../crates/ne_window"}
 ne_render = {path = "../crates/ne_render", features = [  "first_frame_time", "start_time", "ui"] }
-ne_gui = {path = "../crates/ne_gui"}
+ne_math = {path = "../crates/ne_math"}
+
 # remove
 ne_bench = {path = "../crates/ne_bench"}
-
 # Bevy
 bevy_ecs = "0.8.1"
 bevy_asset = "0.8.1"

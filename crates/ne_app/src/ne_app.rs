@@ -3,7 +3,6 @@
 use std::collections::HashMap;
 
 // use bevy_ecs::schedule::IntoSystemDescriptor;
-//TODO does pub use make compile times longer?
 pub use bevy_ecs::{
     event::{Event, Events, ManualEventReader},
     schedule::{IntoSystemDescriptor, Schedule, ShouldRun, Stage, StageLabel, SystemStage},
@@ -13,7 +12,6 @@ pub use bevy_ecs::{
 pub use ne::*;
 
 //globals
-//TODO replace by some kind of thread safe version.
 //These should not be modified, just read.
 #[cfg(feature = "start_time")]
 pub static mut START_TIME: Option<instant::Instant> = None;
@@ -137,7 +135,7 @@ define_label!(
     AppLabelId,
 );
 //================================================================
-//^^^TODO Make this my own code^^^
+//^^^ Make this my own code^^^
 //================================================================
 #[macro_export]
 macro_rules! get_engine_assets_dir {
@@ -183,8 +181,6 @@ impl Default for App {
         app.init_resource::<bevy_reflect::TypeRegistryArc>();
 
         app.add_default_stages()
-            //TODO
-            // .add_event::<AppExit>()
             .add_system_to_stage(CoreStage::Last, World::clear_trackers.exclusive_system());
 
         #[cfg(feature = "bevy_ci_testing")]

@@ -1,24 +1,4 @@
-use ne_math::{Vec3, Quat, Mat4};
-#[derive(Debug)]
-pub struct Transform {
-    pub position: Vec3,
-    pub rotation: Quat,
-}
-
-impl Default for Transform {
-    fn default() -> Self {
-        Self { position: Vec3::ZERO, rotation: Quat::default() }
-    }
-}
-impl Transform {
-    pub fn to_raw(&self) -> TransformRaw {
-        TransformRaw {
-            model: (Mat4::from_translation(self.position)
-                * Mat4::from_quat(self.rotation))
-            .to_cols_array_2d(),
-        }
-    }
-}
+use ne_math::{Transform, Mat4};
 
 #[repr(C)]
 #[derive(Debug, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
@@ -65,8 +45,15 @@ impl TransformRaw {
         }
     }
 }
-// //TODO ecs approach
-// #[derive(Component)]
-// struct model {
-//     name: String,
-// }
+
+pub trait ToMat4 {
+    fn to_raw(&self) -> Mat4;
+}
+
+impl ToMat4 for ne_math::Transform
+{
+    fn to_raw(&self) -> Mat4 {
+        Mat4::from_translation(self.position)
+                * Mat4::from_quat(self.rotation)
+    }
+}

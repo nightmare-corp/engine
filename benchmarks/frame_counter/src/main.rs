@@ -3,19 +3,18 @@
 use bevy_ecs::prelude::EventReader;
 use bevy_ecs::prelude::{EventWriter};
 
-
 use ne_app::{get_time_passed, App};
 use ne_render::{AppExit, OnRedrawRequested, OnWindowCloseRequested, RenderPlugin, WindowSettings};
 
 pub static mut TOTAL_TIME: Option<instant::Duration> = None;
-static mut frame_count: u32 = 0;
+static mut FRAME_COUNT: u32 = 0;
 
 fn bench(mut frame_event: EventReader<OnRedrawRequested>, mut exit: EventWriter<AppExit>) {
     unsafe {
         for _ in frame_event.iter().rev() {
-            frame_count += 1;
+            FRAME_COUNT += 1;
             const MAX: u32 = 25_000;
-            if frame_count > MAX {
+            if FRAME_COUNT > MAX {
                 let t = get_time_passed(ne_app::FIRST_FRAME_TIME);
                 ne::log!("to render: {} frames took: {:?}", MAX, t); //write to results/*
                                                                      //TODO this is messed up
@@ -36,7 +35,7 @@ fn main() {
     // std::env::set_var("WGPU_BACKEND", "vulkan");
     std::env::set_var("neprint", "true");
     const WIDTH: f32 = 1600.0;
-    const HEIGHT: f32 = 900.0;
+    const HEIGHT: f32 = 600.0;
 
     ne::L::init_log!(tracing::Level::ERROR);
     App::new()

@@ -1,5 +1,4 @@
 ///returns literal path to assets dir
-/// TODO
 #[macro_export]
 macro_rules! find_asset {
     //returns asset dir

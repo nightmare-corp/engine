@@ -1,5 +1,3 @@
-//!essentials every nightmare_engine crate needs.
-
 pub use ne_log as L;
 use L::tracing;
 
@@ -14,7 +12,6 @@ macro_rules! log {
         $crate::print!("\n")
         //I really want this? to work:
         // cargo run -p frame_counter --release --features "ne_log"
-        todo!()
     };
     //but for one arg it will simply print that arg as with {:?} the debug setting.
     ($arg:tt) => {
