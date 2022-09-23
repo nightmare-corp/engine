@@ -119,8 +119,6 @@ pub struct Example {
 
 impl Example {
     fn generate_matrix(aspect_ratio: f32, model_matrix: Mat4) -> ne_math::Mat4 {
-        //TODO
-        // let model = ne_math::Mat4::from_translation(location);
 
         let projection = ne_math::Mat4::perspective_rh(consts::FRAC_PI_4, aspect_ratio, 1.0, 10.0);
         let view = ne_math::Mat4::look_at_rh(
@@ -132,7 +130,7 @@ impl Example {
     }
     #[must_use]
     pub fn init(
-        view_projection: &wgpu::Buffer,
+        view_projection_buffer: &wgpu::Buffer,
         config: &wgpu::SurfaceConfiguration,
         _adapter: &wgpu::Adapter,
         device: &wgpu::Device,
@@ -156,7 +154,7 @@ impl Example {
         });
 
         // Create pipeline layout
-        //DPDP what is this?
+        //DPDP I fail to completely understand this
         let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             label: None,
             entries: &[
@@ -172,6 +170,16 @@ impl Example {
                 },
                 wgpu::BindGroupLayoutEntry {
                     binding: 1,
+                    visibility: wgpu::ShaderStages::VERTEX,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Uniform,
+                        has_dynamic_offset: false,
+                        min_binding_size: wgpu::BufferSize::new(64),
+                    },
+                    count: None,
+                },
+                wgpu::BindGroupLayoutEntry {
+                    binding: 2,
                     visibility: wgpu::ShaderStages::FRAGMENT,
                     ty: wgpu::BindingType::Texture {
                         multisampled: false,
@@ -182,7 +190,7 @@ impl Example {
                 },
             ],
         });
-        //DPDP what is this?
+        //DPDP I fail to completely understand this
         let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label: None,
             bind_group_layouts: &[&bind_group_layout],
@@ -219,14 +227,19 @@ impl Example {
         );
 
         // Create other resources
-        let mx_total = Self::generate_matrix(config.width as f32 / config.height as f32, transform.to_raw());
-        let mx_ref: &[f32; 16] = mx_total.as_ref();
-        let uniform_buffer= view_projection; /* device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+        let model_matrix = transform.to_raw();
+        
+        let mx_ref: &[f32; 16] = model_matrix.as_ref();
+        let uniform_buffer= device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Uniform Buffer"),
             contents: bytemuck::cast_slice(mx_ref),
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
-        }); */
-
+        }); 
+        // let uniform_buffer2 = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+        //     label: Some("Uniform Buffer"),
+        //     contents: bytemuck::cast_slice(mx_ref),
+        //     usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+        // }); 
         // Create bind group
         //DPDP what is this?
         let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
@@ -238,6 +251,11 @@ impl Example {
                 },
                 wgpu::BindGroupEntry {
                     binding: 1,
+                    //TODO is this correct?
+                    resource: view_projection_buffer.as_entire_binding(),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 2,
                     resource: wgpu::BindingResource::TextureView(&texture_view),
                 },
             ],
@@ -249,7 +267,8 @@ impl Example {
             source: wgpu::ShaderSource::Wgsl(Cow::Borrowed(include_str!("basic_cube.wgsl"))),
         });
 
-        //DPDP what is this?
+        //DPDP I fail to completely understand this 
+        //I know that this handles how the vertex and uv data is read..?
         let vertex_buffers = [wgpu::VertexBufferLayout {
             array_stride: vertex_size as wgpu::BufferAddress,
             step_mode: wgpu::VertexStepMode::Vertex,
@@ -261,7 +280,7 @@ impl Example {
                 },
                 wgpu::VertexAttribute {
                     format: wgpu::VertexFormat::Float32x2,
-                    offset: 4 * 4,
+                    offset: 4 * 4, //std::mem::size_of::<[f32; 4]>() as wgpu::BufferAddress,
                     shader_location: 1,
                 },
             ],
@@ -309,8 +328,8 @@ impl Example {
         _device: &wgpu::Device,
         queue: &wgpu::Queue,
     ) {
-        let mx_total = Self::generate_matrix(config.width as f32 / config.height as f32, self.transform.to_raw());
-        let mx_ref: &[f32; 16] = mx_total.as_ref();
+        // let model_matrix = Self::generate_matrix(config.width as f32 / config.height as f32, self.transform.to_raw());
+        // let mx_ref: &[f32; 16] = model_matrix.as_ref();
         // queue.write_buffer(&self.uniform_buffer, 0, bytemuck::cast_slice(mx_ref));
     }
     #[must_use]

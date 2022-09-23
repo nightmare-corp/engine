@@ -187,8 +187,8 @@ impl State {
         // let mesh1 = Mesh::load_mesh_from_path("obj", Transform::default());
         // let mesh2 = Mesh::load_mesh_from_path("obj", Transform::default());
 
-        let transform1 = Transform{ position: Vec3{x: 1.0, y: 0.0, z: 0.0 }, rotation: Quat::default() };
-        let transform2 = Transform{ position: Vec3{x: -1.0, y: 0.0, z: 0.0 }, rotation: Quat::default() };
+        let transform1 = Transform{ position: Vec3{x: 1.5, y: 0.0, z: 0.0 }, rotation: Quat::default() };
+        let transform2 = Transform{ position: Vec3{x: -1.5, y: 0.0, z: 0.0 }, rotation: Quat::default() };
         let mesh1 = Example::init(
             &camera_buffer,
             &surface_config, &adapter, &device, &queue, transform1
@@ -287,7 +287,9 @@ impl State {
     //updates camera, can be cleaner/faster/moved into camera.rs... maybe
     fn update(&mut self, dt:f32) {
         self.camera_collection.camera_controller.update_camera(&mut self.camera_collection.camera, dt);
-        self.camera_collection.camera_uniform.update_view_proj(&self.camera_collection.camera, &self.camera_collection.projection);
+        self.camera_collection.camera_uniform.update_view_proj(
+            &self.camera_collection.camera,
+            &self.camera_collection.projection);
 
         //rewrite new camera buffer?
         self.queue.write_buffer(
