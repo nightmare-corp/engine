@@ -18,8 +18,8 @@ fn vs_main(
     let world_position = model_matrix * position;
 
     var result: VertexOutput;
-    result.clip_position = view_projection_matrix * world_position;
-    // result.clip_position = world_position;
+    // result.clip_position = view_projection_matrix * world_position;
+    result.clip_position = world_position;
     result.tex_coord = tex_coord;
     return result;
 }

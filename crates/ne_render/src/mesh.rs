@@ -227,14 +227,18 @@ impl Example {
         );
 
         // Create other resources
-        let model_matrix = transform.to_raw();
         
-        let mx_ref: &[f32; 16] = model_matrix.as_ref();
+        let mvp_matrix = Self::generate_matrix(
+            config.width as f32 / config.height as f32,
+             transform.to_raw());
+        let mx_ref: &[f32; 16] = mvp_matrix.as_ref();
         let uniform_buffer= device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Uniform Buffer"),
             contents: bytemuck::cast_slice(mx_ref),
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
         }); 
+
+        
         // let uniform_buffer2 = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
         //     label: Some("Uniform Buffer"),
         //     contents: bytemuck::cast_slice(mx_ref),
@@ -328,7 +332,9 @@ impl Example {
         _device: &wgpu::Device,
         queue: &wgpu::Queue,
     ) {
-        // let model_matrix = Self::generate_matrix(config.width as f32 / config.height as f32, self.transform.to_raw());
+        // let model_matrix = Self::generate_matrix(
+            // config.width as f32 / config.height as f32,
+            //  self.transform.to_raw());
         // let mx_ref: &[f32; 16] = model_matrix.as_ref();
         // queue.write_buffer(&self.uniform_buffer, 0, bytemuck::cast_slice(mx_ref));
     }

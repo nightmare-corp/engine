@@ -187,8 +187,8 @@ impl State {
         // let mesh1 = Mesh::load_mesh_from_path("obj", Transform::default());
         // let mesh2 = Mesh::load_mesh_from_path("obj", Transform::default());
 
-        let transform1 = Transform{ position: Vec3{x: 1.5, y: 0.0, z: 0.0 }, rotation: Quat::default() };
-        let transform2 = Transform{ position: Vec3{x: -1.5, y: 0.0, z: 0.0 }, rotation: Quat::default() };
+        let transform1 = Transform{ position: Vec3{x: 1.0, y: 0.0, z: 0.0 }, rotation: Quat::default() };
+        let transform2 = Transform{ position: Vec3{x: -1.0, y: 0.0, z: 0.0 }, rotation: Quat::default() };
         let mesh1 = Example::init(
             &camera_buffer,
             &surface_config, &adapter, &device, &queue, transform1
