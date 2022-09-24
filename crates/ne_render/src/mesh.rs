@@ -118,19 +118,9 @@ pub struct Example {
 }
 
 impl Example {
-    fn generate_matrix(aspect_ratio: f32, model_matrix: Mat4) -> ne_math::Mat4 {
-
-        let projection = ne_math::Mat4::perspective_rh(consts::FRAC_PI_4, aspect_ratio, 1.0, 10.0);
-        let view = ne_math::Mat4::look_at_rh(
-            ne_math::Vec3::new(1.5f32, -5.0, 3.0),
-            ne_math::Vec3::ZERO,
-            ne_math::Vec3::Z,
-        );
-        model_matrix * projection * view 
-    }
     #[must_use]
     pub fn init(
-        view_projection_buffer: &wgpu::Buffer,
+        camera_buffer: &wgpu::Buffer,
         config: &wgpu::SurfaceConfiguration,
         _adapter: &wgpu::Adapter,
         device: &wgpu::Device,
@@ -170,16 +160,6 @@ impl Example {
                 },
                 wgpu::BindGroupLayoutEntry {
                     binding: 1,
-                    visibility: wgpu::ShaderStages::VERTEX,
-                    ty: wgpu::BindingType::Buffer {
-                        ty: wgpu::BufferBindingType::Uniform,
-                        has_dynamic_offset: false,
-                        min_binding_size: wgpu::BufferSize::new(64),
-                    },
-                    count: None,
-                },
-                wgpu::BindGroupLayoutEntry {
-                    binding: 2,
                     visibility: wgpu::ShaderStages::FRAGMENT,
                     ty: wgpu::BindingType::Texture {
                         multisampled: false,
@@ -188,6 +168,16 @@ impl Example {
                     },
                     count: None,
                 },
+                wgpu::BindGroupLayoutEntry {
+                    binding: 2,
+                    visibility: wgpu::ShaderStages::VERTEX,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Uniform,
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
+                }
             ],
         });
         //DPDP I fail to completely understand this
@@ -227,23 +217,13 @@ impl Example {
         );
 
         // Create other resources
-        
-        let mvp_matrix = Self::generate_matrix(
-            config.width as f32 / config.height as f32,
-             transform.to_raw());
+        let mvp_matrix = transform.to_raw();
         let mx_ref: &[f32; 16] = mvp_matrix.as_ref();
         let uniform_buffer= device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Uniform Buffer"),
             contents: bytemuck::cast_slice(mx_ref),
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
         }); 
-
-        
-        // let uniform_buffer2 = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-        //     label: Some("Uniform Buffer"),
-        //     contents: bytemuck::cast_slice(mx_ref),
-        //     usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
-        // }); 
         // Create bind group
         //DPDP what is this?
         let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
@@ -255,12 +235,11 @@ impl Example {
                 },
                 wgpu::BindGroupEntry {
                     binding: 1,
-                    //TODO is this correct?
-                    resource: view_projection_buffer.as_entire_binding(),
+                    resource: wgpu::BindingResource::TextureView(&texture_view),
                 },
                 wgpu::BindGroupEntry {
                     binding: 2,
-                    resource: wgpu::BindingResource::TextureView(&texture_view),
+                    resource: camera_buffer.as_entire_binding(),
                 },
             ],
             label: None,
