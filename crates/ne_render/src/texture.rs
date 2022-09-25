@@ -9,7 +9,6 @@ pub struct Texture {
 
 impl Texture {
     pub const DEPTH_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Depth32Float;
-
     pub fn from_bytes(
         device: &wgpu::Device,
         queue: &wgpu::Queue,
@@ -19,7 +18,6 @@ impl Texture {
         let img = image::load_from_memory(bytes)?;
         Self::from_image(device, queue, &img, Some(label))
     }
-
     pub fn from_image(
         device: &wgpu::Device,
         queue: &wgpu::Queue,
@@ -59,7 +57,7 @@ impl Texture {
             },
             size,
         );
-        //more efficient alternative:
+        //less efficient alternative:
         //Using write_texture is a bit more efficient as it uses one buffer less
         /* let buffer = device.create_buffer_init(
             &wgpu::util::BufferInitDescriptor {

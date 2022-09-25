@@ -56,6 +56,7 @@ struct State {
     queue: wgpu::Queue,
     surface_config: wgpu::SurfaceConfiguration,
     size: winit::dpi::PhysicalSize<u32>,
+    depth_texture: texture::Texture,
 
     camera_collection: CameraCollection,
     
@@ -147,7 +148,7 @@ impl State {
         let projection =
         free_fly_camera::Projection::new(surface_config.width, surface_config.height, 45.0, 0.1, 100.0);
         //TODO accessibility 
-        let camera_controller = free_fly_camera::CameraController::new(4.0, 0.8);
+        let camera_controller = free_fly_camera::CameraController::new(4.0, 0.3);
         
         let mut camera_uniform = CameraUniform::new();
         camera_uniform.update_view_proj(&camera, &projection);
@@ -179,6 +180,10 @@ impl State {
             }],
             label: Some("camera_bind_group"),
         });
+        //depth texture
+        let depth_texture =
+            texture::Texture::create_depth_texture(&device, &surface_config, "depth_texture");
+
         //================================================================================================================
         //Scene loading
         //================================================================================================================
@@ -229,6 +234,7 @@ impl State {
             queue,
             surface_config,
             size,
+            depth_texture,
             camera_collection: CameraCollection {
                 camera,
                 projection,
@@ -253,8 +259,8 @@ impl State {
             self.surface_config.width = new_size.width;
             self.surface_config.height = new_size.height;
             self.surface.configure(&self.device, &self.surface_config);
-            // self.depth_texture =
-            //     texture::Texture::create_depth_texture(&self.device, &self.surface_config, "depth_texture");
+            self.depth_texture =
+                texture::Texture::create_depth_texture(&self.device, &self.surface_config, "depth_texture");
         }
     }
     fn input(&mut self, event: &WindowEvent) -> bool {
@@ -342,10 +348,10 @@ impl State {
 
         //TODO how to make these meshes share buffers..? Obviously the same vertex/index buffer with a slightly different model buffer.        
         cmd_buffers.push(
-        self.mesh1.render(&output_view, &self.device));
+        self.mesh1.render(&output_view, &self.device,&self.depth_texture));
         //problem this one clears the one before... solution: nothing clears the renderer clear itself first.
         cmd_buffers.push(
-        self.mesh2.render(&output_view, &self.device));
+        self.mesh2.render(&output_view, &self.device, &self.depth_texture));
 
         //new encoder
         let mut encoder = self.create_encoder();
@@ -854,7 +860,6 @@ fn create_window(win_settings: &WindowSettings, event_loop: &EventLoop<()>) -> W
             wind = wind.with_fullscreen(fullscreen);
         },
     }
-
     //TODO ...
     // match (win_settings.mode)
     // {

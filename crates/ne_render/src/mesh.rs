@@ -4,7 +4,7 @@ use ne_math::{Vec3, Transform, Mat4};
 use std::{borrow::Cow, f32::consts, future::Future, mem, pin::Pin, task};
 use wgpu::{util::DeviceExt, CommandBuffer};
 
-use crate::math::ToMat4;
+use crate::{math::ToMat4, texture};
 
 
 #[repr(C)]
@@ -322,6 +322,7 @@ impl Example {
         &mut self,
         view: &wgpu::TextureView,
         device: &wgpu::Device,
+        depth_texture: &texture::Texture,
     ) -> CommandBuffer {
         device.push_error_scope(wgpu::ErrorFilter::Validation);
         let mut encoder =
