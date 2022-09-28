@@ -119,22 +119,70 @@ impl Shapes {
         (vertex_data.to_vec(), index_data.to_vec())
     }
         
-    /// The radius of the 
+    /// The radius  
     /// Latitudinal stacks
     /// Longitudinal sectors
+    /// Try: Shapes::create_uv_sphere(1.0, 36, 18);
     fn create_uv_sphere(
         radius: f32,
         sectors: usize,
         stacks: usize,) -> (Vec<Vertex>, Vec<u16>) 
         {
-            todo!();
+            //ty bevy and http://www.songho.ca/opengl/gl_html
+            let sectors2 = sectors as f32;
+            let stacks2 = stacks as f32;
+            let length_inv = 1. / radius;
+            let sector_step = 2. * PI / sectors2;
+            let stack_step = PI / stacks2;
+    
+            let mut vertices: Vec<Vertex> = Vec::with_capacity(stacks * sectors);
+            //todo normals
+            // let mut normals: Vec<[f32; 3]> = Vec::with_capacity(stacks * sectors);
+            let mut indices: Vec<u16> = Vec::with_capacity(stacks * sectors * 2 * 3);
+            for i in 0..stacks + 1 {
+                let stack_angle = PI / 2. - (i as f32) * stack_step;
+                let xy = radius * stack_angle.cos();
+                let z = radius * stack_angle.sin();
+    
+                for j in 0..sectors + 1 {
+                    let sector_angle = (j as f32) * sector_step;
+                    let x = xy * sector_angle.cos();
+                    let y = xy * sector_angle.sin();
+                    vertices.push(Vertex::new([x, y, z], [(j as f32) / sectors2, (i as f32) / stacks2]));
+                    // normals.push([x * length_inv, y * length_inv, z * length_inv]);
+                }
+            }
+            // indices
+            //  k1--k1+1
+            //  |  / |
+            //  | /  |
+            //  k2--k2+1
+            for i in 0..stacks {
+                let mut k1 = i * (sectors + 1);
+                let mut k2 = k1 + sectors + 1;
+                for _j in 0..sectors {
+                    if i != 0 {
+                        indices.push(k1 as u16);
+                        indices.push(k2 as u16);
+                        indices.push((k1 + 1) as u16);
+                    }
+                    if i != stacks - 1 {
+                        indices.push((k1 + 1) as u16);
+                        indices.push(k2 as u16);
+                        indices.push((k2 + 1) as u16);
+                    }
+                    k1 += 1;
+                    k2 += 1;
+                }
+            }
+            (vertices, indices)
         }
 }
 
+//TODO understand
 fn create_texels(size: usize) -> Vec<u8> {
     (0..size * size)
         .map(|id| {
-            // get high five for recognizing this ;)
             let cx = 3.0 * (id % size) as f32 / (size - 1) as f32 - 2.0;
             let cy = 2.0 * (id / size) as f32 / (size - 1) as f32 - 1.0;
             let (mut x, mut y, mut count) = (cx, cy, 0);
@@ -196,8 +244,7 @@ impl Example {
 
         //TODO here
         //TODO should we be using vec<u32> for index data?
-        let (vertex_data, index_data) = Shapes::create_pyramid(2.0,2.0,2.0);
-
+        let (vertex_data, index_data) = Shapes::create_uv_sphere(1.0, 36, 18);//Shapes::create_pyramid(2.0,2.0,2.0);
 
         let vertex_buffer= device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Vertex Buffer"),
@@ -339,6 +386,7 @@ impl Example {
                 },
             ],
         }];
+        //TODO what's happening here?
         let pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
             label: None,
             layout: Some(&pipeline_layout),
@@ -371,7 +419,6 @@ impl Example {
             transform,
         }
     }
-
     pub fn update(&mut self, _event: winit::event::WindowEvent) {
         //empty
     }
