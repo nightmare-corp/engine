@@ -78,6 +78,7 @@ impl Shapes {
         ];
         MeshPrimitives(vertex_data.to_vec(), index_data.to_vec())
     }
+    //try: create_pyramid(1.0, 1.0, 1.0);
     pub fn create_pyramid(scale_x:f32,scale_y:f32,scale_z:f32) -> MeshPrimitives
     {
         let max_x= scale_x / 2.0;
@@ -261,7 +262,7 @@ impl Example {
         });
 
         // Create pipeline layout
-        //DPDP I fail to completely understand this
+        //TODO completely understand this
         let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             label: None,
             entries: &[
@@ -300,7 +301,7 @@ impl Example {
                 }
             ],
         });
-        //DPDP I fail to completely understand this
+        //TODO completely understand this
         let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label: None,
             bind_group_layouts: &[&bind_group_layout],
@@ -308,6 +309,9 @@ impl Example {
         });
 
         // Create the texture
+        //TODO textures.
+        //TODO would be cool if vertices can be random colors, maybe even efficient for the gpu..?
+
         let size = 256u32;
         let texels = create_texels(size as usize);
         let texture_extent = wgpu::Extent3d {
