@@ -1,70 +1,134 @@
 //=========================================
 use bytemuck::{Pod, Zeroable};
 use ne_math::{Vec3, Transform, Mat4};
-use std::{borrow::Cow, f32::consts, future::Future, mem, pin::Pin, task};
+use std::{borrow::Cow, f32::consts::{self, PI}, future::Future, mem, pin::Pin, task};
 use wgpu::{util::DeviceExt, CommandBuffer};
 
 use crate::{math::ToMat4, texture};
 
-
+///y is up
 #[repr(C)]
 #[derive(Clone, Copy, Pod, Zeroable)]
-struct Vertex {
+pub struct Vertex {
     _pos: [f32; 4],
     _tex_coord: [f32; 2],
 }
-
-fn vertex(pos: [f32; 3], tc: [f32; 2]) -> Vertex {
-    Vertex {
-        _pos: [pos[0], pos[1], pos[2], 1.0],
-        _tex_coord: [tc[0], tc[1]],
+impl Vertex {
+    pub fn new(pos: [f32; 3], tc: [f32; 2]) -> Vertex {
+        Vertex {
+            _pos: [pos[0], pos[1], pos[2], 1.0],
+            _tex_coord: [tc[0], tc[1]],
+        }
     }
 }
 
-fn create_vertices() -> (Vec<Vertex>, Vec<u16>) {
-    let vertex_data = [
-        // top (0.0, 0.0, 1.0)
-        vertex([-1.0, -1.0, 1.0], [0.0, 0.0]),
-        vertex([1.0, -1.0, 1.0], [1.0, 0.0]),
-        vertex([1.0, 1.0, 1.0], [1.0, 1.0]),
-        vertex([-1.0, 1.0, 1.0], [0.0, 1.0]),
-        // bottom (0.0, 0.0, -1.0)
-        vertex([-1.0, 1.0, -1.0], [1.0, 0.0]),
-        vertex([1.0, 1.0, -1.0], [0.0, 0.0]),
-        vertex([1.0, -1.0, -1.0], [0.0, 1.0]),
-        vertex([-1.0, -1.0, -1.0], [1.0, 1.0]),
-        // right (1.0, 0.0, 0.0)
-        vertex([1.0, -1.0, -1.0], [0.0, 0.0]),
-        vertex([1.0, 1.0, -1.0], [1.0, 0.0]),
-        vertex([1.0, 1.0, 1.0], [1.0, 1.0]),
-        vertex([1.0, -1.0, 1.0], [0.0, 1.0]),
-        // left (-1.0, 0.0, 0.0)
-        vertex([-1.0, -1.0, 1.0], [1.0, 0.0]),
-        vertex([-1.0, 1.0, 1.0], [0.0, 0.0]),
-        vertex([-1.0, 1.0, -1.0], [0.0, 1.0]),
-        vertex([-1.0, -1.0, -1.0], [1.0, 1.0]),
-        // front (0.0, 1.0, 0.0)
-        vertex([1.0, 1.0, -1.0], [1.0, 0.0]),
-        vertex([-1.0, 1.0, -1.0], [0.0, 0.0]),
-        vertex([-1.0, 1.0, 1.0], [0.0, 1.0]),
-        vertex([1.0, 1.0, 1.0], [1.0, 1.0]),
-        // back (0.0, -1.0, 0.0)
-        vertex([1.0, -1.0, 1.0], [0.0, 0.0]),
-        vertex([-1.0, -1.0, 1.0], [1.0, 0.0]),
-        vertex([-1.0, -1.0, -1.0], [1.0, 1.0]),
-        vertex([1.0, -1.0, -1.0], [0.0, 1.0]),
-    ];
+pub struct Shapes;
+impl Shapes {
+    pub fn create_box(scale_x:f32,scale_y:f32,scale_z:f32,) -> (Vec<Vertex>, Vec<u16>) 
+    {
+        let max_x= scale_x / 2.0;
+        let min_x= -scale_x / 2.0;
+        let max_y= scale_y / 2.0;
+        let min_y= -scale_y / 2.0;
+        let max_z= scale_z / 2.0;
+        let min_z= -scale_z / 2.0;
 
-    let index_data: &[u16] = &[
-        0, 1, 2, 2, 3, 0, // top
-        4, 5, 6, 6, 7, 4, // bottom
-        8, 9, 10, 10, 11, 8, // right
-        12, 13, 14, 14, 15, 12, // left
-        16, 17, 18, 18, 19, 16, // front
-        20, 21, 22, 22, 23, 20, // back
-    ];
+        let vertex_data = [
+            // bottom 
+            Vertex::new([max_x, min_y, max_z], [0.0, 0.0]),
+            Vertex::new([min_x, min_y, max_z], [1.0, 0.0]),
+            Vertex::new([min_x, min_y, min_z], [1.0, 1.0]),
+            Vertex::new([max_x, min_y, min_z], [0.0, 1.0]),
+            // top (0.0, max_x, 0.0)
+            Vertex::new([max_x, max_y, min_z], [1.0, 0.0]),
+            Vertex::new([min_x, max_y, min_z], [0.0, 0.0]),
+            Vertex::new([min_x, max_y, max_z], [0.0, 1.0]),
+            Vertex::new([max_x, max_y, max_z], [1.0, 1.0]),
+            // right (max_x, 0.0, 0.0)
+            Vertex::new([max_x, min_y, min_z], [0.0, 0.0]),
+            Vertex::new([max_x, max_y, min_z], [1.0, 0.0]),
+            Vertex::new([max_x, max_y, max_z], [1.0, 1.0]),
+            Vertex::new([max_x, min_y, max_z], [0.0, 1.0]),
+            // left (min_x, 0.0, 0.0)
+            Vertex::new([min_x, min_y, max_z], [1.0, 0.0]),
+            Vertex::new([min_x, max_y, max_z], [0.0, 0.0]),
+            Vertex::new([min_x, max_y, min_z], [0.0, 1.0]),
+            Vertex::new([min_x, min_y, min_z], [1.0, 1.0]),
+            // front (0.0, 0.0, max_x)
+            Vertex::new([min_x, min_y, max_z], [0.0, 0.0]),
+            Vertex::new([max_x, min_y, max_z], [1.0, 0.0]),
+            Vertex::new([max_x, max_y, max_z], [1.0, 1.0]),
+            Vertex::new([min_x, max_y, max_z], [0.0, 1.0]),
+            // back (0.0, 0.0, min_x)
+            Vertex::new([min_x, max_y, min_z], [1.0, 0.0]),
+            Vertex::new([max_x, max_y, min_z], [0.0, 0.0]),
+            Vertex::new([max_x, min_y, min_z], [0.0, 1.0]),
+            Vertex::new([min_x, min_y, min_z], [1.0, 1.0]),
 
-    (vertex_data.to_vec(), index_data.to_vec())
+        ];
+        let index_data: &[u16] = &[
+            0, 1, 2, 2, 3, 0, // bottom
+            4, 5, 6, 6, 7, 4, // top
+            8, 9, 10, 10, 11, 8, // right
+            12, 13, 14, 14, 15, 12, // left
+            16, 17, 18, 18, 19, 16, // front
+            20, 21, 22, 22, 23, 20, // back
+        ];
+        (vertex_data.to_vec(), index_data.to_vec())
+    }
+    pub fn create_pyramid(scale_x:f32,scale_y:f32,scale_z:f32) -> (Vec<Vertex>, Vec<u16>) 
+    {
+        let max_x= scale_x / 2.0;
+        let min_x= -scale_x / 2.0;
+        let max_y= scale_y / 2.0;
+        let min_y= -scale_y / 2.0;
+        let max_z= scale_z / 2.0;
+        let min_z= -scale_z / 2.0;
+
+        let top = Vertex::new([0.0, max_y, 0.0], [1.0, 0.0]);
+        let vertex_data = [
+            // bottom 
+            Vertex::new([max_x, min_y, max_z], [0.0, 0.0]),
+            Vertex::new([min_x, min_y, max_z], [1.0, 0.0]),
+            Vertex::new([min_x, min_y, min_z], [1.0, 1.0]),
+            Vertex::new([max_x, min_y, min_z], [0.0, 1.0]),
+            // right
+            Vertex::new([max_x, min_y, min_z], [0.0, 0.0]),
+            top,
+            Vertex::new([max_x, min_y, max_z], [0.0, 1.0]),
+            // left
+            Vertex::new([min_x, min_y, max_z], [0.0, 0.0]),
+            top,
+            Vertex::new([min_x, min_y, min_z], [0.0, 1.0]),
+            // front
+            Vertex::new([max_x, min_y, max_z], [0.0, 0.0]),
+            top,
+            Vertex::new([min_x, min_y, max_z], [0.0, 1.0]),
+            // back
+            Vertex::new([min_x, min_y, min_z], [0.0, 0.0]),
+            top,
+            Vertex::new([max_x, min_y, min_z], [0.0, 1.0]),
+        ];
+        let index_data: &[u16] = &[
+            0, 1, 2, 2, 3, 0, // bottom
+            4,5,6,
+            7,8,9,
+            10,11,12,
+            13,14,15,
+        ];
+        (vertex_data.to_vec(), index_data.to_vec())
+    }
+        
+    /// The radius of the 
+    /// Latitudinal stacks
+    /// Longitudinal sectors
+    fn create_uv_sphere(
+        radius: f32,
+        sectors: usize,
+        stacks: usize,) -> (Vec<Vertex>, Vec<u16>) 
+        {
+            todo!();
+        }
 }
 
 fn create_texels(size: usize) -> Vec<u8> {
@@ -129,7 +193,11 @@ impl Example {
     ) -> Self {
         // Create the vertex and index buffers
         let vertex_size = mem::size_of::<Vertex>();
-        let (vertex_data, index_data) = create_vertices();
+
+        //TODO here
+        //TODO should we be using vec<u32> for index data?
+        let (vertex_data, index_data) = Shapes::create_pyramid(2.0,2.0,2.0);
+
 
         let vertex_buffer= device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Vertex Buffer"),
@@ -148,6 +216,7 @@ impl Example {
         let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             label: None,
             entries: &[
+                //model matrix
                 wgpu::BindGroupLayoutEntry {
                     binding: 0,
                     visibility: wgpu::ShaderStages::VERTEX,
@@ -158,6 +227,7 @@ impl Example {
                     },
                     count: None,
                 },
+                //texture
                 wgpu::BindGroupLayoutEntry {
                     binding: 1,
                     visibility: wgpu::ShaderStages::FRAGMENT,
@@ -168,6 +238,7 @@ impl Example {
                     },
                     count: None,
                 },
+                //camera
                 wgpu::BindGroupLayoutEntry {
                     binding: 2,
                     visibility: wgpu::ShaderStages::VERTEX,

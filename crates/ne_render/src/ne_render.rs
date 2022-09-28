@@ -36,6 +36,7 @@ mod resources;
 mod texture;
 mod render_modules;
 mod mesh;
+mod shapes;
 
 pub mod math;
 // pub mod scene;
