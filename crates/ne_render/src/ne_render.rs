@@ -27,7 +27,7 @@ use winit::{
 //export windowbuilder
 pub use winit::window::{Window,WindowBuilder};
 
-use crate::{cameras::free_fly_camera::CameraUniform, user_interface::EguiState, mesh::Example};
+use crate::{cameras::free_fly_camera::CameraUniform, user_interface::EguiState, mesh::{Example, Shapes}};
 
 #[cfg(feature="ui")]
 mod user_interface;
@@ -192,17 +192,23 @@ impl State {
         //load meshes
         // let mesh1 = Mesh::load_mesh_from_path("obj", Transform::default());
         // let mesh2 = Mesh::load_mesh_from_path("obj", Transform::default());
-
         let transform1 = Transform{ position: Vec3{x: 1.0, y: 0.0, z: 0.0 }, rotation: Quat::default() };
-        let transform2 = Transform{ position: Vec3{x: -1.0, y: 0.0, z: 0.0 }, rotation: Quat::default() };
+        let transform2 = Transform{ position: Vec3{x: 1.0, y: 2.0, z: 0.0 }, rotation: Quat::default() };
+        //platform
         let mesh1 = Example::init(
             &camera_buffer,
-            &surface_config, &adapter, &device, &queue, transform1
+            &surface_config, &adapter, &device, &queue,
+            transform1,
+            Shapes::create_box(20.0, 0.1, 20.0),
         );
+        //sphere
         let mesh2 = Example::init(
             &camera_buffer,
-            &surface_config, &adapter, &device, &queue,transform2
+            &surface_config, &adapter, &device, &queue, transform2,
+
+            Shapes::create_uv_sphere(1.0, 36, 18),
         );
+
         // let scene_loader = app.world.remove_resource::<SceneLoader>();
         // let scene = match scene_loader
         // {

@@ -10,21 +10,23 @@ use crate::{math::ToMat4, texture};
 #[repr(C)]
 #[derive(Clone, Copy, Pod, Zeroable)]
 pub struct Vertex {
-    _pos: [f32; 4],
-    _tex_coord: [f32; 2],
+    pos: [f32; 4],
+    tex_coord: [f32; 2],
 }
 impl Vertex {
     pub fn new(pos: [f32; 3], tc: [f32; 2]) -> Vertex {
         Vertex {
-            _pos: [pos[0], pos[1], pos[2], 1.0],
-            _tex_coord: [tc[0], tc[1]],
+            pos: [pos[0], pos[1], pos[2], 1.0],
+            tex_coord: [tc[0], tc[1]],
         }
     }
 }
-
+pub struct MeshPrimitives(Vec<Vertex>, Vec<u16>);
 pub struct Shapes;
 impl Shapes {
-    pub fn create_box(scale_x:f32,scale_y:f32,scale_z:f32,) -> (Vec<Vertex>, Vec<u16>) 
+    //try: create_box(1.0, 1.0, 1.0);
+    //try: create_box(10.0, 0.01, 10.0);
+    pub fn create_box(scale_x:f32,scale_y:f32,scale_z:f32,) -> MeshPrimitives
     {
         let max_x= scale_x / 2.0;
         let min_x= -scale_x / 2.0;
@@ -74,9 +76,9 @@ impl Shapes {
             16, 17, 18, 18, 19, 16, // front
             20, 21, 22, 22, 23, 20, // back
         ];
-        (vertex_data.to_vec(), index_data.to_vec())
+        MeshPrimitives(vertex_data.to_vec(), index_data.to_vec())
     }
-    pub fn create_pyramid(scale_x:f32,scale_y:f32,scale_z:f32) -> (Vec<Vertex>, Vec<u16>) 
+    pub fn create_pyramid(scale_x:f32,scale_y:f32,scale_z:f32) -> MeshPrimitives
     {
         let max_x= scale_x / 2.0;
         let min_x= -scale_x / 2.0;
@@ -116,17 +118,17 @@ impl Shapes {
             10,11,12,
             13,14,15,
         ];
-        (vertex_data.to_vec(), index_data.to_vec())
+        MeshPrimitives(vertex_data.to_vec(), index_data.to_vec())
     }
         
     /// The radius  
     /// Latitudinal stacks
     /// Longitudinal sectors
     /// Try: Shapes::create_uv_sphere(1.0, 36, 18);
-    fn create_uv_sphere(
+    pub fn create_uv_sphere(
         radius: f32,
         sectors: usize,
-        stacks: usize,) -> (Vec<Vertex>, Vec<u16>) 
+        stacks: usize,) -> MeshPrimitives
         {
             //ty bevy and http://www.songho.ca/opengl/gl_html
             let sectors2 = sectors as f32;
@@ -175,7 +177,7 @@ impl Shapes {
                     k2 += 1;
                 }
             }
-            (vertices, indices)
+            MeshPrimitives(vertices, indices)
         }
 }
 
@@ -238,23 +240,23 @@ impl Example {
         device: &wgpu::Device,
         queue: &wgpu::Queue,
         transform: Transform,
+        // TODO tuple is not easily readable.
+        mesh_data: MeshPrimitives,
     ) -> Self {
         // Create the vertex and index buffers
         let vertex_size = mem::size_of::<Vertex>();
 
-        //TODO here
-        //TODO should we be using vec<u32> for index data?
-        let (vertex_data, index_data) = Shapes::create_uv_sphere(1.0, 36, 18);//Shapes::create_pyramid(2.0,2.0,2.0);
-
+        // let mesh_data = Shapes::create_uv_sphere(1.0, 36, 18);//Shapes::create_pyramid(2.0,2.0,2.0);
+        
         let vertex_buffer= device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Vertex Buffer"),
-            contents: bytemuck::cast_slice(&vertex_data),
+            contents: bytemuck::cast_slice(&mesh_data.0),
             usage: wgpu::BufferUsages::VERTEX,
         });
 
         let index_buffer= device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Index Buffer"),
-            contents: bytemuck::cast_slice(&index_data),
+            contents: bytemuck::cast_slice(&mesh_data.1),
             usage: wgpu::BufferUsages::INDEX,
         });
 
@@ -412,7 +414,7 @@ impl Example {
         Example {
             vertex_buffer,
             index_buffer,
-            index_count: index_data.len(),
+            index_count: mesh_data.1.len(),
             bind_group,
             // uniform_buffer,
             pipeline,
