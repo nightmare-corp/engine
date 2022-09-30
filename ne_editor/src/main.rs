@@ -1,12 +1,10 @@
-
-use bevy_ecs::{prelude::EventReader};
-use ne::{L, info};
+use bevy_ecs::prelude::EventReader;
+use ne::{info, L};
 use ne_app::App;
-use ne_render::{RenderPlugin,
-                Vec3, WindowSettings};
-                use ne_render::PresentMode::Fifo;
-use ne_math::{Transform, Quat};
-use ne_window::events::{OnWindowResized, OnWindowCloseRequested};
+use ne_math::{Quat, Transform};
+use ne_render::PresentMode::Fifo;
+use ne_render::{RenderPlugin, Vec3, WindowSettings};
+use ne_window::events::{OnWindowCloseRequested, OnWindowResized};
 mod interface;
 
 //Yet to implement ne_app correctly, the functions are called in a certain order.
@@ -18,23 +16,12 @@ fn main() {
     std::env::set_var("WGPU_BACKEND", "vulkan");
     std::env::set_var("neprint", "true");
     L::init_log!(tracing::Level::WARN);
-    
+
     const WIDTH: f32 = 1600.0;
     const HEIGHT: f32 = 900.0;
-    // let mut sl = SceneLoader::default();
-    // let md =  ModelDescriptor {
-    //     path: "trapeprism2.obj".to_string(),
-    //     transform: Transform { position: Vec3::ZERO, rotation: Quat::default()},
-    //     };
-    // sl.model_data.push(md);
-    // let md2 =  ModelDescriptor {
-    //     path: "shapes/cube.obj".to_string(),
-    //     transform: Transform { position: Vec3::new(1.0,1.0,1.0), rotation: Quat::default()}, };
-    // sl.model_data.push(md2);
 
     App::new()
-        .insert_resource(
-            WindowSettings {
+        .insert_resource(WindowSettings {
             title: "Nightmare_Editor".to_string(),
             width: WIDTH,
             height: HEIGHT,

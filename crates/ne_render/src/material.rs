@@ -1,7 +1,10 @@
 use anyhow::*;
 
-pub struct Material 
-{
+pub struct MaterialDescriptor<'a> {
+    pub bytes: &'a [u8],
+    pub label: Option<&'a str>,
+}
+pub struct Material {
     pub texture: wgpu::Texture,
     pub view: wgpu::TextureView,
     pub sampler: wgpu::Sampler,
@@ -12,6 +15,16 @@ pub struct Material
 ///``let label = Some("grid.png");``
 ///  let mat = Material::from_bytes(&device, &queue, bytes, label);
 impl Material {
+    pub fn from_descriptor(
+        device: &wgpu::Device,
+        queue: &wgpu::Queue,
+        mat_descriptor: &MaterialDescriptor,
+    ) -> Result<Self> {
+        Self::from_bytes(
+            device, queue,
+            mat_descriptor.bytes, mat_descriptor.label
+        )
+    }
     pub fn from_bytes(
         device: &wgpu::Device,
         queue: &wgpu::Queue,
@@ -21,7 +34,7 @@ impl Material {
         let img = image::load_from_memory(bytes).unwrap();
         let rgba = img.to_rgba8();
         let dimensions = image::GenericImageView::dimensions(&img);
-        
+
         let size = wgpu::Extent3d {
             width: dimensions.0,
             height: dimensions.1,

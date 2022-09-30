@@ -1,11 +1,18 @@
 //=========================================
 use bytemuck::{Pod, Zeroable};
 use image::DynamicImage;
-use ne_math::{Vec3, Transform, Mat4};
-use std::{borrow::Cow, f32::consts::{self, PI}, future::Future, mem, pin::Pin, task};
+use ne_math::{Mat4, Transform, Vec3};
+use std::{
+    borrow::Cow,
+    f32::consts::{self, PI},
+    future::Future,
+    mem,
+    pin::Pin,
+    task,
+};
 use wgpu::{util::DeviceExt, CommandBuffer};
 
-use crate::{math::ToMat4, material, texture};
+use crate::{material, math::ToMat4, texture};
 
 ///y is up
 #[repr(C)]
@@ -27,17 +34,16 @@ pub struct Shapes;
 impl Shapes {
     //try: create_box(1.0, 1.0, 1.0);
     //try: create_box(10.0, 0.01, 10.0);
-    pub fn create_box(scale_x:f32,scale_y:f32,scale_z:f32,) -> MeshPrimitives
-    {
-        let max_x= scale_x / 2.0;
-        let min_x= -scale_x / 2.0;
-        let max_y= scale_y / 2.0;
-        let min_y= -scale_y / 2.0;
-        let max_z= scale_z / 2.0;
-        let min_z= -scale_z / 2.0;
+    pub fn create_box(scale_x: f32, scale_y: f32, scale_z: f32) -> MeshPrimitives {
+        let max_x = scale_x / 2.0;
+        let min_x = -scale_x / 2.0;
+        let max_y = scale_y / 2.0;
+        let min_y = -scale_y / 2.0;
+        let max_z = scale_z / 2.0;
+        let min_z = -scale_z / 2.0;
 
         let vertex_data = [
-            // bottom 
+            // bottom
             Vertex::new([max_x, min_y, max_z], [0.0, 0.0]),
             Vertex::new([min_x, min_y, max_z], [1.0, 0.0]),
             Vertex::new([min_x, min_y, min_z], [1.0, 1.0]),
@@ -67,7 +73,6 @@ impl Shapes {
             Vertex::new([max_x, max_y, min_z], [0.0, 0.0]),
             Vertex::new([max_x, min_y, min_z], [0.0, 1.0]),
             Vertex::new([min_x, min_y, min_z], [1.0, 1.0]),
-
         ];
         let index_data: &[u16] = &[
             0, 1, 2, 2, 3, 0, // bottom
@@ -80,18 +85,17 @@ impl Shapes {
         MeshPrimitives(vertex_data.to_vec(), index_data.to_vec())
     }
     //try: create_pyramid(1.0, 1.0, 1.0);
-    pub fn create_pyramid(scale_x:f32,scale_y:f32,scale_z:f32) -> MeshPrimitives
-    {
-        let max_x= scale_x / 2.0;
-        let min_x= -scale_x / 2.0;
-        let max_y= scale_y / 2.0;
-        let min_y= -scale_y / 2.0;
-        let max_z= scale_z / 2.0;
-        let min_z= -scale_z / 2.0;
+    pub fn create_pyramid(scale_x: f32, scale_y: f32, scale_z: f32) -> MeshPrimitives {
+        let max_x = scale_x / 2.0;
+        let min_x = -scale_x / 2.0;
+        let max_y = scale_y / 2.0;
+        let min_y = -scale_y / 2.0;
+        let max_z = scale_z / 2.0;
+        let min_z = -scale_z / 2.0;
 
         let top = Vertex::new([0.0, max_y, 0.0], [1.0, 0.0]);
         let vertex_data = [
-            // bottom 
+            // bottom
             Vertex::new([max_x, min_y, max_z], [0.0, 0.0]),
             Vertex::new([min_x, min_y, max_z], [1.0, 0.0]),
             Vertex::new([min_x, min_y, min_z], [1.0, 1.0]),
@@ -115,71 +119,67 @@ impl Shapes {
         ];
         let index_data: &[u16] = &[
             0, 1, 2, 2, 3, 0, // bottom
-            4,5,6,
-            7,8,9,
-            10,11,12,
-            13,14,15,
+            4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15,
         ];
         MeshPrimitives(vertex_data.to_vec(), index_data.to_vec())
     }
-        
+
     /// The radius  
     /// Latitudinal stacks
     /// Longitudinal sectors
     /// Try: Shapes::create_uv_sphere(1.0, 36, 18);
-    pub fn create_uv_sphere(
-        radius: f32,
-        sectors: usize,
-        stacks: usize,) -> MeshPrimitives
-        {
-            //ty bevy and http://www.songho.ca/opengl/gl_html
-            let sectors2 = sectors as f32;
-            let stacks2 = stacks as f32;
-            let sector_step = 2. * PI / sectors2;
-            let stack_step = PI / stacks2;
-    
-            let mut vertices: Vec<Vertex> = Vec::with_capacity(stacks * sectors);
-            //todo normals
-            // let mut normals: Vec<[f32; 3]> = Vec::with_capacity(stacks * sectors);
-            let mut indices: Vec<u16> = Vec::with_capacity(stacks * sectors * 2 * 3);
-            for i in 0..stacks + 1 {
-                let stack_angle = PI / 2. - (i as f32) * stack_step;
-                let xy = radius * stack_angle.cos();
-                let z = radius * stack_angle.sin();
-    
-                for j in 0..sectors + 1 {
-                    let sector_angle = (j as f32) * sector_step;
-                    let x = xy * sector_angle.cos();
-                    let y = xy * sector_angle.sin();
-                    vertices.push(Vertex::new([x, y, z], [(j as f32) / sectors2, (i as f32) / stacks2]));
-                    // normals.push([x * length_inv, y * length_inv, z * length_inv]);
-                }
+    pub fn create_uv_sphere(radius: f32, sectors: usize, stacks: usize) -> MeshPrimitives {
+        //ty bevy and http://www.songho.ca/opengl/gl_html
+        let sectors2 = sectors as f32;
+        let stacks2 = stacks as f32;
+        let sector_step = 2. * PI / sectors2;
+        let stack_step = PI / stacks2;
+
+        let mut vertices: Vec<Vertex> = Vec::with_capacity(stacks * sectors);
+        //todo normals
+        // let mut normals: Vec<[f32; 3]> = Vec::with_capacity(stacks * sectors);
+        let mut indices: Vec<u16> = Vec::with_capacity(stacks * sectors * 2 * 3);
+        for i in 0..stacks + 1 {
+            let stack_angle = PI / 2. - (i as f32) * stack_step;
+            let xy = radius * stack_angle.cos();
+            let z = radius * stack_angle.sin();
+
+            for j in 0..sectors + 1 {
+                let sector_angle = (j as f32) * sector_step;
+                let x = xy * sector_angle.cos();
+                let y = xy * sector_angle.sin();
+                vertices.push(Vertex::new(
+                    [x, y, z],
+                    [(j as f32) / sectors2, (i as f32) / stacks2],
+                ));
+                // normals.push([x * length_inv, y * length_inv, z * length_inv]);
             }
-            // indices
-            //  k1--k1+1
-            //  |  / |
-            //  | /  |
-            //  k2--k2+1
-            for i in 0..stacks {
-                let mut k1 = i * (sectors + 1);
-                let mut k2 = k1 + sectors + 1;
-                for _j in 0..sectors {
-                    if i != 0 {
-                        indices.push(k1 as u16);
-                        indices.push(k2 as u16);
-                        indices.push((k1 + 1) as u16);
-                    }
-                    if i != stacks - 1 {
-                        indices.push((k1 + 1) as u16);
-                        indices.push(k2 as u16);
-                        indices.push((k2 + 1) as u16);
-                    }
-                    k1 += 1;
-                    k2 += 1;
-                }
-            }
-            MeshPrimitives(vertices, indices)
         }
+        // indices
+        //  k1--k1+1
+        //  |  / |
+        //  | /  |
+        //  k2--k2+1
+        for i in 0..stacks {
+            let mut k1 = i * (sectors + 1);
+            let mut k2 = k1 + sectors + 1;
+            for _j in 0..sectors {
+                if i != 0 {
+                    indices.push(k1 as u16);
+                    indices.push(k2 as u16);
+                    indices.push((k1 + 1) as u16);
+                }
+                if i != stacks - 1 {
+                    indices.push((k1 + 1) as u16);
+                    indices.push(k2 as u16);
+                    indices.push((k2 + 1) as u16);
+                }
+                k1 += 1;
+                k2 += 1;
+            }
+        }
+        MeshPrimitives(vertices, indices)
+    }
 }
 
 //TODO understand
@@ -221,25 +221,27 @@ impl<F: Future<Output = Option<wgpu::Error>>> Future for ErrorFuture<F> {
         })
     }
 }
-
-pub struct Example {
+//TODO I hate it. This could be turned into ecs
+pub struct MeshDescriptor {
+    mesh_data: MeshPrimitives,
+    transform: Transform,
+}
+pub struct Mesh {
     vertex_buffer: wgpu::Buffer,
     index_buffer: wgpu::Buffer,
     index_count: usize,
     bind_group: wgpu::BindGroup,
-    // uniform_buffer: wgpu::Buffer,
     pipeline: wgpu::RenderPipeline,
-    transform: Transform,
 }
 
-impl Example {
+impl Mesh {
     #[must_use]
     pub fn init(
         camera_buffer: &wgpu::Buffer,
         config: &wgpu::SurfaceConfiguration,
         _adapter: &wgpu::Adapter,
         device: &wgpu::Device,
-        queue: &wgpu::Queue,
+        // queue: &wgpu::Queue,
         transform: Transform,
         // TODO tuple is not easily readable.
         mesh_data: MeshPrimitives,
@@ -249,14 +251,14 @@ impl Example {
     ) -> Self {
         // Create the vertex and index buffers
         let vertex_size = mem::size_of::<Vertex>();
-                
-        let vertex_buffer= device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+
+        let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Vertex Buffer"),
             contents: bytemuck::cast_slice(&mesh_data.0),
             usage: wgpu::BufferUsages::VERTEX,
         });
 
-        let index_buffer= device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+        let index_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Index Buffer"),
             contents: bytemuck::cast_slice(&mesh_data.1),
             usage: wgpu::BufferUsages::INDEX,
@@ -308,7 +310,7 @@ impl Example {
                         min_binding_size: None,
                     },
                     count: None,
-                }
+                },
             ],
         });
         //TODO completely understand this
@@ -320,11 +322,11 @@ impl Example {
         // Create other resources
         let mvp_matrix = transform.to_raw();
         let mx_ref: &[f32; 16] = mvp_matrix.as_ref();
-        let uniform_buffer= device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+        let uniform_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Uniform Buffer"),
             contents: bytemuck::cast_slice(mx_ref),
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
-        }); 
+        });
         // Create bind group
         //TODO split maybe
         let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
@@ -357,7 +359,7 @@ impl Example {
             source: wgpu::ShaderSource::Wgsl(Cow::Borrowed(include_str!("basic_cube.wgsl"))),
         });
 
-        //DPDP I fail to completely understand this 
+        //DPDP I fail to completely understand this
         //I know that this handles how the vertex and uv data is read..?
         let vertex_buffers = [wgpu::VertexBufferLayout {
             array_stride: vertex_size as wgpu::BufferAddress,
@@ -398,14 +400,14 @@ impl Example {
             multiview: None,
         });
         // Done
-        Example {
+        Mesh {
             vertex_buffer,
             index_buffer,
             index_count: mesh_data.1.len(),
             bind_group,
             // uniform_buffer,
             pipeline,
-            transform,
+            // transform,
         }
     }
     pub fn update(&mut self, _event: winit::event::WindowEvent) {
@@ -419,8 +421,8 @@ impl Example {
         queue: &wgpu::Queue,
     ) {
         // let model_matrix = Self::generate_matrix(
-            // config.width as f32 / config.height as f32,
-            //  self.transform.to_raw());
+        // config.width as f32 / config.height as f32,
+        //  self.transform.to_raw());
         // let mx_ref: &[f32; 16] = model_matrix.as_ref();
         // queue.write_buffer(&self.uniform_buffer, 0, bytemuck::cast_slice(mx_ref));
     }
@@ -461,10 +463,7 @@ impl Example {
     }
 }
 
-
-
 //=========================================
-
 
 /* pub trait Vertex {
     fn desc<'a>() -> wgpu::VertexBufferLayout<'a>;
@@ -523,7 +522,7 @@ pub struct Mesh {
 }
 
 impl Mesh {
-    ///path relative from assets, transform,   
+    ///path relative from assets, transform,
     pub fn load_mesh_from_path(path: &str, transform:Transform) -> Self {
         //build string
 

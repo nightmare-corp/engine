@@ -27,7 +27,7 @@ use winit::{
 //export windowbuilder
 pub use winit::window::{Window,WindowBuilder};
 
-use crate::{cameras::free_fly_camera::CameraUniform, user_interface::EguiState, mesh::{Example, Shapes}};
+use crate::{cameras::free_fly_camera::CameraUniform, user_interface::EguiState, mesh::{Mesh, Shapes}};
 
 #[cfg(feature="ui")]
 mod user_interface;
@@ -66,7 +66,7 @@ struct State {
     #[cfg(feature = "ui")]
     ui_state: user_interface::EguiState,
 
-    meshes: Vec<mesh::Example>,
+    meshes: Vec<mesh::Mesh>,
 }
 impl State {
     async fn new(app:&mut App, window: &Window, window_settings: WindowSettings) -> Self {
@@ -197,25 +197,31 @@ impl State {
         //TODO allow for different textures (struct Material)
         //TODO implement a depth_buffer that works...
         //TODO check fps and implement an alternative way of rendering (put every mesh in one vertex_buffer)
-        //transforms for each shape.
-        let transform1 = Transform{ pos: Vec3{x: -4.0, y: 2.0, z: 0.0 }, rot: Quat::default() };
-        let transform2 = Transform{ pos: Vec3{x: -2.0, y: 2.0, z: 0.0 }, rot: Quat::default() };
-        let transform3 = Transform{ pos: Vec3{x: 0.0, y: 2.0, z: 0.0 }, rot: Quat::default() };
-        let transform4 = Transform{ pos: Vec3{x: 2.0, y: 2.0, z: 0.0 }, rot: Quat::default() };
-        let transform5 = Transform{ pos: Vec3{x: 4.0, y: 2.0, z: 0.0 }, rot: Quat::default() };
+        
+        //TODO create scene
+
+
+        //TODO load scene into meshes
+
+        //TODO load materials.
+        
         //vec of meshes that will be moved into Self.
-        let mut meshes: Vec<Example> = Vec::new();        ;
+        let mut meshes: Vec<Mesh> = Vec::new();
 
         //material
-        let bytes = include_bytes!("grid.png");
+        let bytes = include_bytes!("../../../engine_assets/textures/grid.png");
         let label = Some("grid.png");
         let mat = 
             material::Material::from_bytes(&device, &queue, bytes, label).unwrap();
+        let bytes = include_bytes!("../../../engine_assets/textures/redbrick.png");
+        let label = Some("redbrick.png");
+        let mat2 = 
+            material::Material::from_bytes(&device, &queue, bytes, label).unwrap();
         //platform
         meshes.push(
-            Example::init(
+            Mesh::init(
             &camera_buffer,
-            &surface_config, &adapter, &device, &queue,
+            &surface_config, &adapter, &device,
             transform_platform,
             Shapes::create_box(20.0, 0.1, 20.0),
             &mat,
@@ -234,48 +240,14 @@ impl State {
         for mesh_prim in mesh_prims {
             base_transform.pos.x += 2.0;
             meshes.push(
-                Example::init(
+                Mesh::init(
                 &camera_buffer,
-                &surface_config, &adapter, &device, &queue,
+                &surface_config, &adapter, &device,
                 base_transform.clone(),
                 mesh_prim,
-            &mat,
+                &mat2,
             ));
         }
-
-        //sphere
-        // meshes.push(Example::init(
-        //     &camera_buffer,
-        //     &surface_config, &adapter, &device, &queue, 
-        //     transform1,
-        //     Shapes::create_uv_sphere(1.0, 36, 18),
-        // ));
-        // meshes.push(Example::init(
-        //     &camera_buffer,
-        //     &surface_config, &adapter, &device, &queue, 
-        //     transform2,
-        //     Shapes::create_pyramid(1.0, 1.0, 1.0),
-        // ));
-        // meshes.push(Example::init(
-        //     &camera_buffer,
-        //     &surface_config, &adapter, &device, &queue, 
-        //     transform3,
-        //     Shapes::create_box(1.0, 1.0, 1.0),
-        // ));
-        // meshes.push(Example::init(
-        //     &camera_buffer,
-        //     &surface_config, &adapter, &device, &queue, 
-        //     transform4,
-        //     Shapes::create_uv_sphere(1.0, 36, 18),
-        // ));
-        // meshes.push(Example::init(
-        //     &camera_buffer,
-        //     &surface_config, &adapter, &device, &queue, 
-        //     transform5,
-        //     Shapes::create_uv_sphere(1.0, 36, 18),
-        // ));
-
-        //lol this is weird because these values are moved onto the struct? will the reference understand that??
         #[cfg(feature="ui")]
         let ui_state = EguiState::new(window, &device, &surface_format  /*,  &queue, &surface_config, &adapter, &surface, */);
         Self {
@@ -452,48 +424,6 @@ impl State {
         output_frame.present();
 
         Ok(()) 
-
-/*         
-{        cmd_buffers.push(self.mesh1.draw(self.create_encoder()))}
-{        cmd_buffers.push(self.mesh2.draw(self.create_encoder()))}
-
-        //new encoder
-        //perpare meshes
-        // let a = app.world.get_resource::<CurrentScene>().unwrap().get_models();
-        // for model in a.iter()
-        // {
-        //     let mut encoder = self
-        //     .device
-        //     .create_command_encoder(&wgpu::CommandEncoderDescriptor {
-        //     label: Some("Model Render Encoder")});
-
-            // render_pass.set_pipeline(&self.render_pipeline);
-            //BufferSlice { buffer: Buffer { context: Context { type: "Native" }, id: Buffer { id: (1, 1, Vulkan), error_sink: Mutex { data: ErrorSink } }, map_context: Mutex { data: MapContext { total_size: 64, initial_range: 0..0, sub_ranges: [] } }, usage: VERTEX }, offset: 0, size: None }
-            // let mesh = &model.mesh;
-            // {
-            //     let material = &model.materials[mesh.material];
-            //     render_pass.set_vertex_buffer(0, mesh.vertex_buffer.slice(..));
-            //     render_pass.set_vertex_buffer(1, self.instance_buffer.slice(..));
-            //     render_pass.set_index_buffer(mesh.index_buffer.slice(..), wgpu::IndexFormat::Uint32);
-            //     render_pass.set_bind_group(0, &material.bind_group, &[]);
-            //     render_pass.set_bind_group(1, &self.camera_bind_group, &[]);
-            //     render_pass.draw_indexed(0..mesh.num_elements, 0, 0..2);
-            //     // model::DrawModel::draw_model_instanced(&mut render_pass, model, 0..1, &self.camera_bind_group);
-            // }
-            // cmd_buffers.push(encoder.finish());
-            //something like this would be faster tho.. but we will have some kind of other models that can
-            //only be drawn as instances: InstancedModels. For e.g. trees in a forest.
-            // render_pass.draw_model_instanced(
-            //     &self.models[0],
-            //     0..self.instances.len() as u32,
-            //     &self.camera_bind_group,
-            // );
-        // }
-        
-        
-        //this is not how it works... I don't think
-        Ok(()) 
-    } */
 }
 }
 fn main_loop(app: App) {
