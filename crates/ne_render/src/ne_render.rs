@@ -191,20 +191,21 @@ impl State {
         //load meshes
         // let mesh1 = Mesh::load_mesh_from_path("obj", Transform::default());
         // let mesh2 = Mesh::load_mesh_from_path("obj", Transform::default());
-        let transform_platform = Transform{ position: Vec3{x: 1.0, y: 0.0, z: 0.0 }, rotation: Quat::default() };
+        let transform_platform = Transform{ pos: Vec3{x: 1.0, y: 0.0, z: 0.0 }, rot: Quat::default() };
 
         //TODO allow for different textures (struct Material)
         //TODO implement a depth_buffer that works...
         //TODO check fps and implement an alternative way of rendering (put every mesh in one vertex_buffer)
         //transforms for each shape.
-        let transform1 = Transform{ position: Vec3{x: -4.0, y: 2.0, z: 0.0 }, rotation: Quat::default() };
-        let transform2 = Transform{ position: Vec3{x: -2.0, y: 2.0, z: 0.0 }, rotation: Quat::default() };
-        let transform3 = Transform{ position: Vec3{x: 0.0, y: 2.0, z: 0.0 }, rotation: Quat::default() };
-        let transform4 = Transform{ position: Vec3{x: 2.0, y: 2.0, z: 0.0 }, rotation: Quat::default() };
-        let transform5 = Transform{ position: Vec3{x: 4.0, y: 2.0, z: 0.0 }, rotation: Quat::default() };
+        let transform1 = Transform{ pos: Vec3{x: -4.0, y: 2.0, z: 0.0 }, rot: Quat::default() };
+        let transform2 = Transform{ pos: Vec3{x: -2.0, y: 2.0, z: 0.0 }, rot: Quat::default() };
+        let transform3 = Transform{ pos: Vec3{x: 0.0, y: 2.0, z: 0.0 }, rot: Quat::default() };
+        let transform4 = Transform{ pos: Vec3{x: 2.0, y: 2.0, z: 0.0 }, rot: Quat::default() };
+        let transform5 = Transform{ pos: Vec3{x: 4.0, y: 2.0, z: 0.0 }, rot: Quat::default() };
+        //vec of meshes that will be moved into Self.
+        let mut meshes: Vec<Example> = Vec::new();        ;
 
         //platform
-        let mut meshes: Vec<Example> = Vec::new();        ;
         meshes.push(
             Example::init(
             &camera_buffer,
@@ -212,60 +213,60 @@ impl State {
             transform_platform,
             Shapes::create_box(20.0, 0.1, 20.0),
         ));
-        //sphere
-        meshes.push(Example::init(
-            &camera_buffer,
-            &surface_config, &adapter, &device, &queue, 
-            transform1,
-            Shapes::create_uv_sphere(1.0, 36, 18),
-        ));
-        meshes.push(Example::init(
-            &camera_buffer,
-            &surface_config, &adapter, &device, &queue, 
-            transform2,
-            Shapes::create_pyramid(1.0, 1.0, 1.0),
-        ));
-        meshes.push(Example::init(
-            &camera_buffer,
-            &surface_config, &adapter, &device, &queue, 
-            transform3,
-            Shapes::create_box(1.0, 1.0, 1.0),
-        ));
-        meshes.push(Example::init(
-            &camera_buffer,
-            &surface_config, &adapter, &device, &queue, 
-            transform4,
-            Shapes::create_uv_sphere(1.0, 36, 18),
-        ));
-        meshes.push(Example::init(
-            &camera_buffer,
-            &surface_config, &adapter, &device, &queue, 
-            transform5,
-            Shapes::create_uv_sphere(1.0, 36, 18),
-        ));
 
-        // let scene_loader = app.world.remove_resource::<SceneLoader>();
-        // let scene = match scene_loader
-        // {
-        //     Some(scene_loader) => {
-        //         //initialize once we have models vector
-        //         CurrentScene::new(
-        //             scene_loader,
-        //             &device,
-        //             &queue,
-        //             &texture_bind_group_layout).await
-        //     }
-        //     None => {
-        //         //initialize once we have models vector
-        //         CurrentScene::new(
-        //             SceneLoader::default(),
-        //             &device,
-        //             &queue,
-        //             &texture_bind_group_layout).await
-        //     }
-        // };
-        // app.world.insert_resource::<CurrentScene>(scene);
-        // let mut scene = app.world.get_resource_mut::<CurrentScene>().unwrap();
+        //generate meshes on top of platform.
+        let mesh_prims = vec![
+        Shapes::create_uv_sphere(1.0, 36, 18),
+        Shapes::create_pyramid(1.0, 1.0, 1.0),
+        Shapes::create_box(1.0, 1.0, 1.0),
+        Shapes::create_uv_sphere(1.0, 36, 18),
+        Shapes::create_uv_sphere(1.0, 36, 18),
+        ];
+        let size_of_meshes = mesh_prims.len();
+        let y = 2.0;
+        let mut base_transform = Transform{ pos: Vec3{x: -2.0 * (size_of_meshes as f32)/2.0, y: y, z: 0.0 }, rot: Quat::default() };
+        for mesh_prim in mesh_prims {
+            base_transform.pos.x += 2.0;
+            meshes.push(
+                Example::init(
+                &camera_buffer,
+                &surface_config, &adapter, &device, &queue,
+                base_transform.clone(),
+                mesh_prim,
+            ));
+        }
+
+        //sphere
+        // meshes.push(Example::init(
+        //     &camera_buffer,
+        //     &surface_config, &adapter, &device, &queue, 
+        //     transform1,
+        //     Shapes::create_uv_sphere(1.0, 36, 18),
+        // ));
+        // meshes.push(Example::init(
+        //     &camera_buffer,
+        //     &surface_config, &adapter, &device, &queue, 
+        //     transform2,
+        //     Shapes::create_pyramid(1.0, 1.0, 1.0),
+        // ));
+        // meshes.push(Example::init(
+        //     &camera_buffer,
+        //     &surface_config, &adapter, &device, &queue, 
+        //     transform3,
+        //     Shapes::create_box(1.0, 1.0, 1.0),
+        // ));
+        // meshes.push(Example::init(
+        //     &camera_buffer,
+        //     &surface_config, &adapter, &device, &queue, 
+        //     transform4,
+        //     Shapes::create_uv_sphere(1.0, 36, 18),
+        // ));
+        // meshes.push(Example::init(
+        //     &camera_buffer,
+        //     &surface_config, &adapter, &device, &queue, 
+        //     transform5,
+        //     Shapes::create_uv_sphere(1.0, 36, 18),
+        // ));
 
         //lol this is weird because these values are moved onto the struct? will the reference understand that??
         #[cfg(feature="ui")]

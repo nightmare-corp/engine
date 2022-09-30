@@ -26,14 +26,14 @@ pub fn to_degrees(rad: f32) -> f32
     rad * (180.0/std::f32::consts::PI)
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Transform {
-    pub position: Vec3,
-    pub rotation: Quat,
+    pub pos: Vec3,
+    pub rot: Quat,
 }
 
 impl Default for Transform {
     fn default() -> Self {
-        Self { position: Vec3::ZERO, rotation: Quat::default() }
+        Self { pos: Vec3::ZERO, rot: Quat::default() }
     }
 }

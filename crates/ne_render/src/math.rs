@@ -53,7 +53,7 @@ pub trait ToMat4 {
 impl ToMat4 for ne_math::Transform
 {
     fn to_raw(&self) -> Mat4 {
-        Mat4::from_translation(self.position)
-                * Mat4::from_quat(self.rotation)
+        Mat4::from_translation(self.pos)
+                * Mat4::from_quat(self.rot)
     }
 }
