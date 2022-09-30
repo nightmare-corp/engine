@@ -37,6 +37,7 @@ mod texture;
 mod render_modules;
 mod mesh;
 mod shapes;
+mod material;
 
 pub mod math;
 // pub mod scene;
@@ -205,6 +206,11 @@ impl State {
         //vec of meshes that will be moved into Self.
         let mut meshes: Vec<Example> = Vec::new();        ;
 
+        //material
+        let bytes = include_bytes!("grid.png");
+        let label = Some("grid.png");
+        let mat = 
+            material::Material::from_bytes(&device, &queue, bytes, label).unwrap();
         //platform
         meshes.push(
             Example::init(
@@ -212,8 +218,8 @@ impl State {
             &surface_config, &adapter, &device, &queue,
             transform_platform,
             Shapes::create_box(20.0, 0.1, 20.0),
+            &mat,
         ));
-
         //generate meshes on top of platform.
         let mesh_prims = vec![
         Shapes::create_uv_sphere(1.0, 36, 18),
@@ -233,6 +239,7 @@ impl State {
                 &surface_config, &adapter, &device, &queue,
                 base_transform.clone(),
                 mesh_prim,
+            &mat,
             ));
         }
 

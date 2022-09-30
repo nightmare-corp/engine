@@ -13,7 +13,7 @@ mod interface;
 //If a add_model function is called before the renderer is initialized than, that would be bad.
 //That's why we need commands, to give instructions that will be called after the initalization of all plugin.
 fn main() {
-    // std::env::set_var("RUST_BACKTRACE", "1");
+    std::env::set_var("RUST_BACKTRACE", "1");
     // vulkan, metal, dx12, dx11, or gl
     std::env::set_var("WGPU_BACKEND", "vulkan");
     std::env::set_var("neprint", "true");

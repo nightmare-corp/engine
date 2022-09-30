@@ -1,10 +1,11 @@
 //=========================================
 use bytemuck::{Pod, Zeroable};
+use image::DynamicImage;
 use ne_math::{Vec3, Transform, Mat4};
 use std::{borrow::Cow, f32::consts::{self, PI}, future::Future, mem, pin::Pin, task};
 use wgpu::{util::DeviceExt, CommandBuffer};
 
-use crate::{math::ToMat4, texture};
+use crate::{math::ToMat4, material, texture};
 
 ///y is up
 #[repr(C)]
@@ -134,7 +135,6 @@ impl Shapes {
             //ty bevy and http://www.songho.ca/opengl/gl_html
             let sectors2 = sectors as f32;
             let stacks2 = stacks as f32;
-            let length_inv = 1. / radius;
             let sector_step = 2. * PI / sectors2;
             let stack_step = PI / stacks2;
     
@@ -243,12 +243,13 @@ impl Example {
         transform: Transform,
         // TODO tuple is not easily readable.
         mesh_data: MeshPrimitives,
+        //TODO actual material class
+        //TODO mipmap
+        mat: &material::Material,
     ) -> Self {
         // Create the vertex and index buffers
         let vertex_size = mem::size_of::<Vertex>();
-
-        // let mesh_data = Shapes::create_uv_sphere(1.0, 36, 18);//Shapes::create_pyramid(2.0,2.0,2.0);
-        
+                
         let vertex_buffer= device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Vertex Buffer"),
             contents: bytemuck::cast_slice(&mesh_data.0),
@@ -264,7 +265,7 @@ impl Example {
         // Create pipeline layout
         //TODO completely understand this
         let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-            label: None,
+            label: Some("everything_bind_group_layout"),
             entries: &[
                 //model matrix
                 wgpu::BindGroupLayoutEntry {
@@ -283,14 +284,23 @@ impl Example {
                     visibility: wgpu::ShaderStages::FRAGMENT,
                     ty: wgpu::BindingType::Texture {
                         multisampled: false,
-                        sample_type: wgpu::TextureSampleType::Uint,
                         view_dimension: wgpu::TextureViewDimension::D2,
+                        sample_type: wgpu::TextureSampleType::Float { filterable: true },
                     },
+                    count: None,
+                },
+                //texture sampler
+                wgpu::BindGroupLayoutEntry {
+                    binding: 2,
+                    visibility: wgpu::ShaderStages::FRAGMENT,
+                    // This should match the filterable field of the
+                    // corresponding Texture entry above.
+                    ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
                     count: None,
                 },
                 //camera
                 wgpu::BindGroupLayoutEntry {
-                    binding: 2,
+                    binding: 3,
                     visibility: wgpu::ShaderStages::VERTEX,
                     ty: wgpu::BindingType::Buffer {
                         ty: wgpu::BufferBindingType::Uniform,
@@ -307,39 +317,6 @@ impl Example {
             bind_group_layouts: &[&bind_group_layout],
             push_constant_ranges: &[],
         });
-
-        // Create the texture
-        //TODO textures.
-        //TODO would be cool if vertices can be random colors, maybe even efficient for the gpu..?
-
-        let size = 256u32;
-        let texels = create_texels(size as usize);
-        let texture_extent = wgpu::Extent3d {
-            width: size,
-            height: size,
-            depth_or_array_layers: 1,
-        };
-        let texture = device.create_texture(&wgpu::TextureDescriptor {
-            label: None,
-            size: texture_extent,
-            mip_level_count: 1,
-            sample_count: 1,
-            dimension: wgpu::TextureDimension::D2,
-            format: wgpu::TextureFormat::R8Uint,
-            usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
-        });
-        let texture_view = texture.create_view(&wgpu::TextureViewDescriptor::default());
-        queue.write_texture(
-            texture.as_image_copy(),
-            &texels,
-            wgpu::ImageDataLayout {
-                offset: 0,
-                bytes_per_row: Some(std::num::NonZeroU32::new(size).unwrap()),
-                rows_per_image: None,
-            },
-            texture_extent,
-        );
-
         // Create other resources
         let mvp_matrix = transform.to_raw();
         let mx_ref: &[f32; 16] = mvp_matrix.as_ref();
@@ -349,7 +326,7 @@ impl Example {
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
         }); 
         // Create bind group
-        //DPDP what is this?
+        //TODO split maybe
         let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
             layout: &bind_group_layout,
             entries: &[
@@ -357,12 +334,18 @@ impl Example {
                     binding: 0,
                     resource: uniform_buffer.as_entire_binding(),
                 },
+                //texture
                 wgpu::BindGroupEntry {
                     binding: 1,
-                    resource: wgpu::BindingResource::TextureView(&texture_view),
+                    resource: wgpu::BindingResource::TextureView(&mat.view),
                 },
+                //sampler
                 wgpu::BindGroupEntry {
                     binding: 2,
+                    resource: wgpu::BindingResource::Sampler(&mat.sampler),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 3,
                     resource: camera_buffer.as_entire_binding(),
                 },
             ],
@@ -446,6 +429,7 @@ impl Example {
         &mut self,
         view: &wgpu::TextureView,
         device: &wgpu::Device,
+        //TODO depreciate texture::Texture
         depth_texture: &texture::Texture,
     ) -> CommandBuffer {
         device.push_error_scope(wgpu::ErrorFilter::Validation);
