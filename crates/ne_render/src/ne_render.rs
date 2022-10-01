@@ -49,6 +49,7 @@ struct CameraCollection {
     pub camera_controller: free_fly_camera::CameraController,
     pub camera_uniform: free_fly_camera::CameraUniform,
     pub camera_buffer: wgpu::Buffer,
+    //TODO
     pub camera_bind_group: wgpu::BindGroup,
 }
 
@@ -192,22 +193,31 @@ impl State {
         //load meshes
         // let mesh1 = Mesh::load_mesh_from_path("obj", Transform::default());
         // let mesh2 = Mesh::load_mesh_from_path("obj", Transform::default());
-        let transform_platform = Transform{ pos: Vec3{x: 1.0, y: 0.0, z: 0.0 }, rot: Quat::default() };
 
-        //TODO allow for different textures (struct Material)
+
+//================================================================================================
+//This is important right now.
+//================================================================================================     
+        let transform_platform = Transform{ pos: Vec3{x: 1.0, y: 0.0, z: 0.0 }, rot: Quat::default() };
         //TODO implement a depth_buffer that works...
         //TODO check fps and implement an alternative way of rendering (put every mesh in one vertex_buffer)
         
         //TODO create scene
 
-
         //TODO load scene into meshes
 
         //TODO load materials.
         
+
+        //TODO stress test... for now either store a function somewhere called build_scene
+        //Or struct Scene.
+        //optimize it all later.
+
         //vec of meshes that will be moved into Self.
         let mut meshes: Vec<Mesh> = Vec::new();
 
+
+        //TODO create hashmap with all materials, so that materials aren't loaded to gpu twice.
         //material
         let bytes = include_bytes!("../../../engine_assets/textures/grid.png");
         let label = Some("grid.png");
@@ -217,7 +227,9 @@ impl State {
         let label = Some("redbrick.png");
         let mat2 = 
             material::Material::from_bytes(&device, &queue, bytes, label).unwrap();
+   
         //platform
+        
         meshes.push(
             Mesh::init(
             &camera_buffer,

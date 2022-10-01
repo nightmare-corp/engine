@@ -1,19 +1,16 @@
 //=========================================
 use bytemuck::{Pod, Zeroable};
-use image::DynamicImage;
-use ne_math::{Mat4, Transform, Vec3};
+use ne_math::{Transform};
 use std::{
     borrow::Cow,
-    f32::consts::{self, PI},
+    f32::consts::{PI},
     future::Future,
     mem,
     pin::Pin,
     task,
 };
 use wgpu::{util::DeviceExt, CommandBuffer};
-
 use crate::{material, math::ToMat4, texture};
-
 ///y is up
 #[repr(C)]
 #[derive(Clone, Copy, Pod, Zeroable)]
@@ -181,7 +178,6 @@ impl Shapes {
         MeshPrimitives(vertices, indices)
     }
 }
-
 //TODO understand
 fn create_texels(size: usize) -> Vec<u8> {
     (0..size * size)
@@ -199,7 +195,6 @@ fn create_texels(size: usize) -> Vec<u8> {
         })
         .collect()
 }
-
 /// A wrapper for `pop_error_scope` futures that panics if an error occurs.
 ///
 /// Given a future `inner` of an `Option<E>` for some error type `E`,
@@ -233,7 +228,6 @@ pub struct Mesh {
     bind_group: wgpu::BindGroup,
     pipeline: wgpu::RenderPipeline,
 }
-
 impl Mesh {
     #[must_use]
     pub fn init(
@@ -257,13 +251,11 @@ impl Mesh {
             contents: bytemuck::cast_slice(&mesh_data.0),
             usage: wgpu::BufferUsages::VERTEX,
         });
-
         let index_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Index Buffer"),
             contents: bytemuck::cast_slice(&mesh_data.1),
             usage: wgpu::BufferUsages::INDEX,
         });
-
         // Create pipeline layout
         //TODO completely understand this
         let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
@@ -353,12 +345,10 @@ impl Mesh {
             ],
             label: None,
         });
-
         let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: None,
             source: wgpu::ShaderSource::Wgsl(Cow::Borrowed(include_str!("basic_cube.wgsl"))),
         });
-
         //DPDP I fail to completely understand this
         //I know that this handles how the vertex and uv data is read..?
         let vertex_buffers = [wgpu::VertexBufferLayout {
@@ -377,7 +367,7 @@ impl Mesh {
                 },
             ],
         }];
-        //TODO what's happening here?
+        //TODO branch into two different fragment shaders: fs_texture & fs_color ... For now..? Or maybe first implement multiple materials and fbx, gltf, obj... Yea.
         let pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
             label: None,
             layout: Some(&pipeline_layout),
@@ -409,22 +399,6 @@ impl Mesh {
             pipeline,
             // transform,
         }
-    }
-    pub fn update(&mut self, _event: winit::event::WindowEvent) {
-        //empty
-    }
-    #[must_use]
-    pub fn resize(
-        &mut self,
-        config: &wgpu::SurfaceConfiguration,
-        _device: &wgpu::Device,
-        queue: &wgpu::Queue,
-    ) {
-        // let model_matrix = Self::generate_matrix(
-        // config.width as f32 / config.height as f32,
-        //  self.transform.to_raw());
-        // let mx_ref: &[f32; 16] = model_matrix.as_ref();
-        // queue.write_buffer(&self.uniform_buffer, 0, bytemuck::cast_slice(mx_ref));
     }
     #[must_use]
     pub fn render(
@@ -462,92 +436,3 @@ impl Mesh {
         encoder.finish()
     }
 }
-
-//=========================================
-
-/* pub trait Vertex {
-    fn desc<'a>() -> wgpu::VertexBufferLayout<'a>;
-}
-
-#[repr(C)]
-#[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
-pub struct ModelVertex {
-    pub position: [f32; 3],
-    pub tex_coords: [f32; 2],
-    pub normal: [f32; 3],
-}
-
-impl Vertex for ModelVertex {
-    fn desc<'a>() -> wgpu::VertexBufferLayout<'a> {
-        use std::mem;
-        wgpu::VertexBufferLayout {
-            array_stride: mem::size_of::<ModelVertex>() as wgpu::BufferAddress,
-            step_mode: wgpu::VertexStepMode::Vertex,
-            attributes: &[
-                wgpu::VertexAttribute {
-                    offset: 0,
-                    shader_location: 0,
-                    format: wgpu::VertexFormat::Float32x3,
-                },
-                wgpu::VertexAttribute {
-                    offset: mem::size_of::<[f32; 3]>() as wgpu::BufferAddress,
-                    shader_location: 1,
-                    format: wgpu::VertexFormat::Float32x2,
-                },
-                wgpu::VertexAttribute {
-                    offset: mem::size_of::<[f32; 5]>() as wgpu::BufferAddress,
-                    shader_location: 2,
-                    format: wgpu::VertexFormat::Float32x3,
-                },
-            ],
-        }
-    }
-}
-
-pub struct Material {
-    pub name: String,
-    pub diffuse_texture: texture::Texture,
-    pub bind_group: wgpu::BindGroup,
-}
-
-
-//oop
-pub struct Mesh {
-    vertex_buffer: wgpu::Buffer,
-    index_buffer: wgpu::Buffer,
-    index_count: usize,
-    bind_group: wgpu::BindGroup,
-    uniform_buffer: wgpu::Buffer,
-    pipeline: wgpu::RenderPipeline,
-}
-
-impl Mesh {
-    ///path relative from assets, transform,
-    pub fn load_mesh_from_path(path: &str, transform:Transform) -> Self {
-        //build string
-
-        //read .obj file -> extract vertices, indices, (material maybe)
-
-        //load these onto the gpu.
-
-        //return the buffers which is just the locations on the gpu where things are stored.
-        Mesh { vertex_buffer: todo!(), index_buffer: todo!(), index_count: todo!(), bind_group: todo!(), uniform_buffer: todo!(), pipeline: todo!() }
-    }
-    pub fn draw(&self, encoder: /* &mut  */CommandEncoder) -> CommandBuffer
-    {
-        //what does the encoder do
-        //render pass?
-        //commandbuffer
-        //descriptors
-        //how to correctly move modelprojection/transform of object to gpu?
-        //how to write shaders to help with this
-        //is the camera already in here?
-
-
-        encoder.finish()
-    }
-    // pub fn Draw(&self, rpass: RenderPass) -> CommandBuffer
-    // {
-
-    // }
-} */

@@ -1,9 +1,8 @@
 use bevy_ecs::prelude::EventReader;
 use ne::{info, L};
 use ne_app::App;
-use ne_math::{Quat, Transform};
 use ne_render::PresentMode::Fifo;
-use ne_render::{RenderPlugin, Vec3, WindowSettings};
+use ne_render::{RenderPlugin, WindowSettings};
 use ne_window::events::{OnWindowCloseRequested, OnWindowResized};
 mod interface;
 
