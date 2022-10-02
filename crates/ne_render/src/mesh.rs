@@ -4,10 +4,7 @@ use ne_math::{Transform};
 use std::{
     borrow::Cow,
     f32::consts::{PI},
-    future::Future,
     mem,
-    pin::Pin,
-    task,
 };
 use wgpu::{util::DeviceExt, CommandBuffer};
 use crate::{material, math::ToMat4, texture};
@@ -27,6 +24,93 @@ impl Vertex {
     }
 }
 pub struct MeshPrimitives(Vec<Vertex>, Vec<u16>);
+impl MeshPrimitives {
+    async fn extract_obj(file_name: &str) -> anyhow::Result<Self>
+    {
+        todo!();
+/*         let (models, obj_materials) = tobj::load_obj_buf_async(
+            &mut obj_reader,
+            &tobj::LoadOptions {
+                triangulate: true,
+                single_index: true,
+                ..Default::default()
+            },
+            |p| async move {
+                let mat_text = load_string(&p).await.unwrap();
+                tobj::load_mtl_buf(&mut BufReader::new(Cursor::new(mat_text)))
+            },
+        )
+        .await?;
+    
+        ///
+        let mut materials = Vec::new();
+        for m in obj_materials? {
+            let diffuse_texture = load_texture(&m.diffuse_texture, device, queue).await?;
+            let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+                layout,
+                entries: &[
+                    wgpu::BindGroupEntry {
+                        binding: 0,
+                        resource: wgpu::BindingResource::TextureView(&diffuse_texture.view),
+                    },
+                    wgpu::BindGroupEntry {
+                        binding: 1,
+                        resource: wgpu::BindingResource::Sampler(&diffuse_texture.sampler),
+                    },
+                ],
+                label: None,
+            });
+    
+            materials.push(model::Material {
+                name: m.name,
+                diffuse_texture,
+                bind_group,
+            })
+        }
+        let meshes = models
+            .into_iter()
+            .map(|m| {
+                let vertices = (0..m.mesh.positions.len() / 3)
+                    .map(|i| model::ModelVertex {
+                        position: [
+                            m.mesh.positions[i * 3],
+                            m.mesh.positions[i * 3 + 1],
+                            m.mesh.positions[i * 3 + 2],
+                        ],
+                        tex_coords: [m.mesh.texcoords[i * 2], m.mesh.texcoords[i * 2 + 1]],
+                        normal: [
+                            m.mesh.normals[i * 3],
+                            m.mesh.normals[i * 3 + 1],
+                            m.mesh.normals[i * 3 + 2],
+                        ],
+                    })
+                    .collect::<Vec<_>>();
+    
+                let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                    label: Some(&format!("{:?} Vertex Buffer", file_name)),
+                    contents: bytemuck::cast_slice(&vertices),
+                    usage: wgpu::BufferUsages::VERTEX,
+                });
+                let index_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                    label: Some(&format!("{:?} Index Buffer", file_name)),
+                    contents: bytemuck::cast_slice(&m.mesh.indices),
+                    usage: wgpu::BufferUsages::INDEX,
+                });
+    
+                model::Mesh {
+                    name: file_name.to_string(),
+                    vertex_buffer,
+                    index_buffer,
+                    num_elements: m.mesh.indices.len() as u32,
+                    material: m.mesh.material_id.unwrap_or(0),
+                }
+            })
+            .collect::<Vec<_>>();
+    
+        Ok(Self{ meshes, materials }) */
+    
+    }
+}
 pub struct Shapes;
 impl Shapes {
     //try: create_box(1.0, 1.0, 1.0);
@@ -120,7 +204,6 @@ impl Shapes {
         ];
         MeshPrimitives(vertex_data.to_vec(), index_data.to_vec())
     }
-
     /// The radius  
     /// Latitudinal stacks
     /// Longitudinal sectors
@@ -178,24 +261,8 @@ impl Shapes {
         MeshPrimitives(vertices, indices)
     }
 }
-//TODO understand
-fn create_texels(size: usize) -> Vec<u8> {
-    (0..size * size)
-        .map(|id| {
-            let cx = 3.0 * (id % size) as f32 / (size - 1) as f32 - 2.0;
-            let cy = 2.0 * (id / size) as f32 / (size - 1) as f32 - 1.0;
-            let (mut x, mut y, mut count) = (cx, cy, 0);
-            while count < 0xFF && x * x + y * y < 4.0 {
-                let old_x = x;
-                x = x * x - y * y + cx;
-                y = 2.0 * old_x * y + cy;
-                count += 1;
-            }
-            count
-        })
-        .collect()
-}
-/// A wrapper for `pop_error_scope` futures that panics if an error occurs.
+//TODO
+/* /// A wrapper for `pop_error_scope` futures that panics if an error occurs.
 ///
 /// Given a future `inner` of an `Option<E>` for some error type `E`,
 /// wait for the future to be ready, and panic if its value is `Some`.
@@ -215,12 +282,12 @@ impl<F: Future<Output = Option<wgpu::Error>>> Future for ErrorFuture<F> {
             }
         })
     }
-}
+} */
 //TODO I hate it. This could be turned into ecs
-pub struct MeshDescriptor {
-    mesh_data: MeshPrimitives,
-    transform: Transform,
-}
+// pub struct MeshDescriptor {
+//     mesh_data: MeshPrimitives,
+//     transform: Transform,
+// }
 pub struct Mesh {
     vertex_buffer: wgpu::Buffer,
     index_buffer: wgpu::Buffer,
@@ -228,6 +295,7 @@ pub struct Mesh {
     bind_group: wgpu::BindGroup,
     pipeline: wgpu::RenderPipeline,
 }
+
 impl Mesh {
     #[must_use]
     pub fn init(
