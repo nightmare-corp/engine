@@ -27,7 +27,7 @@ use winit::{
 //export windowbuilder
 pub use winit::window::{Window,WindowBuilder};
 
-use crate::{cameras::free_fly_camera::CameraUniform, user_interface::EguiState, mesh::{Mesh, Shapes}};
+use crate::{cameras::free_fly_camera::CameraUniform, user_interface::EguiState, mesh::{Mesh, Shapes, MeshPrimitives}};
 
 #[cfg(feature="ui")]
 mod user_interface;
@@ -239,6 +239,9 @@ impl State {
             Shapes::create_box(20.0, 0.1, 20.0),
             &mat,
         ));
+
+        //generate first set of meshes.
+    {
         //generate meshes on top of platform.
         let mesh_prims = vec![
         Shapes::create_uv_sphere(1.0, 36, 18),
@@ -261,6 +264,47 @@ impl State {
                 &mat2,
             ));
         }
+    }
+        //generate second set of meshes.
+        {
+            let count = 1;
+            let mut mesh_prims = Vec::new();
+            //generate meshes on top of platform.
+
+            //TODO here
+            let m = Shapes::create_uv_sphere(1.0, 36, 18);
+            //LOAD obj file into MeshPrimitives AND Material.
+            // let m = from_obj("../../../engine_assets/3D/cute_holder_1col.obj");
+            // let path = std::path::Path::new("./");
+            // for entry in path.read_dir().expect("read_dir call failed") {
+            //     if let Ok(entry) = entry {
+            //         println!("{:?}", entry.path());
+            //     }
+            // }
+            //TODO
+            let path_to_file = "./engine_assets/3D/cube.obj";
+            println!("{}", std::path::Path::new(path_to_file).exists());
+            let m = MeshPrimitives::from_obj(path_to_file).await.unwrap();
+            for _ in 0..count {
+                mesh_prims.push(m.clone());
+            }
+
+            let size_of_meshes = mesh_prims.len();
+            let y = 2.0;
+            let mut base_transform = Transform{ pos: Vec3{x: -2.0 * (size_of_meshes as f32)/2.0, y: y, z: 4.0 }, rot: Quat::default() };
+            for mesh_prim in mesh_prims {
+                base_transform.pos.x += 2.0;
+                meshes.push(
+                    Mesh::init(
+                    &camera_buffer,
+                    &surface_config, &adapter, &device,
+                    base_transform.clone(),
+                    mesh_prim,
+                    &mat2,
+                ));
+            }
+        }
+
         #[cfg(feature="ui")]
         let ui_state = EguiState::new(window, &device, &surface_format  /*,  &queue, &surface_config, &adapter, &surface, */);
         Self {

@@ -1,10 +1,10 @@
 //=========================================
-use bytemuck::{Pod, Zeroable};
+use bytemuck::{Pod, Zeroable, __core::default};
 use ne_math::{Transform};
 use std::{
     borrow::Cow,
     f32::consts::{PI},
-    mem,
+    mem, 
 };
 use wgpu::{util::DeviceExt, CommandBuffer};
 use crate::{material, math::ToMat4, texture};
@@ -23,92 +23,52 @@ impl Vertex {
         }
     }
 }
-pub struct MeshPrimitives(Vec<Vertex>, Vec<u16>);
+
+#[cfg(feature="mesh_16bit")]
+type MeshIndex = u16;
+#[cfg(not(feature="mesh_16bit"))]
+type MeshIndex = u32;
+
+#[derive(Clone)]
+pub struct MeshPrimitives(Vec<Vertex>, Vec<MeshIndex>);
 impl MeshPrimitives {
-    async fn extract_obj(file_name: &str) -> anyhow::Result<Self>
+    //TODO I don't like this... somehow gotta implement include_str() or something to verify each file.
+    pub async fn from_obj(file_name: &str) -> anyhow::Result<Self>
     {
-        todo!();
-/*         let (models, obj_materials) = tobj::load_obj_buf_async(
-            &mut obj_reader,
-            &tobj::LoadOptions {
-                triangulate: true,
-                single_index: true,
-                ..Default::default()
-            },
-            |p| async move {
-                let mat_text = load_string(&p).await.unwrap();
-                tobj::load_mtl_buf(&mut BufReader::new(Cursor::new(mat_text)))
-            },
-        )
-        .await?;
-    
-        ///
-        let mut materials = Vec::new();
-        for m in obj_materials? {
-            let diffuse_texture = load_texture(&m.diffuse_texture, device, queue).await?;
-            let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-                layout,
-                entries: &[
-                    wgpu::BindGroupEntry {
-                        binding: 0,
-                        resource: wgpu::BindingResource::TextureView(&diffuse_texture.view),
-                    },
-                    wgpu::BindGroupEntry {
-                        binding: 1,
-                        resource: wgpu::BindingResource::Sampler(&diffuse_texture.sampler),
-                    },
-                ],
-                label: None,
-            });
-    
-            materials.push(model::Material {
-                name: m.name,
-                diffuse_texture,
-                bind_group,
-            })
-        }
+         //TODO how to get vertices and indices data?
+        //TODO default good?
+        let load_options = tobj::LoadOptions::default();
+        //TODO use materials
+        let (models, _materials) =
+        //TODO use tobj::load_obj_buf_async
+            tobj::load_obj(file_name, &load_options).unwrap();
+        println!("{:?}", models);
+        //first model into mesh_primitve
+        //TODO more models support.
+        // let model = &models[0];
+
+        //TODO how to separate vertices, indices, and uvs?? Or how to accept them into mesh_primitve?
+        /// ALSO annoyig because this data is stored in vecs. And maybe that's better
+        /// Maybe I also need to store vvertices, indices and uvs in separate vec...
+
         let meshes = models
-            .into_iter()
-            .map(|m| {
-                let vertices = (0..m.mesh.positions.len() / 3)
-                    .map(|i| model::ModelVertex {
-                        position: [
-                            m.mesh.positions[i * 3],
+        .into_iter()
+        .map(|m| {
+            let vertices = 
+                (0..m.mesh.positions.len() / 3)
+                .map(|i| Vertex::new(
+                    [m.mesh.positions[i * 3],
                             m.mesh.positions[i * 3 + 1],
-                            m.mesh.positions[i * 3 + 2],
-                        ],
-                        tex_coords: [m.mesh.texcoords[i * 2], m.mesh.texcoords[i * 2 + 1]],
-                        normal: [
-                            m.mesh.normals[i * 3],
-                            m.mesh.normals[i * 3 + 1],
-                            m.mesh.normals[i * 3 + 2],
-                        ],
-                    })
-                    .collect::<Vec<_>>();
-    
-                let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                    label: Some(&format!("{:?} Vertex Buffer", file_name)),
-                    contents: bytemuck::cast_slice(&vertices),
-                    usage: wgpu::BufferUsages::VERTEX,
-                });
-                let index_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                    label: Some(&format!("{:?} Index Buffer", file_name)),
-                    contents: bytemuck::cast_slice(&m.mesh.indices),
-                    usage: wgpu::BufferUsages::INDEX,
-                });
-    
-                model::Mesh {
-                    name: file_name.to_string(),
-                    vertex_buffer,
-                    index_buffer,
-                    num_elements: m.mesh.indices.len() as u32,
-                    material: m.mesh.material_id.unwrap_or(0),
-                }
-            })
-            .collect::<Vec<_>>();
-    
-        Ok(Self{ meshes, materials }) */
-    
+                            m.mesh.positions[i * 3 + 2]], 
+                    [m.mesh.texcoords[i * 2], m.mesh.texcoords[i * 2 + 1]])
+                        ).collect::<Vec<_>>();
+                        //TODO check if mesh has too many indices then end program
+                        //TODO abstract
+                        let indices = m.mesh.indices.iter().map(|&e| e as MeshIndex).collect();
+                        MeshPrimitives{0: vertices, 1: indices}
+    }).collect::<Vec<_>>();
+    //TODO only returns first mesh primitives...
+    Ok(meshes[0].clone())
     }
 }
 pub struct Shapes;
@@ -155,7 +115,7 @@ impl Shapes {
             Vertex::new([max_x, min_y, min_z], [0.0, 1.0]),
             Vertex::new([min_x, min_y, min_z], [1.0, 1.0]),
         ];
-        let index_data: &[u16] = &[
+        let index_data: &[MeshIndex] = &[
             0, 1, 2, 2, 3, 0, // bottom
             4, 5, 6, 6, 7, 4, // top
             8, 9, 10, 10, 11, 8, // right
@@ -198,7 +158,7 @@ impl Shapes {
             top,
             Vertex::new([max_x, min_y, min_z], [0.0, 1.0]),
         ];
-        let index_data: &[u16] = &[
+        let index_data: &[MeshIndex] = &[
             0, 1, 2, 2, 3, 0, // bottom
             4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15,
         ];
@@ -218,7 +178,7 @@ impl Shapes {
         let mut vertices: Vec<Vertex> = Vec::with_capacity(stacks * sectors);
         //todo normals
         // let mut normals: Vec<[f32; 3]> = Vec::with_capacity(stacks * sectors);
-        let mut indices: Vec<u16> = Vec::with_capacity(stacks * sectors * 2 * 3);
+        let mut indices: Vec<MeshIndex> = Vec::with_capacity(stacks * sectors * 2 * 3);
         for i in 0..stacks + 1 {
             let stack_angle = PI / 2. - (i as f32) * stack_step;
             let xy = radius * stack_angle.cos();
@@ -245,14 +205,14 @@ impl Shapes {
             let mut k2 = k1 + sectors + 1;
             for _j in 0..sectors {
                 if i != 0 {
-                    indices.push(k1 as u16);
-                    indices.push(k2 as u16);
-                    indices.push((k1 + 1) as u16);
+                    indices.push(k1 as MeshIndex);
+                    indices.push(k2 as MeshIndex);
+                    indices.push((k1 + 1) as MeshIndex);
                 }
                 if i != stacks - 1 {
-                    indices.push((k1 + 1) as u16);
-                    indices.push(k2 as u16);
-                    indices.push((k2 + 1) as u16);
+                    indices.push((k1 + 1) as MeshIndex);
+                    indices.push(k2 as MeshIndex);
+                    indices.push((k2 + 1) as MeshIndex);
                 }
                 k1 += 1;
                 k2 += 1;
@@ -495,7 +455,12 @@ impl Mesh {
             rpass.push_debug_group("Prepare data for draw.");
             rpass.set_pipeline(&self.pipeline);
             rpass.set_bind_group(0, &self.bind_group, &[]);
+
+            #[cfg(feature="mesh_16bit")]
             rpass.set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
+            #[cfg(not(feature="mesh_16bit"))]
+            rpass.set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint32);
+
             rpass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
             rpass.pop_debug_group();
             rpass.insert_debug_marker("Draw!");
