@@ -230,7 +230,6 @@ impl State {
             material::Material::from_bytes(&device, &queue, bytes, label).unwrap();
    
         //platform
-        
         meshes.push(
             Mesh::init(
             &camera_buffer,
@@ -239,7 +238,6 @@ impl State {
             Shapes::create_box(20.0, 0.1, 20.0),
             &mat,
         ));
-
         //generate first set of meshes.
     {
         //generate meshes on top of platform.
@@ -273,14 +271,6 @@ impl State {
 
             //TODO here
             let m = Shapes::create_uv_sphere(1.0, 36, 18);
-            //LOAD obj file into MeshPrimitives AND Material.
-            // let m = from_obj("../../../engine_assets/3D/cute_holder_1col.obj");
-            // let path = std::path::Path::new("./");
-            // for entry in path.read_dir().expect("read_dir call failed") {
-            //     if let Ok(entry) = entry {
-            //         println!("{:?}", entry.path());
-            //     }
-            // }
             //TODO
             let path_to_file = "./engine_assets/3D/cube.obj";
             println!("{}", std::path::Path::new(path_to_file).exists());
@@ -385,7 +375,6 @@ impl State {
     //TODO double&triple buffer
     //TODO isolate from state and measure performance..?
     //TODO is window:&Window bad?
-
     fn create_encoder(&self) -> CommandEncoder {
         self
         .device
@@ -423,7 +412,6 @@ impl State {
             });
         }
         cmd_buffers.push(encoder.finish());
-
         //TODO how to make these meshes share buffers..? Obviously the same vertex/index buffer with a slightly different model buffer.        
         for mesh in self.meshes.iter_mut() {
             cmd_buffers.push(

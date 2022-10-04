@@ -3,7 +3,7 @@
         "tasks": [  
             {
                 "label": "run_editor",
-                "command": "cargo run -p ne_editor --release",
+                "command": "cargo run -p ne_editor",
                 "type": "shell",
                 "problemMatcher": [],
                 "group": {

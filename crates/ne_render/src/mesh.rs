@@ -35,22 +35,20 @@ impl MeshPrimitives {
     //TODO I don't like this... somehow gotta implement include_str() or something to verify each file.
     pub async fn from_obj(file_name: &str) -> anyhow::Result<Self>
     {
-         //TODO how to get vertices and indices data?
-        //TODO default good?
-        let load_options = tobj::LoadOptions::default();
-        //TODO use materials
-        let (models, _materials) =
+        //TODO opportunity in load_options
+        let load_options = tobj::LoadOptions {
+            triangulate: true,
+            single_index: true,
+            ..Default::default()
+        };
+        //No need to use obj materials, just use default engine material. 
+        let (models, _) =
         //TODO use tobj::load_obj_buf_async
             tobj::load_obj(file_name, &load_options).unwrap();
         println!("{:?}", models);
         //first model into mesh_primitve
-        //TODO more models support.
+        //TODO more models support...
         // let model = &models[0];
-
-        //TODO how to separate vertices, indices, and uvs?? Or how to accept them into mesh_primitve?
-        /// ALSO annoyig because this data is stored in vecs. And maybe that's better
-        /// Maybe I also need to store vvertices, indices and uvs in separate vec...
-
         let meshes = models
         .into_iter()
         .map(|m| {
