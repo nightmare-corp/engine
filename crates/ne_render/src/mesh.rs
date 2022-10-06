@@ -1,10 +1,9 @@
 //=========================================
-use bytemuck::{Pod, Zeroable, __core::default};
+use bytemuck::{Pod, Zeroable};
 use ne_math::{Transform};
 use std::{
     borrow::Cow,
-    f32::consts::{PI},
-    mem, 
+    f32::consts::{PI}, mem,
 };
 use wgpu::{util::DeviceExt, CommandBuffer};
 use crate::{material, math::ToMat4, texture};
@@ -29,26 +28,39 @@ type MeshIndex = u16;
 #[cfg(not(feature="mesh_16bit"))]
 type MeshIndex = u32;
 
+/// a collection of meshes TODO: and materials.
+/// TODO materials 
+/// TODO maybe implement the ecs way..?
+pub struct Model {
+    pub meshes: Vec<MeshPrimitives>,
+    // materials: Vec<Material>,
+}
+impl Model {
+    pub fn new(meshes: Vec<MeshPrimitives>) -> Self { Self { meshes } }
+}
+//TODODO LARGHE MESHESHES WITH HIGHT VERTEX COUNT
 #[derive(Clone)]
 pub struct MeshPrimitives(Vec<Vertex>, Vec<MeshIndex>);
 impl MeshPrimitives {
     //TODO I don't like this... somehow gotta implement include_str() or something to verify each file.
-    pub async fn from_obj(file_name: &str) -> anyhow::Result<Self>
+    //TODO return Model instead of MeshPrimitives.
+    pub async fn from_obj(file_name: &str) -> anyhow::Result<Vec<Self>>
     {
-        //TODO opportunity in load_options
+        //TODO replace by assert?
+        println!("loading: {} exists: {}", file_name, std::path::Path::new(file_name).exists());
+        //TODO opportunity
         let load_options = tobj::LoadOptions {
             triangulate: true,
             single_index: true,
             ..Default::default()
         };
-        //No need to use obj materials, just use default engine material. 
-        let (models, _) =
+        //TODO No need to use obj materials, just use default engine material. 
         //TODO use tobj::load_obj_buf_async
-            tobj::load_obj(file_name, &load_options).unwrap();
-        println!("{:?}", models);
-        //first model into mesh_primitve
-        //TODO more models support...
-        // let model = &models[0];
+
+        let (models, _) = tobj::load_obj(file_name, &load_options).unwrap();
+
+        //TODO support multiple models...
+        //model into mesh_primitve
         let meshes = models
         .into_iter()
         .map(|m| {
@@ -66,7 +78,7 @@ impl MeshPrimitives {
                         MeshPrimitives{0: vertices, 1: indices}
     }).collect::<Vec<_>>();
     //TODO only returns first mesh primitives...
-    Ok(meshes[0].clone())
+    Ok(meshes)
     }
 }
 pub struct Shapes;
@@ -432,7 +444,8 @@ impl Mesh {
         view: &wgpu::TextureView,
         device: &wgpu::Device,
         //TODO depreciate texture::Texture
-        depth_texture: &texture::Texture,
+        //TODO implement depth texture correctly.
+        _depth_texture: &texture::Texture,
     ) -> CommandBuffer {
         device.push_error_scope(wgpu::ErrorFilter::Validation);
         let mut encoder =

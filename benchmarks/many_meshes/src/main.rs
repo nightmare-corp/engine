@@ -3,7 +3,8 @@
 use bevy_ecs::prelude::EventReader;
 use bevy_ecs::prelude::{EventWriter};
 use ne_app::{get_time_passed, App};
-use ne_render::{AppExit, OnRedrawRequested, OnWindowCloseRequested, RenderPlugin, WindowSettings};
+use ne_render::{ RenderPlugin, WindowSettings};
+use ne_window::events::{OnWindowCloseRequested, OnRedrawRequested, AppExit};
 
 //TOOD modularly add different types of camera and input events...
 //1) orbit camera, with predetermined rotation and look at point.
@@ -39,7 +40,7 @@ fn setup_once()
         }) */
 }
 fn exit_window(mut window_close_requested: EventReader<OnWindowCloseRequested>) {
-    for event in window_close_requested.iter().rev() {
+    for _ in window_close_requested.iter().rev() {
         //TODO GUI would you like to save? Yes, No, Cancel.
         ne::log!("Would you like to save?");
         ne::log!("exiting program");
@@ -50,13 +51,13 @@ fn exit_window(mut window_close_requested: EventReader<OnWindowCloseRequested>) 
 
 /// exit after max is reached
 pub static mut TOTAL_TIME: Option<instant::Duration> = None;
-static mut frame_count: u32 = 0;
+static mut FRAME_COUNT: u32 = 0;
 fn bench(mut frame_event: EventReader<OnRedrawRequested>, mut exit: EventWriter<AppExit>) {
     unsafe {
         for _ in frame_event.iter().rev() {
-            frame_count += 1;
+            FRAME_COUNT += 1;
             const MAX_FRAME_COUNT: u32 = 25_000;
-            if frame_count > MAX_FRAME_COUNT {
+            if FRAME_COUNT > MAX_FRAME_COUNT {
                 let t = get_time_passed(ne_app::FIRST_FRAME_TIME);
                 ne::log!("to render: {} frames took: {:?}", MAX_FRAME_COUNT, t);
                 exit.send(AppExit);

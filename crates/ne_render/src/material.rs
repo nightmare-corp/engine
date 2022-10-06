@@ -2,10 +2,10 @@ use anyhow::*;
 
 
 //TODO
-pub struct MaterialDescriptor<'a> {
+/* pub struct MaterialDescriptor<'a> {
     pub bytes: &'a [u8],
     pub label: Option<&'a str>,
-}
+} */
 pub struct Material {
     pub texture: wgpu::Texture,
     pub view: wgpu::TextureView,
@@ -17,7 +17,7 @@ pub struct Material {
 ///``let label = Some("grid.png");``
 ///  let mat = Material::from_bytes(&device, &queue, bytes, label);
 impl Material {
-    pub fn from_descriptor(
+/*     pub fn from_descriptor(
         device: &wgpu::Device,
         queue: &wgpu::Queue,
         mat_descriptor: &MaterialDescriptor,
@@ -27,7 +27,7 @@ impl Material {
             mat_descriptor.bytes, mat_descriptor.label
         )
     }
-    pub fn from_bytes(
+ */    pub fn from_bytes(
         device: &wgpu::Device,
         queue: &wgpu::Queue,
         bytes: &[u8],

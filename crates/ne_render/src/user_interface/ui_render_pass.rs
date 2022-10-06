@@ -97,7 +97,7 @@ pub struct RenderPassRecipe {
     uniform_buffer: SizedBuffer,
     uniform_bind_group: wgpu::BindGroup,
     texture_bind_group_layout: wgpu::BindGroupLayout,
-    next_user_texture_id: u64,
+    // next_user_texture_id: u64,
 
     /// Map of egui texture IDs to textures and their associated bindgroups (texture view +
     /// sampler). The texture may be None if the TextureId is just a handle to a user-provided
@@ -259,7 +259,7 @@ impl RenderPassRecipe {
             uniform_buffer,
             uniform_bind_group,
             texture_bind_group_layout,
-            next_user_texture_id: 0,
+            // next_user_texture_id: 0,
             textures: HashMap::new(),
         }
     }
@@ -524,7 +524,7 @@ impl RenderPassRecipe {
 
         Ok(())
     }
-
+/* 
     /// Registers a `wgpu::Texture` with a `egui::TextureId`.
     ///
     /// This enables the application to reference the texture inside an image ui element.
@@ -554,8 +554,8 @@ impl RenderPassRecipe {
             },
         )
     }
-
-    /// Registers a `wgpu::Texture` with an existing `egui::TextureId`.
+ */
+/*     /// Registers a `wgpu::Texture` with an existing `egui::TextureId`.
     ///
     /// This enables applications to reuse `TextureId`s.
     pub fn update_egui_texture_from_wgpu_texture(
@@ -583,8 +583,8 @@ impl RenderPassRecipe {
             id,
         )
     }
-
-    /// Registers a `wgpu::Texture` with a `egui::TextureId` while also accepting custom
+ */
+/*     /// Registers a `wgpu::Texture` with a `egui::TextureId` while also accepting custom
     /// `wgpu::SamplerDescriptor` options.
     ///
     /// This allows applications to specify individual minification/magnification filters as well as
@@ -631,8 +631,8 @@ impl RenderPassRecipe {
 
         id
     }
-
-    /// Registers a `wgpu::Texture` with an existing `egui::TextureId` while also accepting custom
+ */
+/*     /// Registers a `wgpu::Texture` with an existing `egui::TextureId` while also accepting custom
     /// `wgpu::SamplerDescriptor` options.
     ///
     /// This allows applications to reuse `TextureId`s created with custom sampler options.
@@ -683,7 +683,7 @@ impl RenderPassRecipe {
 
         Ok(())
     }
-
+ */
     /// Uploads the uniform, vertex and index data used by the render pass.
     /// Should be called before `execute()`.
     pub fn update_buffers(

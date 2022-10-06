@@ -20,6 +20,16 @@
                     "kind": "build",
                     "isDefault": true
                 }
-            }
+            },
+            {
+                "label": "run_editor NO OUT",
+                "command": "cargo run -p ne_editor 2> $null",
+                "type": "shell",
+                "problemMatcher": [],
+                "group": {
+                    "kind": "build",
+                    "isDefault": true
+                }
+            },
         ]
 }

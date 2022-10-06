@@ -22,7 +22,7 @@ use wgpu::{util::DeviceExt, CommandBuffer, CommandEncoder};
 use winit::{
     event::{*, self},
     event_loop::{ControlFlow, EventLoop, EventLoopWindowTarget},
-    window::{Fullscreen, WindowId}, dpi::PhysicalSize,
+    window::{Fullscreen}, dpi::PhysicalSize,
 };
 //export windowbuilder
 pub use winit::window::{Window,WindowBuilder};
@@ -51,7 +51,7 @@ struct CameraCollection {
     pub camera_uniform: free_fly_camera::CameraUniform,
     pub camera_buffer: wgpu::Buffer,
     //TODO
-    pub camera_bind_group: wgpu::BindGroup,
+    // pub camera_bind_group: wgpu::BindGroup,
 }
 
 struct State {
@@ -71,7 +71,7 @@ struct State {
     meshes: Vec<mesh::Mesh>,
 }
 impl State {
-    async fn new(app:&mut App, window: &Window, window_settings: WindowSettings) -> Self {
+    async fn new(_app:&mut App, window: &Window, window_settings: WindowSettings) -> Self {
         //================================================================================================================
         //Window and wgpu initialization
         //================================================================================================================
@@ -121,28 +121,6 @@ impl State {
             present_mode: window_settings.present_mode,
         };
         surface.configure(&device, &surface_config);
-        let texture_bind_group_layout =
-            device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-                entries: &[
-                    wgpu::BindGroupLayoutEntry {
-                        binding: 0,
-                        visibility: wgpu::ShaderStages::FRAGMENT,
-                        ty: wgpu::BindingType::Texture {
-                            multisampled: false,
-                            view_dimension: wgpu::TextureViewDimension::D2,
-                            sample_type: wgpu::TextureSampleType::Float { filterable: true },
-                        },
-                        count: None,
-                    },
-                    wgpu::BindGroupLayoutEntry {
-                        binding: 1,
-                        visibility: wgpu::ShaderStages::FRAGMENT,
-                        ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
-                        count: None,
-                    },
-                ],
-                label: Some("texture_bind_group_layout"),
-            });
         //================================================================================================================
         //camera buffer
         //================================================================================================================
@@ -161,28 +139,28 @@ impl State {
             contents: bytemuck::cast_slice(&[camera_uniform]),
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
         });
-        let camera_bind_group_layout =
-            device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-                entries: &[wgpu::BindGroupLayoutEntry {
-                    binding: 0,
-                    visibility: wgpu::ShaderStages::VERTEX,
-                    ty: wgpu::BindingType::Buffer {
-                        ty: wgpu::BufferBindingType::Uniform,
-                        has_dynamic_offset: false,
-                        min_binding_size: None,
-                    },
-                    count: None,
-                }],
-                label: Some("camera_bind_group_layout"),
-            });
-        let camera_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-            layout: &camera_bind_group_layout,
-            entries: &[wgpu::BindGroupEntry {
-                binding: 0,
-                resource: camera_buffer.as_entire_binding(),
-            }],
-            label: Some("camera_bind_group"),
-        });
+/*          let camera_bind_group_layout =
+             device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                 entries: &[wgpu::BindGroupLayoutEntry {
+                     binding: 0,
+                     visibility: wgpu::ShaderStages::VERTEX,
+                     ty: wgpu::BindingType::Buffer {
+                         ty: wgpu::BufferBindingType::Uniform,
+                         has_dynamic_offset: false,
+                         min_binding_size: None,
+                     },
+                     count: None,
+                 }],
+                 label: Some("camera_bind_group_layout"),
+             });
+         let camera_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+             layout: &camera_bind_group_layout,
+             entries: &[wgpu::BindGroupEntry {
+                 binding: 0,
+                 resource: camera_buffer.as_entire_binding(),
+             }],
+             label: Some("camera_bind_group"),
+         }); */
         //depth texture
         let depth_texture =
             texture::Texture::create_depth_texture(&device, &surface_config, "depth_texture");
@@ -208,7 +186,6 @@ impl State {
         //TODO load scene into meshes
 
         //TODO load materials.
-        
 
         //TODO stress test... for now either store a function somewhere called build_scene
         //Or struct Scene.
@@ -216,7 +193,6 @@ impl State {
 
         //vec of meshes that will be moved into Self.
         let mut meshes: Vec<Mesh> = Vec::new();
-
 
         //TODO create hashmap with all materials, so that materials aren't loaded to gpu twice.
         //material
@@ -265,18 +241,17 @@ impl State {
     }
         //generate second set of meshes.
         {
-            let count = 1;
-            let mut mesh_prims = Vec::new();
-            //generate meshes on top of platform.
-
-            //TODO here
-            let m = Shapes::create_uv_sphere(1.0, 36, 18);
-            //TODO
-            let path_to_file = "./engine_assets/3D/cube.obj";
-            println!("{}", std::path::Path::new(path_to_file).exists());
+            let count = 3;
+            let mut mesh_prims: Vec<MeshPrimitives> = Vec::new();
+            //TODO 
+            let a = ne_files::find_file!("../../../", "/engine_assets/3D/cube.obj");
+            let path_to_file = "./engine_assets/3D/double_cube.obj";
+            println!("A: {}, B: {}", a, path_to_file);
             let m = MeshPrimitives::from_obj(path_to_file).await.unwrap();
+
+            //TODO cannot append multiple times?
             for _ in 0..count {
-                mesh_prims.push(m.clone());
+                mesh_prims.append(&mut m.clone());
             }
 
             let size_of_meshes = mesh_prims.len();
@@ -309,7 +284,7 @@ impl State {
                 projection,
                 camera_controller,
                 camera_buffer,
-                camera_bind_group,
+                // camera_bind_group,
                 camera_uniform,
             },
             is_right_mouse_pressed: false,
@@ -382,7 +357,7 @@ impl State {
             label: Some("Render Encoder"),
         })
     }
-    fn render(&mut self, app:&mut App, window:&winit::window::Window) -> Result<(), wgpu::SurfaceError>  {
+    fn render(&mut self, _app:&mut App, window:&winit::window::Window) -> Result<(), wgpu::SurfaceError>  {
         let output_frame = self.surface.get_current_texture()?;
         let output_view = output_frame
             .texture
@@ -393,7 +368,7 @@ impl State {
         let mut encoder = self.create_encoder();
         //clear frame and set background color.
         {
-            let mut rpass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+            let _rpass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: None,
                 color_attachments: &[Some(wgpu::RenderPassColorAttachment {
                     resolve_target: None,
@@ -493,6 +468,7 @@ async fn init_renderer(mut app: App) {
     #[cfg(feature = "first_frame_time")]
     let mut once_benchmark = true;
     let mut last_render_time = instant::Instant::now();
+    #[cfg(feature = "print_fps")]
     let mut frame_count:u64 = 1;
     //exit window event reader
     let mut app_exit_event_reader = ManualEventReader::<AppExit>::default();
@@ -587,7 +563,7 @@ async fn init_renderer(mut app: App) {
                                 });
                             }
                         //TODO implement multiple windows before implementing this one.
-                        WindowEvent::CursorMoved { position, .. }
+                        WindowEvent::CursorMoved { .. }
                         => {
                         }
                         WindowEvent::CursorEntered{.. /* device id needed? */ } 
@@ -622,7 +598,7 @@ async fn init_renderer(mut app: App) {
                 } => if state.is_right_mouse_pressed {
                     state.camera_collection.camera_controller.process_mouse(delta.0, delta.1);
                     window.set_cursor_visible(false);
-                    window.set_cursor_position(winit::dpi::PhysicalPosition::new(window.inner_size().width/2, window.inner_size().height/2));
+                    _ = window.set_cursor_position(winit::dpi::PhysicalPosition::new(window.inner_size().width/2, window.inner_size().height/2));
                 } else {
                     window.set_cursor_visible(true);
                 }

@@ -8,11 +8,7 @@ homepage = "https://nightmare-corp.com"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
-# Enable a small amount of optimization in debug mode
-[profile.dev]
-opt-level = 1
-[profile.dev.package."*"]
-opt-level = 3
+
 
 #TODO minimize binary size, while keeping similar fps.
 # [profile.release]

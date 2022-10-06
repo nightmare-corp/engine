@@ -1,3 +1,5 @@
+#![allow(warnings, unused)]
+
 use bevy_ecs::prelude::EventReader;
 use ne::{info, L};
 use ne_app::App;

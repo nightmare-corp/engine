@@ -1,4 +1,4 @@
-use ne_math::{Transform, Mat4};
+use ne_math::{ Mat4};
 
 #[repr(C)]
 #[derive(Debug, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]

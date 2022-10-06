@@ -339,7 +339,7 @@ impl Platform {
         }
     }
 
-    /// Returns `true` if egui should handle the event exclusively. Check this to
+/*     /// Returns `true` if egui should handle the event exclusively. Check this to
     /// avoid unexpected interactions, e.g. a mouse click registering "behind" the UI.
     pub fn captures_event<T>(&self, winit_event: &Event<T>) -> bool {
         match winit_event {
@@ -363,7 +363,7 @@ impl Platform {
             _ => false,
         }
     }
-
+ */
     /// Updates the internal time for egui used for animations. `elapsed_seconds` should be the seconds since some point in time (for example application start).
     pub fn update_time(&mut self, elapsed_seconds: f64) {
         self.raw_input.time = Some(elapsed_seconds);
@@ -405,11 +405,11 @@ impl Platform {
         self.context.clone()
     }
 
-    /// Returns a mutable reference to the raw input that will be passed to egui
+/*     /// Returns a mutable reference to the raw input that will be passed to egui
     /// the next time [`Self::begin_frame`] is called
     pub fn raw_input_mut(&mut self) -> &mut egui::RawInput {
         &mut self.raw_input
-    }
+    } */
 }
 
 /// Translates winit to egui keycodes.

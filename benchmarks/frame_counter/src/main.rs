@@ -4,27 +4,11 @@ use bevy_ecs::prelude::EventReader;
 use bevy_ecs::prelude::{EventWriter};
 
 use ne_app::{get_time_passed, App};
-use ne_render::{AppExit, OnRedrawRequested, OnWindowCloseRequested, RenderPlugin, WindowSettings};
+use ne_render::{RenderPlugin, WindowSettings};
+use ne_window::events::{OnWindowCloseRequested, OnRedrawRequested, AppExit};
 
 pub static mut TOTAL_TIME: Option<instant::Duration> = None;
 static mut FRAME_COUNT: u32 = 0;
-
-fn bench(mut frame_event: EventReader<OnRedrawRequested>, mut exit: EventWriter<AppExit>) {
-    unsafe {
-        for _ in frame_event.iter().rev() {
-            FRAME_COUNT += 1;
-            const MAX: u32 = 25_000;
-            if FRAME_COUNT > MAX {
-                let t = get_time_passed(ne_app::FIRST_FRAME_TIME);
-                ne::log!("to render: {} frames took: {:?}", MAX, t); //write to results/*
-                                                                     //TODO this is messed up
-                                                                     //I want it to write to afile these details, together with:
-                                                                     //window settings that impact performance like resolution and quality
-                exit.send(AppExit);
-            }
-        }
-    }
-}
 
 //TOOD modularly add different types of camera and input events...
 //1) orbit camera, with predetermined rotation and look at point.
@@ -52,12 +36,28 @@ fn main() {
         .run();
 }
 fn exit_window(mut window_close_requested: EventReader<OnWindowCloseRequested>) {
-    for event in window_close_requested.iter().rev() {
+    for _ in window_close_requested.iter().rev() {
         //TODO GUI would you like to save? Yes, No, Cancel.
         ne::log!("Would you like to save?");
         ne::log!("exiting program");
         //Doesn't call any destructors, maybe a bad idea?
         std::process::exit(0);
+    }
+}
+fn bench(mut frame_event: EventReader<OnRedrawRequested>, mut exit: EventWriter<AppExit>) {
+    unsafe {
+        for _ in frame_event.iter().rev() {
+            FRAME_COUNT += 1;
+            const MAX: u32 = 25_000;
+            if FRAME_COUNT > MAX {
+                let t = get_time_passed(ne_app::FIRST_FRAME_TIME);
+                ne::log!("to render: {} frames took: {:?}", MAX, t); //write to results/*
+                                                                     //TODO this is messed up
+                                                                     //I want it to write to afile these details, together with:
+                                                                     //window settings that impact performance like resolution and quality
+                exit.send(AppExit);
+            }
+        }
     }
 }
 //random conclusions:

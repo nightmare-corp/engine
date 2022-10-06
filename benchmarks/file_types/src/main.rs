@@ -2,8 +2,8 @@
 
 // use core::time;
 
-use ne_app::{get_time_passed, App, World, Schedule};
-use ne_render::{AppExit, OnRedrawRequested, OnWindowCloseRequested, RenderPlugin, WindowSettings};
+use ne_app::{App, World, Schedule};
+use ne_render::{RenderPlugin, WindowSettings};
 
 fn main() {
     ne_bench::size_of::print_size_of::<i8>();               //type: i8, size: 1
@@ -19,5 +19,4 @@ fn main() {
     ne_bench::size_of::print_size_of::<App>();              //type: ne_app::App, size: 808
     ne_bench::size_of::print_size_of::<World>();            //type: bevy_ecs::world::World, size: 632
     ne_bench::size_of::print_size_of::<Schedule>();         //type: bevy_ecs::schedule::Schedule, size: 112
-    
 }
