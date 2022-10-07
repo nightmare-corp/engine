@@ -94,12 +94,12 @@ impl Shapes {
         let min_z = -scale_z / 2.0;
 
         let vertex_data = [
-            // bottom
+            // bottom (0.0, min_y, 0.0)
             Vertex::new([max_x, min_y, max_z], [0.0, 0.0]),
             Vertex::new([min_x, min_y, max_z], [1.0, 0.0]),
             Vertex::new([min_x, min_y, min_z], [1.0, 1.0]),
             Vertex::new([max_x, min_y, min_z], [0.0, 1.0]),
-            // top (0.0, max_x, 0.0)
+            // top (0.0, max_y, 0.0)
             Vertex::new([max_x, max_y, min_z], [1.0, 0.0]),
             Vertex::new([min_x, max_y, min_z], [0.0, 0.0]),
             Vertex::new([min_x, max_y, max_z], [0.0, 1.0]),
@@ -114,12 +114,12 @@ impl Shapes {
             Vertex::new([min_x, max_y, max_z], [0.0, 0.0]),
             Vertex::new([min_x, max_y, min_z], [0.0, 1.0]),
             Vertex::new([min_x, min_y, min_z], [1.0, 1.0]),
-            // front (0.0, 0.0, max_x)
+            // front (0.0, 0.0, max_z)
             Vertex::new([min_x, min_y, max_z], [0.0, 0.0]),
             Vertex::new([max_x, min_y, max_z], [1.0, 0.0]),
             Vertex::new([max_x, max_y, max_z], [1.0, 1.0]),
             Vertex::new([min_x, max_y, max_z], [0.0, 1.0]),
-            // back (0.0, 0.0, min_x)
+            // back (0.0, 0.0, min_z)
             Vertex::new([min_x, max_y, min_z], [1.0, 0.0]),
             Vertex::new([max_x, max_y, min_z], [0.0, 0.0]),
             Vertex::new([max_x, min_y, min_z], [0.0, 1.0]),
@@ -231,7 +231,7 @@ impl Shapes {
         MeshPrimitives(vertices, indices)
     }
 }
-//TODO
+//TODO error handling for wasm..?
 /* /// A wrapper for `pop_error_scope` futures that panics if an error occurs.
 ///
 /// Given a future `inner` of an `Option<E>` for some error type `E`,

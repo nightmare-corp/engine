@@ -2,16 +2,18 @@ use std::borrow::Cow;
 use instant::Instant;
 use ::egui::FontDefinitions;
 use egui_demo_lib::DemoWindows;
+use self::basic_window::{ControlWindow, UserInterface};
 // use egui_winit_platform::{Platform, PlatformDescriptor};
 use self::{ui_render_pass::RenderPassRecipe};
 use self::{egui_window::{Platform, PlatformDescriptor}};
 mod egui_window;
 pub mod ui_render_pass;
 pub mod editor_widget;
+mod basic_window;
 pub struct EguiState {
     pub platform:Platform,
     pub render_pass:RenderPassRecipe,
-    demo_window:DemoWindows,
+    demo_window:ControlWindow,
     start_time:Instant,
 }
 
@@ -23,11 +25,6 @@ impl EguiState {
         window:&winit::window::Window,
         device:&wgpu::Device,
         surface_format:&wgpu::TextureFormat,
-        // surface:&wgpu::Surface, 
-        // queue:&wgpu::Queue,
-        // surface_config:&wgpu::SurfaceConfiguration,
-        // adapter:&wgpu::Adapter,
-        //adapter needed?
         ) -> Self { 
         //TODO
         let size = window.inner_size();
@@ -39,7 +36,6 @@ impl EguiState {
             font_definitions: FontDefinitions::default(),
             style: Default::default(),
         });
-
         //TODO this needs to be setup and stored and used in winit loop... A stored RenderPass
         // We use the egui_wgpu_backend crate as the render backend.
         //TODO move to state, the main state struct, because the state should own all RenderPassRecipes in a Vec..? 
@@ -49,7 +45,7 @@ impl EguiState {
              wgpu::ShaderSource::Wgsl(Cow::Borrowed(include_str!("egui.wgsl")))
         );
         // Display the demo application that ships with egui.
-        let demo_window = egui_demo_lib::DemoWindows::default();
+        let demo_window = ControlWindow::default();
         let start_time = Instant::now();
 
         Self {
@@ -72,7 +68,7 @@ impl EguiState {
     }
     pub fn draw_ui(&mut self)
     {
-        self.demo_window.ui(&self.platform.context());
+        self.demo_window.update(&self.platform.context());
     }
     pub fn handle_event<T>(&mut self, winit_event: &winit::event::Event<T>)
     {
