@@ -14,8 +14,6 @@ use ne_window::events::{OnWindowResized, OnWindowScaleFactorChanged, AppExit, On
 use cameras::free_fly_camera;
 use ne::{warn, info, trace};
 use ne_app::{App, Plugin, Events, ManualEventReader};
-#[cfg(feature = "first_frame_time")]
-use ne_app::FIRST_FRAME_TIME;
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
 use wgpu::{util::DeviceExt, CommandBuffer, CommandEncoder};
@@ -284,7 +282,6 @@ impl State {
                 projection,
                 camera_controller,
                 camera_buffer,
-                // camera_bind_group,
                 camera_uniform,
             },
             is_right_mouse_pressed: false,
@@ -357,7 +354,7 @@ impl State {
             label: Some("Render Encoder"),
         })
     }
-    fn render(&mut self, _app:&mut App, window:&winit::window::Window) -> Result<(), wgpu::SurfaceError>  {
+    fn render(&mut self, app:&mut App, window:&winit::window::Window) -> Result<(), wgpu::SurfaceError>  {
         let output_frame = self.surface.get_current_texture()?;
         let output_view = output_frame
             .texture
@@ -395,10 +392,19 @@ impl State {
         }
         //new encoder
         let mut encoder = self.create_encoder();
-        // UI RENDERING! WIll be rendered on top of the previous output!!!
+        // UI RENDERING! WIll be rendered on top of the previous output
         #[cfg(feature="ui")]
         {
-            self.ui_state.update_time();
+
+            //TODO pass time passed as seconds f64.
+            //Yeah I don't like having this as an option. 
+            //TODO mvoe FIRST_FRAME_TIME to app state.
+            unsafe {
+                let ft = app.world.get_resource::<ne_app::FirstFrameTime>().unwrap().get_time();
+                let now = instant::Instant::now();
+                let time_passed = (now - ft).as_secs_f64();
+                self.ui_state.update_time(time_passed);
+            }
 
             // Begin to draw the UI frame.
             self.ui_state.begin_frame();
@@ -434,7 +440,7 @@ impl State {
 
                 cmd_buffers.push(encoder.finish());
 
-            // remove ui data for some reason..?
+            // removes ui data for some reason..?
             self.ui_state.render_pass
             .remove_textures(tdelta)
             .expect("remove texture ok");
@@ -517,10 +523,8 @@ async fn init_renderer(mut app: App) {
                                 ..
                             } => *control_flow = ControlFlow::Exit,
                             WindowEvent::Resized(physical_size) => {
-    
                                 //TODO MOVE TASK: decouple window and renderer
                                 state.resize(*physical_size);
-                                
                                 let mut resize_events
                                 = world.resource_mut::<Events<OnWindowResized>>();
                                 resize_events.send(OnWindowResized {
@@ -551,7 +555,6 @@ async fn init_renderer(mut app: App) {
                                 let mut events = world.resource_mut::<Events<OnFileDragAndDrop>>();
                                 events.send(OnFileDragAndDrop::HoveredFile {
                                     id: window_id,
-                                    //TODO TEST
                                     path_buf: path_buf.to_path_buf(),
                                 });
                             }
@@ -603,13 +606,11 @@ async fn init_renderer(mut app: App) {
                     window.set_cursor_visible(true);
                 }
             event::Event::RedrawRequested(window_id) if window_id == window.id() => {
-                    //hope this gets optimized somehow
+                    //hope this gets optimized
                     #[cfg(feature = "first_frame_time")]
                     if once_benchmark //do once
                     {
-                        unsafe{
-                            FIRST_FRAME_TIME = Some(instant::Instant::now());
-                        }
+                        app.insert_resource(ne_app::FirstFrameTime::default());
                         once_benchmark=false;
                     }
                     let now = instant::Instant::now();
@@ -622,9 +623,11 @@ async fn init_renderer(mut app: App) {
                         let fps = 1.0/delta_time;
                         // a little messy
                         frame_count+=1;
+
+                        let f = app.world.get_resource::<ne_app::FirstFrameTime>().unwrap().get_time();
                         unsafe
                         {
-                            let time_passed = (now - FIRST_FRAME_TIME.unwrap()).as_secs_f32();
+                            let time_passed = (now - f).as_secs_f32();
                             let average_fps = frame_count as f32/time_passed;
                             
                             ne::log!("fps:{:<14}fps | avg:{:<14}fps | 1%LOW:{:<10}fps",fps,average_fps, fpsd.get_lowest(fps));

@@ -1,3 +1,4 @@
+static mut A: i32 = 100;
 
 pub(crate) struct ControlWindow {
     name: String,
@@ -46,11 +47,15 @@ impl UserInterface for ControlWindow {
                 ui.text_edit_singleline(&mut self.name);
             });
             ui.label(format!("Hello '{}'", self.name));
-            ui.label(format!("Hello '{}'", self.name));
+            unsafe {
+                A+=1;
+                ui.label(format!("Haaaello '{}'", A));
+            }
 
         });
     }
 }
+
 impl UserInterface for DiagnosticsWindow {
     fn update(&mut self, ctx: &egui::Context) {
         let screen_size = ctx.input().screen_rect.size();
@@ -70,6 +75,7 @@ impl UserInterface for DiagnosticsWindow {
                 ui.label("Your name: ");
                 ui.text_edit_singleline(&mut self.name);
             });
+
             ui.label(format!("Hello '{}'", self.name));
             ui.label(format!("Hello '{}'", self.name));
 

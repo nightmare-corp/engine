@@ -8,13 +8,12 @@ use self::{ui_render_pass::RenderPassRecipe};
 use self::{egui_window::{Platform, PlatformDescriptor}};
 mod egui_window;
 pub mod ui_render_pass;
-pub mod editor_widget;
+// pub mod editor_widget;
 mod basic_window;
 pub struct EguiState {
     pub platform:Platform,
     pub render_pass:RenderPassRecipe,
     demo_window:ControlWindow,
-    start_time:Instant,
 }
 
 //TODO see if it's faster to use these reference instead.
@@ -46,17 +45,16 @@ impl EguiState {
         );
         // Display the demo application that ships with egui.
         let demo_window = ControlWindow::default();
-        let start_time = Instant::now();
 
         Self {
             platform, render_pass,
-            demo_window, start_time,
+            demo_window, 
         }
 
     }
-    pub fn update_time(&mut self)
+    pub fn update_time(&mut self, elapsed_time_as_seconds:f64)
     {
-        self.platform.update_time(self.start_time.elapsed().as_secs_f64());
+        self.platform.update_time(elapsed_time_as_seconds);
     }
     pub fn begin_frame(&mut self)
     {

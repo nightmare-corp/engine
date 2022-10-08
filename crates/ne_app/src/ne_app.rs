@@ -9,14 +9,15 @@ pub use bevy_ecs::{
     system::{IntoExclusiveSystem, Resource},
     world::{FromWorld, World},
 };
+use instant::Instant;
 pub use ne::*;
 
 //globals
 //These should not be modified, just read.
-#[cfg(feature = "start_time")]
-pub static mut START_TIME: Option<instant::Instant> = None;
-#[cfg(feature = "first_frame_time")]
-pub static mut FIRST_FRAME_TIME: Option<instant::Instant> = None;
+// #[cfg(feature = "start_time")]
+// pub static mut START_TIME: Option<instant::Instant> = None;
+
+//TODO move into app asap.
 pub fn get_time_passed(time: Option<instant::Instant>) -> instant::Duration {
     let now = instant::Instant::now();
     now - time.unwrap()
@@ -197,14 +198,37 @@ impl Default for App {
 //     // fn default() -> Self {
 //     // }
 // }
+
+//TODO move to an engine internal private crate ..? because this can be overwritten by users. 
+pub struct ProgramStartTime {
+    start_time: instant::Instant,
+}
+#[cfg(feature = "first_frame_time")]
+pub struct FirstFrameTime {
+    start_time: instant::Instant,
+}
+impl Default for FirstFrameTime {
+    fn default() -> Self {
+        Self { start_time: instant::Instant::now() }
+    }
+}
+impl FirstFrameTime {
+    pub fn get_time(&self) -> instant::Instant {
+        self.start_time
+    }
+}
 impl App {
     pub fn new() -> App {
         // App::default()
-        #[cfg(feature = "start_time")]
-        unsafe {
-            START_TIME = Some(instant::Instant::now());
+        let mut app = App::default();
+
+        app.insert_resource(ProgramStartTime {
+            start_time: instant::Instant::now()
         }
-        App::default()
+        );
+
+        app
+
     }
     pub fn empty() -> App {
         Self {
