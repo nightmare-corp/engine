@@ -27,7 +27,7 @@ pub use winit::window::{Window,WindowBuilder};
 
 use crate::{cameras::free_fly_camera::CameraUniform, user_interface::EguiState, mesh::{Mesh, Shapes, MeshPrimitives}};
 
-#[cfg(feature="ui")]
+#[cfg(feature="editor_ui")]
 mod user_interface;
 mod cameras;
 mod resources;
@@ -63,7 +63,7 @@ struct State {
     camera_collection: CameraCollection,
     
     is_right_mouse_pressed: bool,
-    #[cfg(feature = "ui")]
+    #[cfg(feature = "editor_ui")]
     ui_state: user_interface::EguiState,
 
     meshes: Vec<mesh::Mesh>,
@@ -137,28 +137,6 @@ impl State {
             contents: bytemuck::cast_slice(&[camera_uniform]),
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
         });
-/*          let camera_bind_group_layout =
-             device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-                 entries: &[wgpu::BindGroupLayoutEntry {
-                     binding: 0,
-                     visibility: wgpu::ShaderStages::VERTEX,
-                     ty: wgpu::BindingType::Buffer {
-                         ty: wgpu::BufferBindingType::Uniform,
-                         has_dynamic_offset: false,
-                         min_binding_size: None,
-                     },
-                     count: None,
-                 }],
-                 label: Some("camera_bind_group_layout"),
-             });
-         let camera_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-             layout: &camera_bind_group_layout,
-             entries: &[wgpu::BindGroupEntry {
-                 binding: 0,
-                 resource: camera_buffer.as_entire_binding(),
-             }],
-             label: Some("camera_bind_group"),
-         }); */
         //depth texture
         let depth_texture =
             texture::Texture::create_depth_texture(&device, &surface_config, "depth_texture");
@@ -168,10 +146,6 @@ impl State {
         //================================================================================================================
         warn!("Load scene");
         //load meshes
-        // let mesh1 = Mesh::load_mesh_from_path("obj", Transform::default());
-        // let mesh2 = Mesh::load_mesh_from_path("obj", Transform::default());
-
-
 //================================================================================================
 //This is important right now.
 //================================================================================================     
@@ -268,7 +242,7 @@ impl State {
             }
         }
 
-        #[cfg(feature="ui")]
+        #[cfg(feature="editor_ui")]
         let ui_state = EguiState::new(window, &device, &surface_format  /*,  &queue, &surface_config, &adapter, &surface, */);
         Self {
             surface,
@@ -285,7 +259,7 @@ impl State {
                 camera_uniform,
             },
             is_right_mouse_pressed: false,
-            #[cfg(feature="ui")]
+            #[cfg(feature="editor_ui")]
             ui_state: ui_state,
 
             meshes,
@@ -332,6 +306,7 @@ impl State {
     }
     //updates camera, can be cleaner/faster/moved into camera.rs... maybe
     fn update(&mut self, dt:f32) {
+        //TODO delta time somewhere else?
         self.camera_collection.camera_controller.update_camera(&mut self.camera_collection.camera, dt);
         self.camera_collection.camera_uniform.update_view_proj(
             &self.camera_collection.camera,
@@ -393,12 +368,8 @@ impl State {
         //new encoder
         let mut encoder = self.create_encoder();
         // UI RENDERING! WIll be rendered on top of the previous output
-        #[cfg(feature="ui")]
+        #[cfg(feature="editor_ui")]
         {
-
-            //TODO pass time passed as seconds f64.
-            //Yeah I don't like having this as an option. 
-            //TODO mvoe FIRST_FRAME_TIME to app state.
             unsafe {
                 let ft = app.world.get_resource::<ne_app::FirstFrameTime>().unwrap().get_time();
                 let now = instant::Instant::now();
@@ -474,12 +445,12 @@ async fn init_renderer(mut app: App) {
     #[cfg(feature = "first_frame_time")]
     let mut once_benchmark = true;
     let mut last_render_time = instant::Instant::now();
-    #[cfg(feature = "print_fps")]
+    #[cfg(feature = "editor_ui")]
     let mut frame_count:u64 = 1;
     //exit window event reader
     let mut app_exit_event_reader = ManualEventReader::<AppExit>::default();
 
-    #[cfg(feature = "print_fps")]
+    #[cfg(feature = "editor_ui")]
     let mut fpsd = ne_bench::fpsdata::FPSData::default();
 
     let event_handler = 
@@ -487,7 +458,7 @@ async fn init_renderer(mut app: App) {
         _: &EventLoopWindowTarget<()>, //not sure what to do with event_loop: &EventLoopWindowTarget
         control_flow: &mut ControlFlow| {
             //maybe move this after if !state.input(event) {
-            #[cfg(feature="ui")]
+            #[cfg(feature="editor_ui")]
             let ui_event = &event;
 
         match event {
@@ -503,7 +474,7 @@ async fn init_renderer(mut app: App) {
                 } if window_id == window.id() => {
                     let world = app.world.cell();
                     if !state.input(event) {
-                        #[cfg(feature="ui")]
+                        #[cfg(feature="editor_ui")]
                         state.ui_state.handle_event(ui_event);
                         match event {
                             WindowEvent::CloseRequested => {
@@ -617,7 +588,7 @@ async fn init_renderer(mut app: App) {
                     let delta_time = (now - last_render_time).as_secs_f32();
                     last_render_time = now;
     
-                    #[cfg(feature = "print_fps")]
+                    #[cfg(feature = "editor_ui")]
                     {
                         //TODO move maybe
                         let fps = 1.0/delta_time;

@@ -5,10 +5,9 @@ edition = "2021"
 homepage = "https://nightmare-corp.com"
 
 [features]
-print_fps = []
 first_frame_time = []
 start_time = []
-ui = ["egui"]
+editor_ui = ["egui"]
 mesh_16bit = []
 [dependencies]
 ne = {path = "../ne"}

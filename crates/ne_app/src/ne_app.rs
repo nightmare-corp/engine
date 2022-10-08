@@ -9,7 +9,6 @@ pub use bevy_ecs::{
     system::{IntoExclusiveSystem, Resource},
     world::{FromWorld, World},
 };
-use instant::Instant;
 pub use ne::*;
 
 //globals

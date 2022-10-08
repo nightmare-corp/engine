@@ -1,7 +1,5 @@
 use std::borrow::Cow;
-use instant::Instant;
 use ::egui::FontDefinitions;
-use egui_demo_lib::DemoWindows;
 use self::basic_window::{ControlWindow, UserInterface};
 // use egui_winit_platform::{Platform, PlatformDescriptor};
 use self::{ui_render_pass::RenderPassRecipe};

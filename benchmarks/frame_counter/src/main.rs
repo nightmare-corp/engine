@@ -44,6 +44,7 @@ fn exit_window(mut window_close_requested: EventReader<OnWindowCloseRequested>) 
         std::process::exit(0);
     }
 }
+//TODO fix
 fn bench(mut frame_event: EventReader<OnRedrawRequested>, mut exit: EventWriter<AppExit>) {
     unsafe {
         for _ in frame_event.iter().rev() {
