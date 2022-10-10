@@ -369,6 +369,8 @@ impl State {
         }
         //new encoder
         let mut encoder = self.create_encoder();
+
+//TODO extract
         // UI RENDERING! WIll be rendered on top of the previous output
         #[cfg(feature="editor_ui")]
         {
@@ -378,12 +380,6 @@ impl State {
 
             let screen_size = ctx.input().screen_rect.size();
             let default_width = (screen_size.x - 20.0).min(400.0);
-
-            //TODO 
-            // let mut checkboxes: Vec::<(String, bool)>;
-            // checkboxes.push("diagnostics", false);
-            // checkboxes.push("diagnostics", false);
-            // checkboxes.push("diagnostics", false);
 
             egui::Window::new("Control Panel")
             // .anchor(egui::Align2::CENTER_CENTER, [0.0, 0.0])
@@ -454,10 +450,8 @@ impl State {
             let ft = app.world.get_resource::<ne_app::FirstFrameTime>().unwrap().get_time();
             let now = instant::Instant::now();
             let time_passed = (now - ft).as_secs_f64();
-            //TODO
+
             self.ui_state.update_time(time_passed);
-            // Draw the demo application.
-            // self.ui_state.draw_ui();
 
             // End the UI frame. We could now handle the output and draw the UI with the backend.
             let full_output = self.ui_state.platform.end_frame(Some(window));
@@ -498,34 +492,6 @@ impl State {
 
         Ok(()) 
 }
-#[cfg(feature="editor_ui")]
-fn editor_interface( &mut self,  // screen_size:Vec2,
-                    default_width:f32,
-                    ctx:&egui::Context
-        ) {
-            let mut b_diagn = false;
-            egui::Window::new("AAA")
-            // .anchor(egui::Align2::CENTER_CENTER, [0.0, 0.0])
-            .default_width(default_width)
-            .default_height(ctx.available_rect().height() - 46.0)
-            .vscroll(true)
-            .open(&mut true)
-            .resizable(true)
-            .collapsible(true)
-            .show(ctx, |ui| {
-                ui.heading("Control_Panel");
-
-                ui.horizontal(|ui| {
-                    ui.label("Control Panel");
-                });
-
-                //For each window a checkbox with a name. 
-                ui.checkbox(&mut b_diagn, "diagnostics");
-                ui.checkbox(&mut b_diagn, "file explorer");
-                ui.checkbox(&mut b_diagn, "inspect");
-                // ui.checkbox(&mut b_diagn, "scene");
-            });
-    }
 }
 fn main_loop(app: App) {
     //is this async implementation any good?
