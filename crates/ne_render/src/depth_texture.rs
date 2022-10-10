@@ -1,13 +1,13 @@
 // use anyhow::*;
 // use image::GenericImageView;
 
-pub struct Texture {
+pub struct DepthTexture {
     pub texture: wgpu::Texture,
     pub view: wgpu::TextureView,
     pub sampler: wgpu::Sampler,
 }
 
-impl Texture {
+impl DepthTexture {
     pub const DEPTH_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Depth32Float;
     pub fn create_depth_texture(
         device: &wgpu::Device,

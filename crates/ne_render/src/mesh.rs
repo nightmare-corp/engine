@@ -6,7 +6,7 @@ use std::{
     f32::consts::{PI}, mem,
 };
 use wgpu::{util::DeviceExt, CommandBuffer};
-use crate::{material, math::ToMat4, texture};
+use crate::{material, math::ToMat4, depth_texture};
 ///y is up
 #[repr(C)]
 #[derive(Clone, Copy, Pod, Zeroable)]
@@ -445,7 +445,7 @@ impl Mesh {
         device: &wgpu::Device,
         //TODO depreciate texture::Texture
         //TODO implement depth texture correctly.
-        _depth_texture: &texture::Texture,
+        _depth_texture: &depth_texture::DepthTexture,
     ) -> CommandBuffer {
         device.push_error_scope(wgpu::ErrorFilter::Validation);
         let mut encoder =

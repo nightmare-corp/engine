@@ -31,7 +31,7 @@ use crate::{cameras::free_fly_camera::CameraUniform, user_interface::EditorUISta
 mod user_interface;
 mod cameras;
 mod resources;
-mod texture;
+mod depth_texture;
 mod render_modules;
 mod mesh;
 mod model;
@@ -60,7 +60,7 @@ struct State {
     queue: wgpu::Queue,
     surface_config: wgpu::SurfaceConfiguration,
     size: winit::dpi::PhysicalSize<u32>,
-    depth_texture: texture::Texture,
+    depth_texture: depth_texture::DepthTexture,
 
     camera_collection: CameraCollection,
     
@@ -141,7 +141,7 @@ impl State {
         });
         //depth texture
         let depth_texture =
-            texture::Texture::create_depth_texture(&device, &surface_config, "depth_texture");
+            depth_texture::DepthTexture::create_depth_texture(&device, &surface_config, "depth_texture");
 
         //================================================================================================================
         //Scene loading
@@ -275,7 +275,7 @@ impl State {
             self.surface_config.height = new_size.height;
             self.surface.configure(&self.device, &self.surface_config);
             self.depth_texture =
-                texture::Texture::create_depth_texture(&self.device, &self.surface_config, "depth_texture");
+                depth_texture::DepthTexture::create_depth_texture(&self.device, &self.surface_config, "depth_texture");
         }
     }
     fn input(&mut self, event: &WindowEvent) -> bool {
@@ -369,8 +369,7 @@ impl State {
         }
         //new encoder
         let mut encoder = self.create_encoder();
-
-//TODO extract
+        //TODO extract
         // UI RENDERING! WIll be rendered on top of the previous output
         #[cfg(feature="editor_ui")]
         {
