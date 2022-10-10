@@ -115,7 +115,6 @@ impl CameraController {
             0.0
         };
         match key {
-
             VirtualKeyCode::W | VirtualKeyCode::Up => {
                 self.amount_forward = amount;
                 true

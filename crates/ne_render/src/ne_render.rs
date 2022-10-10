@@ -25,7 +25,7 @@ use winit::{
 //export windowbuilder
 pub use winit::window::{Window,WindowBuilder};
 
-use crate::{cameras::free_fly_camera::CameraUniform, user_interface::EguiState, mesh::{Mesh, Shapes, MeshPrimitives}};
+use crate::{cameras::free_fly_camera::CameraUniform, user_interface::EditorUIState, mesh::{Mesh, Shapes, MeshPrimitives}};
 
 #[cfg(feature="editor_ui")]
 mod user_interface;
@@ -42,6 +42,8 @@ pub mod math;
 // pub mod scene;
 // use Scene as CurrentScene; //will be used as a resource...
 
+#[cfg(feature = "editor_ui")]
+static mut FRAME_COUNT: u32 = 0;
 struct CameraCollection {
     pub camera: free_fly_camera::Camera,
     pub projection: free_fly_camera::Projection,
@@ -64,7 +66,7 @@ struct State {
     
     is_right_mouse_pressed: bool,
     #[cfg(feature = "editor_ui")]
-    ui_state: user_interface::EguiState,
+    ui_state: user_interface::EditorUIState,
 
     meshes: Vec<mesh::Mesh>,
 }
@@ -225,7 +227,6 @@ impl State {
             for _ in 0..count {
                 mesh_prims.append(&mut m.clone());
             }
-
             let size_of_meshes = mesh_prims.len();
             let y = 2.0;
             let mut base_transform = Transform{ pos: Vec3{x: -2.0 * (size_of_meshes as f32)/2.0, y: y, z: 4.0 }, rot: Quat::default() };
@@ -243,7 +244,7 @@ impl State {
         }
 
         #[cfg(feature="editor_ui")]
-        let ui_state = EguiState::new(window, &device, &surface_format  /*,  &queue, &surface_config, &adapter, &surface, */);
+        let ui_state = EditorUIState::new(window, &device, &surface_format  /*,  &queue, &surface_config, &adapter, &surface, */);
         Self {
             surface,
             device,
@@ -305,7 +306,7 @@ impl State {
 
     }
     //updates camera, can be cleaner/faster/moved into camera.rs... maybe
-    fn update(&mut self, dt:f32) {
+    fn update_camera(&mut self, dt:f32) {
         //TODO delta time somewhere else?
         self.camera_collection.camera_controller.update_camera(&mut self.camera_collection.camera, dt);
         self.camera_collection.camera_uniform.update_view_proj(
@@ -329,7 +330,8 @@ impl State {
             label: Some("Render Encoder"),
         })
     }
-    fn render(&mut self, app:&mut App, window:&winit::window::Window) -> Result<(), wgpu::SurfaceError>  {
+
+    fn render(&mut self, app:&mut App, window:&winit::window::Window, delta_time:f32) -> Result<(), wgpu::SurfaceError>  {
         let output_frame = self.surface.get_current_texture()?;
         let output_view = output_frame
             .texture
@@ -370,20 +372,95 @@ impl State {
         // UI RENDERING! WIll be rendered on top of the previous output
         #[cfg(feature="editor_ui")]
         {
-            unsafe {
-                let ft = app.world.get_resource::<ne_app::FirstFrameTime>().unwrap().get_time();
-                let now = instant::Instant::now();
-                let time_passed = (now - ft).as_secs_f64();
-                self.ui_state.update_time(time_passed);
+            let ctx: &egui::Context = &self.ui_state.platform.context();
+            // Begin to draw the UI frame.
+            self.ui_state.platform.begin_frame();
+
+            let screen_size = ctx.input().screen_rect.size();
+            let default_width = (screen_size.x - 20.0).min(400.0);
+
+            //TODO 
+            // let mut checkboxes: Vec::<(String, bool)>;
+            // checkboxes.push("diagnostics", false);
+            // checkboxes.push("diagnostics", false);
+            // checkboxes.push("diagnostics", false);
+
+            egui::Window::new("Control Panel")
+            // .anchor(egui::Align2::CENTER_CENTER, [0.0, 0.0])
+            .default_width(default_width)
+            .default_height(ctx.available_rect().height())
+            .vscroll(true)
+            .open(&mut true)
+            .resizable(false)
+            .collapsible(true)
+            .show(ctx, |ui| {
+                ui.horizontal(|ui| {
+                    ui.checkbox(&mut self.ui_state.widget_diagnostic.1, (&self.ui_state.widget_diagnostic.0));
+                    ui.checkbox(&mut self.ui_state.widget_file_explorer.1, (&self.ui_state.widget_file_explorer.0));
+                });
+            });
+            if self.ui_state.widget_diagnostic.1 {
+                //calculate fps...
+                let fps = 1.0/delta_time;
+                let average_fps:f32;
+                unsafe {
+                    FRAME_COUNT+=1;
+                }
+                let f = app.world.get_resource::<ne_app::FirstFrameTime>().unwrap().get_time();
+                unsafe
+                {
+                    let time_passed = (instant::Instant::now() - f).as_secs_f32();
+                    average_fps = FRAME_COUNT as f32/time_passed;
+                }
+                egui::Window::new(&self.ui_state.widget_diagnostic.0)
+                .default_width(default_width)
+                .default_height(ctx.available_rect().height() - 46.0)
+                .vscroll(true)
+                .open(&mut true)
+                .resizable(false)
+                .collapsible(true)
+                .show(ctx, |ui| {
+                    ui.heading("fps:");
+                    ui.label(format!("current: {}", fps));
+                    ui.label(format!("average: {}", average_fps));
+                    ui.label(format!("1% low: {}", "todo..."));
+                    //do not know how to implement. 
+                    ui.label(format!("memory usage: {}", "no"));
+
+                    egui::CollapsingHeader::new("cpu").show(ui, |ui| {
+                        // for each core:
+                        ui.label(format!("core 1: {}", "todo... %"));
+                });
+                    egui::CollapsingHeader::new("gpu").show(ui, |ui| {
+                        ui.label(format!("usage: {}", "todo... mhz"));
+                        ui.label(format!("mem usage: {}", "todo... gb"));
+                    });
+                });
+            }
+            if self.ui_state.widget_file_explorer.1 {
+                egui::Window::new(&self.ui_state.widget_file_explorer.0)
+                .default_width(default_width)
+                .default_height(ctx.available_rect().height() + 46.0)
+                .vscroll(true)
+                .open(&mut true)
+                .resizable(false)
+                .collapsible(true)
+                .show(ctx, |ui| {
+                    ui.horizontal(|ui| {
+                    });
+                });
             }
 
-            // Begin to draw the UI frame.
-            self.ui_state.begin_frame();
+            let ft = app.world.get_resource::<ne_app::FirstFrameTime>().unwrap().get_time();
+            let now = instant::Instant::now();
+            let time_passed = (now - ft).as_secs_f64();
+            //TODO
+            self.ui_state.update_time(time_passed);
             // Draw the demo application.
-            self.ui_state.draw_ui();
+            // self.ui_state.draw_ui();
 
             // End the UI frame. We could now handle the output and draw the UI with the backend.
-            let full_output = self.ui_state.end_frame(window);
+            let full_output = self.ui_state.platform.end_frame(Some(window));
             let paint_jobs = self.ui_state.platform.context().tessellate(full_output.shapes);
 
             // Upload all resources for the GPU.
@@ -408,7 +485,6 @@ impl State {
                     None,
                 )
                 .unwrap();
-
                 cmd_buffers.push(encoder.finish());
 
             // removes ui data for some reason..?
@@ -422,6 +498,34 @@ impl State {
 
         Ok(()) 
 }
+#[cfg(feature="editor_ui")]
+fn editor_interface( &mut self,  // screen_size:Vec2,
+                    default_width:f32,
+                    ctx:&egui::Context
+        ) {
+            let mut b_diagn = false;
+            egui::Window::new("AAA")
+            // .anchor(egui::Align2::CENTER_CENTER, [0.0, 0.0])
+            .default_width(default_width)
+            .default_height(ctx.available_rect().height() - 46.0)
+            .vscroll(true)
+            .open(&mut true)
+            .resizable(true)
+            .collapsible(true)
+            .show(ctx, |ui| {
+                ui.heading("Control_Panel");
+
+                ui.horizontal(|ui| {
+                    ui.label("Control Panel");
+                });
+
+                //For each window a checkbox with a name. 
+                ui.checkbox(&mut b_diagn, "diagnostics");
+                ui.checkbox(&mut b_diagn, "file explorer");
+                ui.checkbox(&mut b_diagn, "inspect");
+                // ui.checkbox(&mut b_diagn, "scene");
+            });
+    }
 }
 fn main_loop(app: App) {
     //is this async implementation any good?
@@ -445,8 +549,6 @@ async fn init_renderer(mut app: App) {
     #[cfg(feature = "first_frame_time")]
     let mut once_benchmark = true;
     let mut last_render_time = instant::Instant::now();
-    #[cfg(feature = "editor_ui")]
-    let mut frame_count:u64 = 1;
     //exit window event reader
     let mut app_exit_event_reader = ManualEventReader::<AppExit>::default();
 
@@ -587,26 +689,9 @@ async fn init_renderer(mut app: App) {
                     let now = instant::Instant::now();
                     let delta_time = (now - last_render_time).as_secs_f32();
                     last_render_time = now;
-    
-                    #[cfg(feature = "editor_ui")]
-                    {
-                        //TODO move maybe
-                        let fps = 1.0/delta_time;
-                        // a little messy
-                        frame_count+=1;
 
-                        let f = app.world.get_resource::<ne_app::FirstFrameTime>().unwrap().get_time();
-                        unsafe
-                        {
-                            let time_passed = (now - f).as_secs_f32();
-                            let average_fps = frame_count as f32/time_passed;
-                            
-                            ne::log!("fps:{:<14}fps | avg:{:<14}fps | 1%LOW:{:<10}fps",fps,average_fps, fpsd.get_lowest(fps));
-                        }
-                    }
-                    state.update(delta_time);
-    
-                    match state.render(&mut app, &window ) {
+                    state.update_camera(delta_time);
+                    match state.render(&mut app, &window, delta_time) {
                         Ok(_) => {}
                         // Reconfigure the surface if it's lost or outdated
                         Err(wgpu::SurfaceError::Lost | wgpu::SurfaceError::Outdated) => {

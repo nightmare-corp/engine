@@ -3,7 +3,7 @@ static mut A: i32 = 100;
 pub(crate) struct ControlWindow {
     name: String,
 }
-struct DiagnosticsWindow {
+pub(crate) struct DiagnosticsWindow {
     name: String,
     fps: u32,
 }
@@ -51,6 +51,26 @@ impl UserInterface for ControlWindow {
                 A+=1;
                 ui.label(format!("Haaaello '{}'", A));
             }
+        });
+        egui::Window::new("B")
+        // .anchor(egui::Align2::CENTER_CENTER, [0.0, 0.0])
+        .default_width(default_width)
+        .default_height(ctx.available_rect().height() - 46.0)
+        .vscroll(true)
+        .open(&mut true)
+        .resizable(true)
+        .collapsible(true)
+        .show(ctx, |ui| {
+            ui.heading("My egui Application");
+            ui.horizontal(|ui| {
+                ui.label("Your name: ");
+                ui.text_edit_singleline(&mut self.name);
+            });
+            ui.label(format!("Hello '{}'", self.name));
+            unsafe {
+                A+=1;
+                ui.label(format!("Haaaello '{}'", A));
+            }
 
         });
     }
@@ -75,7 +95,6 @@ impl UserInterface for DiagnosticsWindow {
                 ui.label("Your name: ");
                 ui.text_edit_singleline(&mut self.name);
             });
-
             ui.label(format!("Hello '{}'", self.name));
             ui.label(format!("Hello '{}'", self.name));
 

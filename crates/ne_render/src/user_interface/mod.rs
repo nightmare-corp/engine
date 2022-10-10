@@ -1,21 +1,29 @@
 use std::borrow::Cow;
 use ::egui::FontDefinitions;
-use self::basic_window::{ControlWindow, UserInterface};
 // use egui_winit_platform::{Platform, PlatformDescriptor};
 use self::{ui_render_pass::RenderPassRecipe};
 use self::{egui_window::{Platform, PlatformDescriptor}};
 mod egui_window;
 pub mod ui_render_pass;
+pub struct UIWidget();
+
+
+//TODO extendable ui with egui.
+//1) zero overhead
+//2) immediate ui function callable from render()
+//3) bool to hide and show ui.
+
 // pub mod editor_widget;
 mod basic_window;
-pub struct EguiState {
+pub struct EditorUIState {
     pub platform:Platform,
     pub render_pass:RenderPassRecipe,
-    demo_window:ControlWindow,
+    pub widget_diagnostic: (String, bool),
+    pub widget_file_explorer: (String, bool),
+    // pub optional_widgets: Vec<(String, bool)>,
 }
-
 //TODO see if it's faster to use these reference instead.
-impl EguiState {
+impl EditorUIState {
     //this should return egui_state?
     /// A simple egui + wgpu + winit based example.
     pub fn new(
@@ -42,32 +50,16 @@ impl EguiState {
              wgpu::ShaderSource::Wgsl(Cow::Borrowed(include_str!("egui.wgsl")))
         );
         // Display the demo application that ships with egui.
-        let demo_window = ControlWindow::default();
-
         Self {
             platform, render_pass,
-            demo_window, 
+            widget_diagnostic: ("Diagnostics Window".to_owned(), true),
+            widget_file_explorer: ("File Explorer".to_owned(), false),
         }
-
     }
-    pub fn update_time(&mut self, elapsed_time_as_seconds:f64)
-    {
+    pub fn update_time(&mut self, elapsed_time_as_seconds:f64) {
         self.platform.update_time(elapsed_time_as_seconds);
     }
-    pub fn begin_frame(&mut self)
-    {
-        self.platform.begin_frame();
-    }
-    pub fn end_frame(&mut self, window:&winit::window::Window) -> egui::FullOutput 
-    {
-        self.platform.end_frame(Some(window))
-    }
-    pub fn draw_ui(&mut self)
-    {
-        self.demo_window.update(&self.platform.context());
-    }
-    pub fn handle_event<T>(&mut self, winit_event: &winit::event::Event<T>)
-    {
+    pub fn handle_event<T>(&mut self, winit_event: &winit::event::Event<T>) {
         self.platform.handle_event(winit_event);
     }
 }
