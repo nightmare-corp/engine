@@ -8,27 +8,20 @@ homepage = "https://nightmare-corp.com"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
-# Enable a small amount of optimization in debug mode
-[profile.dev]
-opt-level = 1
-[profile.dev.package."*"]
-opt-level = 3
 
 [dependencies]
 nightmare_engine = {path = "../../" }
 
 ne = {path = "../../crates/ne"}
-ne_files = {path = "../../crates/ne_files"}
-ne_app = {path = "../../crates/ne_app"}
-ne_window = {path = "../../crates/ne_window"}
-ne_render = {path = "../../crates/ne_render", features = [ "print_fps", "first_frame_time", "start_time", "egui"] }
 ne_bench = {path = "../../crates/ne_bench"}
+
+wgpu = { version = "0.13", features = ["webgl"]}
 
 instant = "0.1"
 once_cell = "1.14.0"
 # Bevy
-bevy_ecs = "0.8.1"
-bevy_asset = "0.8.1"
+bevy_ecs = "0.9.0"
+bevy_asset = "0.9.0"
 # ne_minimum = {path = "../crates/ne_minimum"}
 # L = {path = "../crates/ne_log"} #, features = ["release_max_level_off"] 
 tracing = "0.1.35"

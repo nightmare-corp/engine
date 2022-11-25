@@ -9,3 +9,5 @@ homepage = "https://nightmare-corp.com"
 [dependencies]
 glam = { version = "0.21.3", features = ["serde", "bytemuck"] }
 bytemuck = { version = "1.4", features = [ "derive" ] }
+bevy_ecs = "0.9.0"
+rand = "0.8.5"

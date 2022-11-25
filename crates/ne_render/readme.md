@@ -1,11 +1,10 @@
 [features]
-print_fps = []
-first_frame_time = []
 start_time = []
-ui = ["egui"]
+editor_ui = ["egui"]
+mesh_16bit = []
 
 example:
-ne_render = {path = "../../crates/ne_render", features = ["print_fps"] }
+ne_render = {path = "../../crates/ne_render", features = ["editor_ui"] }
 
 
 

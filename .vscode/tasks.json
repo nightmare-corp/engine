@@ -2,8 +2,18 @@
     "version": "2.0.0",
         "tasks": [  
             {
+                "label": "run_editor release",
+                "command": "cargo run -p ne_editor -r",
+                "type": "shell",
+                "problemMatcher": [],
+                "group": {
+                    "kind": "build",
+                    "isDefault": true
+                }
+            },
+            {
                 "label": "run_editor",
-                "command": "cargo run -p ne_editor --release",
+                "command": "cargo run -p ne_editor",
                 "type": "shell",
                 "problemMatcher": [],
                 "group": {
@@ -20,6 +30,16 @@
                     "kind": "build",
                     "isDefault": true
                 }
-            }
+            },
+            {
+                "label": "run_editor NO OUT",
+                "command": "cargo run -p ne_editor 2> $null",
+                "type": "shell",
+                "problemMatcher": [],
+                "group": {
+                    "kind": "build",
+                    "isDefault": true
+                }
+            },
         ]
 }

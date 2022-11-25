@@ -5,19 +5,22 @@ edition = "2021"
 homepage = "https://nightmare-corp.com"
 
 [features]
-print_fps = []
-first_frame_time = []
 start_time = []
-ui = ["egui"]
+editor_ui = ["egui"]
+mesh_16bit = []
 [dependencies]
 ne = {path = "../ne"}
 ne_files = {path = "../ne_files"}
-ne_app = {path = "../ne_app", features = [ "start_time", "first_frame_time" ] }
+ne_app = {path = "../ne_app", features = [ "start_time"] }
 ne_window = {path = "../ne_window"}
 ne_math = {path = "../ne_math"}
 ne_bench = {path = "../ne_bench"}
+# requires nightly rust compiler
+rapier3d = {version = "0.16.0", features = ["simd-nightly", "parallel", "serde-serialize"]} #"enhanced-determinism", "wasm-bindgen"]
 # Bevy
-bevy_ecs = "0.8.1"
+bevy_ecs = "0.9.0"
+bevy_derive ="0.9.0"
+
 egui = { version = "0.19.0", optional = true, default-features = false, features = [
     "bytemuck", 
 ] }
@@ -32,11 +35,12 @@ instant = "0.1"
 tracing = "0.1.35"
 # wgpu
 cfg-if = "1"
-image = "0.23"
+image = "0.24.4"
 winit = "0.27"
 env_logger = "0.9"
 # log = "0.4"
 pollster = "0.2"
+# update once MemoryUsage can be collected.
 wgpu = "0.13"
 bytemuck = { version = "1.4", features = [ "derive" ] }
 anyhow = "1.0" 

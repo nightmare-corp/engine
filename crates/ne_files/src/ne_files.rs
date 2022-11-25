@@ -1,9 +1,10 @@
+#![feature(stmt_expr_attributes)]
 // env::CARGO_MANIFEST_DIR;
 
 // TODO I want this as a string literal
 // const asset_path:
 
-// TODO CFG only. To decrease compile time.
+// debug only
 ///example
 ///let x = find_file!("C:/git/tools/nightmare_engine", "/Cargo.toml");
 ///ne::log!("{}", x)
@@ -13,23 +14,21 @@
 macro_rules! find_file {
     ($path:literal) => {{
         //opportunity for improvement
-        let _ = include_bytes!($path);
-        let r = $path;
-        r
+        #[cfg(debug_assertions)]
+        {
+            let _ = include_bytes!($path);
+            let r = $path;
+            r
+        }
     }};
-
-    // #[cfg(not(feature="path_checker"))]
-    // {
-    //     r
-    // }};
-    ($path1:literal,$path2:literal) => {
-        #[cfg(feature = "path_checker")]
+    ($path1:literal,$path2:literal) => {{
+        #[cfg(debug_assertions)]
         {
             let _ = include_bytes!(concat!($path1, $path2));
             let r = concat!($path1, $path2);
             r
         }
-    };
+    }};
 }
 
 #[macro_export]

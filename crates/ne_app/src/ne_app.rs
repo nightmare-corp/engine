@@ -1,30 +1,25 @@
 //Thanks bevy!
-
+pub mod types;
 use std::collections::HashMap;
 
 // use bevy_ecs::schedule::IntoSystemDescriptor;
 pub use bevy_ecs::{
     event::{Event, Events, ManualEventReader},
     schedule::{IntoSystemDescriptor, Schedule, ShouldRun, Stage, StageLabel, SystemStage},
-    system::{IntoExclusiveSystem, Resource},
+    system::{ Resource},
     world::{FromWorld, World},
 };
-pub use ne::*;
 
 //globals
 //These should not be modified, just read.
-#[cfg(feature = "start_time")]
-pub static mut START_TIME: Option<instant::Instant> = None;
-#[cfg(feature = "first_frame_time")]
-pub static mut FIRST_FRAME_TIME: Option<instant::Instant> = None;
+// #[cfg(feature = "start_time")]
+// pub static mut START_TIME: Option<instant::Instant> = None;
+
 pub fn get_time_passed(time: Option<instant::Instant>) -> instant::Duration {
     let now = instant::Instant::now();
     now - time.unwrap()
 }
 
-//================================================================
-//TODO Make this my own code
-//================================================================
 #[derive(Debug, Hash, PartialEq, Eq, Clone, StageLabel)]
 pub enum CoreStage {
     /// The [`Stage`](bevy_ecs::schedule::Stage) that runs before all other app stages.
@@ -128,6 +123,7 @@ macro_rules! define_label {
 }
 #[cfg(feature = "trace")]
 use bevy_utils::tracing::info_span;
+use tracing::debug;
 define_label!(
     /// A strongly-typed class of labels used to identify an [`App`].
     AppLabel,
@@ -147,9 +143,6 @@ macro_rules! get_engine_assets_dir {
 }
 
 pub struct App {
-    //================================================================
-    //TODO Make this code my own
-    //================================================================
     /// The main ECS [`World`] of the [`App`].
     /// This stores and provides access to all the main data of the application.
     /// The systems of the [`App`] will run using this [`World`].
@@ -181,7 +174,9 @@ impl Default for App {
         app.init_resource::<bevy_reflect::TypeRegistryArc>();
 
         app.add_default_stages()
-            .add_system_to_stage(CoreStage::Last, World::clear_trackers.exclusive_system());
+        .add_system_to_stage(
+            CoreStage::Last, 
+            World::clear_trackers);
 
         #[cfg(feature = "bevy_ci_testing")]
         {
@@ -190,21 +185,36 @@ impl Default for App {
         app
     }
 }
-
-//TODO Is this needed?
-// impl Default for app
-// {
-//     // fn default() -> Self {
-//     // }
-// }
+#[derive(Debug, Resource)]
+pub struct ProgramStartTime {
+    start_time: instant::Instant,
+}
+#[derive(Resource)]
+pub struct FirstFrameTime {
+    start_time: instant::Instant,
+}
+impl Default for FirstFrameTime {
+    fn default() -> Self {
+        Self {
+            start_time: instant::Instant::now(),
+        }
+    }
+}
+impl FirstFrameTime {
+    pub fn get_time(&self) -> instant::Instant {
+        self.start_time
+    }
+}
 impl App {
     pub fn new() -> App {
         // App::default()
-        #[cfg(feature = "start_time")]
-        unsafe {
-            START_TIME = Some(instant::Instant::now());
-        }
-        App::default()
+        let mut app = App::default();
+
+        app.insert_resource(ProgramStartTime {
+            start_time: instant::Instant::now(),
+        });
+
+        app
     }
     pub fn empty() -> App {
         Self {
@@ -272,10 +282,6 @@ impl App {
         self.world.insert_non_send_resource(resource);
         self
     }
-
-    //================================================================
-    //TODO Make this code my own
-    //================================================================
     /// The names of the default [`App`] stages.
     ///
     /// The relative [`Stages`](bevy_ecs::schedule::Stage) are added by [`App::add_default_stages`].
@@ -326,7 +332,7 @@ impl App {
         self
     }
 
-        /// Adds a system to the [startup schedule](Self::add_default_stages), in the stage
+    /// Adds a system to the [startup schedule](Self::add_default_stages), in the stage
     /// identified by `stage_label`.
     ///
     /// `stage_label` must refer to a stage inside the startup schedule.
@@ -585,7 +591,6 @@ pub trait Plugin /* Any + Send + Sync */ {
         std::any::type_name::<Self>()
     }
 }
-
 fn run_once(mut app: App) {
     app.update();
 }

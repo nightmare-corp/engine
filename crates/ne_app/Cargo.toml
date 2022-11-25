@@ -6,15 +6,14 @@ homepage = "https://nightmare-corp.com"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [features]
-first_frame_time = []
 start_time = []
 
 [dependencies]
-bevy_ecs = "0.8.1"
+bevy_ecs = "0.9.0"
+bevy_derive ="0.9.0"
 tracing = "0.1.35"
-ne = { path = "../ne" }
 num_cpus = "1.13.1"
 instant = "0.1"
-
+ahash = "0.8.2"
 [lib]
 path = "src/ne_app.rs" 
