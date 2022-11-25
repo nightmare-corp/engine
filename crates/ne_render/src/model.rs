@@ -12,7 +12,7 @@
 //     materials: Vec<Material>,
 // }
 // impl Model {
-//     pub fn new(meshes: Vec<Mesh>, materials: Vec<Material>) -> Self { 
+//     pub fn new(meshes: Vec<Mesh>, materials: Vec<Material>) -> Self {
 //         Self {
 //             meshes, materials
 //         }

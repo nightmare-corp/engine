@@ -8,6 +8,6 @@ homepage = "https://nightmare-corp.com"
 path = "src/ne_bench.rs" 
 
 [dependencies]
-ne = { path = "../ne"}
-ne_app = { path = "../ne_app" }
+# ne = { path = "../ne"}
+# ne_app = { path = "../ne_app" }
 instant = "0.1"

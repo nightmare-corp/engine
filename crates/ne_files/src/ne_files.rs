@@ -13,8 +13,8 @@
 #[macro_export]
 macro_rules! find_file {
     ($path:literal) => {{
-    //opportunity for improvement
-    #[cfg(debug_assertions)]
+        //opportunity for improvement
+        #[cfg(debug_assertions)]
         {
             let _ = include_bytes!($path);
             let r = $path;

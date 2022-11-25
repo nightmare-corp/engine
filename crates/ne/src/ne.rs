@@ -1,8 +1,4 @@
 pub use ne_log as L;
-use L::tracing;
-
-#[allow(dead_code)]
-pub use tracing::{debug, error, info, trace, warn};
 
 /// multiple arguments very similar to ne::log!: log!("{} {} {} {}", "exactly the same: ", 163, 136.0, my_var);
 /// set environment variable neprint for this to work std::env::set_var("neprint", "true");

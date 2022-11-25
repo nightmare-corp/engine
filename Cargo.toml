@@ -6,7 +6,6 @@ homepage = "https://nightmare-corp.com"
 [toolchain]
 channel = "nightly"
 [features]
-# TODO dynamic linking, accelerates compile times during project development hopefully.
 # DISABLE ON RELEASE
 # dynamic = ["ne_dylib"]
 

@@ -1,5 +1,5 @@
 [package]
-name = "ne_math"
+name = "train"
 version = "0.1.0"
 edition = "2021"
 homepage = "https://nightmare-corp.com"
@@ -7,7 +7,3 @@ homepage = "https://nightmare-corp.com"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-glam = { version = "0.21.3", features = ["serde", "bytemuck"] }
-bytemuck = { version = "1.4", features = [ "derive" ] }
-bevy_ecs = "0.9.0"
-rand = "0.8.5"

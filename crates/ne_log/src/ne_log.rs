@@ -1,7 +1,39 @@
-pub use tracing;
-pub use tracing_appender::rolling::RollingFileAppender;
-pub use tracing_appender;
-//TODO cfg to use ne::log! instead of tracing during release?
+/// code partially grabbed from bevy log
+use ne_app::{Plugin, App};
+/* pub */ use tracing::{Level, trace, debug, info, warn, error};
+use tracing_log::LogTracer;
+use tracing_subscriber::{EnvFilter, Registry, prelude::__tracing_subscriber_SubscriberExt};
+
+/// use this: ```
+/// std::env::set_var("RUST_LOG", "wgpu=error, info");
+/// ```
+pub struct LogPlugin;
+impl Default for LogPlugin {
+    fn default() -> Self {
+        Self {}
+    }
+}
+impl Plugin for LogPlugin {
+    fn setup(&self, app: &mut App) {
+        LogTracer::init().unwrap();
+        let filter_layer = EnvFilter::builder().try_from_env()
+        .or_else(|_| EnvFilter::try_new("debug,wgpu=warn,naga=warn"))
+            .unwrap();
+        let fmt_layer = tracing_subscriber::fmt::Layer::default();
+        let subscriber = Registry::default()
+        .with(filter_layer)
+        .with(fmt_layer);
+        tracing::subscriber::set_global_default(subscriber)
+        .expect("tracing::subscriber::set_global_default failed. If tracing subscriber is already set, disable LogPlugin from DefaultPlugins");
+        
+        trace!("Initialized logging [TRACE]");
+        debug!("Initialized logging [DEBUG]");
+        info!("Initialized logging [INFO]");
+        warn!("Initialized logging [WARN]");
+        error!("Initialized logging [ERROR]");
+    }
+}
+
 #[macro_export]
 macro_rules! err {
     //simple error and exit
@@ -9,7 +41,7 @@ macro_rules! err {
     {
         let mut error_msg: String = format!("{}", format_args!("{}", $arg));
         error!("{}", error_msg);
-        std::process::exit(1);
+        panic!();
     };
     //maybe dont use this one
     ($($args:expr),*) =>
@@ -20,64 +52,6 @@ macro_rules! err {
             error_msg.push_str(&tempstr[..]);
         )*
         error!("{}", error_msg);
-        std::process::exit(1);
+        panic!();
     }
-}
-
-//TODO change the log format into [time]: [type] [message]
-//And a debug version [time]: [where] [type] [message]
-/// initializes logging, 
-/// ### possible arguments:
-/// tracing::Level::INFO, tracing::Level::ERROR, tracing::Level::WARN
-#[macro_export]
-macro_rules!
-init_log {
-    () => {
-        let rolling_file_appender = ne::L::tracing_appender::rolling::daily(
-            "logs",
-            "log.log",
-        );
-        let (non_blocking, _guard) = ne::L::tracing_appender::non_blocking(rolling_file_appender);
-        //default settings: 
-        // debug_assertions -> tracing::Level::DEBUG, 
-        // no debug_assertions -> tracing::Level::ERROR
-        if cfg!(debug_assertions)
-        {
-            tracing_subscriber::fmt()
-            .with_max_level(tracing::Level::DEBUG)
-            .with_writer(non_blocking)
-            .init();
-        }
-        else{
-            tracing_subscriber::fmt()
-            .with_max_level(tracing::Level::ERROR)
-            .with_writer(non_blocking)
-            .init();
-        }
-        pub use tracing::{info,debug,trace,warn};
-
-        tracing::trace!("Initialized logging [TRACE]");
-        debug!("Initialized logging [DEBUG]");
-        info!("Initialized logging [INFO]");
-        warn!("Initialized logging [WARN]");
-    };
-    ($level:expr) => {
-        let rolling_file_appender = ne::L::tracing_appender::rolling::daily(
-            "logs",
-            "log.log",
-        );
-        let (non_blocking, _guard) = ne::L::tracing_appender::non_blocking(rolling_file_appender);
-
-        tracing_subscriber::fmt()
-        .with_max_level($level)
-        .with_writer(non_blocking)
-        .init();
-
-        pub use tracing::{info,debug,trace,warn};
-
-        tracing::trace!("Initialized logging [TRACE]");
-        debug!("Initialized logging [DEBUG]");
-        info!("Initialized logging [INFO]");
-        warn!("Initialized logging [WARN]");
-    };
 }

@@ -1,33 +1,44 @@
 use anyhow::*;
+use bevy_ecs::prelude::{Component, Bundle};
+use ne_app::types::Name;
 
-
-//TODO
-/* pub struct MaterialDescriptor<'a> {
-    pub bytes: &'a [u8],
-    pub label: Option<&'a str>,
-} */
+/// A material stored as bundle in bevy ecs.
+#[derive(Bundle)]
+pub struct NamedMaterial {
+    pub name:Name,
+    pub material:Material,
+}
+#[derive(Component)]
 pub struct Material {
     pub texture: wgpu::Texture,
     pub view: wgpu::TextureView,
     pub sampler: wgpu::Sampler,
 }
+/// engine default material.
+/// yeah don't know how to implement this here...
+// impl Default for Material {
+//     fn default() -> Self {
+//         Self { texture: Default::default(), view: Default::default(), sampler: Default::default() }
+//     }
+// }
 //For now only a simple texture.
 ///example:
 ///``let bytes = include_bytes!("grid.png");``
 ///``let label = Some("grid.png");``
 ///  let mat = Material::from_bytes(&device, &queue, bytes, label);
 impl Material {
-/*     pub fn from_descriptor(
-        device: &wgpu::Device,
-        queue: &wgpu::Queue,
-        mat_descriptor: &MaterialDescriptor,
-    ) -> Result<Self> {
-        Self::from_bytes(
-            device, queue,
-            mat_descriptor.bytes, mat_descriptor.label
-        )
-    }
- */    pub fn from_bytes(
+    /*     pub fn from_descriptor(
+           device: &wgpu::Device,
+           queue: &wgpu::Queue,
+           mat_descriptor: &MaterialDescriptor,
+       ) -> Result<Self> {
+           Self::from_bytes(
+               device, queue,
+               mat_descriptor.bytes, mat_descriptor.label
+           )
+       }
+    */
+    pub fn from_bytes(
         device: &wgpu::Device,
         queue: &wgpu::Queue,
         bytes: &[u8],

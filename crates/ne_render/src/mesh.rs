@@ -1,12 +1,11 @@
 //=========================================
+use crate::{depth_texture, material, math::ToMat4, render_structs::RenderDevice};
+use bevy_ecs::prelude::{Component, Bundle};
 use bytemuck::{Pod, Zeroable};
-use ne_math::{Transform};
-use std::{
-    borrow::Cow,
-    f32::consts::{PI}, mem,
-};
-use wgpu::{util::DeviceExt, CommandBuffer};
-use crate::{material, math::ToMat4, depth_texture};
+use ne_app::types::Name;
+use ne_math::Transform;
+use std::{borrow::Cow, f32::consts::PI, mem};
+use wgpu::{util::DeviceExt};
 ///y is up
 #[repr(C)]
 #[derive(Clone, Copy, Pod, Zeroable)]
@@ -22,21 +21,21 @@ impl Vertex {
         }
     }
 }
-
-#[cfg(feature="mesh_16bit")]
+#[cfg(feature = "mesh_16bit")]
 type MeshIndex = u16;
-#[cfg(not(feature="mesh_16bit"))]
+#[cfg(not(feature = "mesh_16bit"))]
 type MeshIndex = u32;
-
 /// a collection of meshes TODO: and materials.
-/// TODO materials 
+/// TODO materials
 /// TODO maybe implement the ecs way..?
 pub struct Model {
     pub meshes: Vec<MeshPrimitives>,
     // materials: Vec<Material>,
 }
 impl Model {
-    pub fn new(meshes: Vec<MeshPrimitives>) -> Self { Self { meshes } }
+    pub fn new(meshes: Vec<MeshPrimitives>) -> Self {
+        Self { meshes }
+    }
 }
 //TODODO LARGHE MESHESHES WITH HIGHT VERTEX COUNT
 #[derive(Clone)]
@@ -44,17 +43,20 @@ pub struct MeshPrimitives(Vec<Vertex>, Vec<MeshIndex>);
 impl MeshPrimitives {
     //TODO I don't like this... somehow gotta implement include_str() or something to verify each file.
     //TODO return Model instead of MeshPrimitives.
-    pub async fn from_obj(file_name: &str) -> anyhow::Result<Vec<Self>>
-    {
+    pub async fn from_obj(file_name: &str) -> anyhow::Result<Vec<Self>> {
         //TODO replace by assert?
-        println!("loading: {} exists: {}", file_name, std::path::Path::new(file_name).exists());
+        println!(
+            "loading: {} exists: {}",
+            file_name,
+            std::path::Path::new(file_name).exists()
+        );
         //TODO opportunity
         let load_options = tobj::LoadOptions {
             triangulate: true,
             single_index: true,
             ..Default::default()
         };
-        //TODO No need to use obj materials, just use default engine material. 
+        //TODO No need to use obj materials, just use default engine material.
         //TODO use tobj::load_obj_buf_async
 
         let (models, _) = tobj::load_obj(file_name, &load_options).unwrap();
@@ -62,23 +64,31 @@ impl MeshPrimitives {
         //TODO support multiple models...
         //model into mesh_primitve
         let meshes = models
-        .into_iter()
-        .map(|m| {
-            let vertices = 
-                (0..m.mesh.positions.len() / 3)
-                .map(|i| Vertex::new(
-                    [m.mesh.positions[i * 3],
-                            m.mesh.positions[i * 3 + 1],
-                            m.mesh.positions[i * 3 + 2]], 
-                    [m.mesh.texcoords[i * 2], m.mesh.texcoords[i * 2 + 1]])
-                        ).collect::<Vec<_>>();
-                        //TODO check if mesh has too many indices then end program
-                        //TODO abstract
-                        let indices = m.mesh.indices.iter().map(|&e| e as MeshIndex).collect();
-                        MeshPrimitives{0: vertices, 1: indices}
-    }).collect::<Vec<_>>();
-    //TODO only returns first mesh primitives...
-    Ok(meshes)
+            .into_iter()
+            .map(|m| {
+                let vertices = (0..m.mesh.positions.len() / 3)
+                    .map(|i| {
+                        Vertex::new(
+                            [
+                                m.mesh.positions[i * 3],
+                                m.mesh.positions[i * 3 + 1],
+                                m.mesh.positions[i * 3 + 2],
+                            ],
+                            [m.mesh.texcoords[i * 2], m.mesh.texcoords[i * 2 + 1]],
+                        )
+                    })
+                    .collect::<Vec<_>>();
+                //TODO check if mesh has too many indices then end program
+                //TODO abstract
+                let indices = m.mesh.indices.iter().map(|&e| e as MeshIndex).collect();
+                MeshPrimitives {
+                    0: vertices,
+                    1: indices,
+                }
+            })
+            .collect::<Vec<_>>();
+        //TODO only returns first mesh primitives...
+        Ok(meshes)
     }
 }
 pub struct Shapes;
@@ -253,32 +263,74 @@ impl<F: Future<Output = Option<wgpu::Error>>> Future for ErrorFuture<F> {
         })
     }
 } */
-//TODO I hate it. This could be turned into ecs
 // pub struct MeshDescriptor {
 //     mesh_data: MeshPrimitives,
 //     transform: Transform,
 // }
-pub struct Mesh {
-    vertex_buffer: wgpu::Buffer,
-    index_buffer: wgpu::Buffer,
-    index_count: usize,
-    bind_group: wgpu::BindGroup,
-    pipeline: wgpu::RenderPipeline,
+//gotta try ecs somehow in a github fork
+/// Stores buffers and such
+#[derive(Component)]
+pub struct GpuMesh {
+    pub vertex_buffer: wgpu::Buffer,
+    pub index_buffer: wgpu::Buffer,
+    pub index_count: usize,
+    pub bind_group: wgpu::BindGroup,
+    pub pipeline: wgpu::RenderPipeline,
+    pub model_buffer: wgpu::Buffer,
+}
+/// Mesh that holds transform data.
+/// spawn this one to easily reuse this gpu mesh...
+/// TODO weak clone?
+#[derive(Bundle)]
+pub struct NamedGpuMesh {
+    pub name:Name,
+    pub mesh_data:GpuMesh,
+}
+/// Mesh that holds transform data.
+#[derive(Bundle)]
+pub struct StaticMesh {
+    mesh_data:GpuMesh,
+    transform:Transform,
+}
+//this feels roundabout and weird.
+//it would make more sense if it also had a render(...) function.
+//but I want to easily test out ecs.
+/* pub  */trait MeshDataTrait {
+    fn get_mesh_data(&self) -> &GpuMesh;
 }
 
-impl Mesh {
-    #[must_use]
-    pub fn init(
+//Might have some use in the future. ideas are still brewing
+// pub struct MeshCreator {
+//     camera_buffer: wgpu::Buffer,
+//     config: wgpu::SurfaceConfiguration,
+//     device: RenderDevice,
+// }
+// impl MeshCreator {
+//     pub fn new(camera_buffer:  wgpu::Buffer, config:  wgpu::SurfaceConfiguration, device: RenderDevice) -> Self 
+//     { Self { camera_buffer, config, device } }
+// }
+impl StaticMesh {
+    //TODO extract parameters into parts
+    pub fn new(
         camera_buffer: &wgpu::Buffer,
         config: &wgpu::SurfaceConfiguration,
-        _adapter: &wgpu::Adapter,
         device: &wgpu::Device,
-        // queue: &wgpu::Queue,
         transform: Transform,
-        // TODO tuple is not easily readable.
+        mesh_prim: MeshPrimitives,
+        mat: &material::Material,
+    ) -> Self {
+        let mesh_data = GpuMesh::new(camera_buffer, config,  device, transform.clone(), mesh_prim, mat);
+        Self {mesh_data,transform } }
+    pub fn update_transform() {
+    }
+}
+impl GpuMesh {
+    pub fn new(
+        camera_buffer: &wgpu::Buffer,
+        config: &wgpu::SurfaceConfiguration,
+        device: &wgpu::Device,
+        transform: Transform,
         mesh_data: MeshPrimitives,
-        //TODO actual material class
-        //TODO mipmap
         mat: &material::Material,
     ) -> Self {
         // Create the vertex and index buffers
@@ -352,11 +404,16 @@ impl Mesh {
         // Create other resources
         let mvp_matrix = transform.to_raw();
         let mx_ref: &[f32; 16] = mvp_matrix.as_ref();
-        let uniform_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+        let model_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Uniform Buffer"),
             contents: bytemuck::cast_slice(mx_ref),
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
         });
+
+        let camera_bge = wgpu::BindGroupEntry {
+            binding: 3,
+            resource: camera_buffer.as_entire_binding(),
+        };
         // Create bind group
         //TODO split maybe
         let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
@@ -364,7 +421,7 @@ impl Mesh {
             entries: &[
                 wgpu::BindGroupEntry {
                     binding: 0,
-                    resource: uniform_buffer.as_entire_binding(),
+                    resource: model_buffer.as_entire_binding(),
                 },
                 //texture
                 wgpu::BindGroupEntry {
@@ -376,10 +433,7 @@ impl Mesh {
                     binding: 2,
                     resource: wgpu::BindingResource::Sampler(&mat.sampler),
                 },
-                wgpu::BindGroupEntry {
-                    binding: 3,
-                    resource: camera_buffer.as_entire_binding(),
-                },
+                camera_bge,
             ],
             label: None,
         });
@@ -387,7 +441,6 @@ impl Mesh {
             label: None,
             source: wgpu::ShaderSource::Wgsl(Cow::Borrowed(include_str!("basic_cube.wgsl"))),
         });
-        //DPDP I fail to completely understand this
         //I know that this handles how the vertex and uv data is read..?
         let vertex_buffers = [wgpu::VertexBufferLayout {
             array_stride: vertex_size as wgpu::BufferAddress,
@@ -423,60 +476,24 @@ impl Mesh {
                 cull_mode: Some(wgpu::Face::Back),
                 ..Default::default()
             },
-            depth_stencil: None,
+            depth_stencil: Some(wgpu::DepthStencilState {
+                format: depth_texture::DepthTexture::DEPTH_FORMAT,
+                depth_write_enabled: true,
+                depth_compare: wgpu::CompareFunction::Less,
+                stencil: wgpu::StencilState::default(),
+                bias: wgpu::DepthBiasState::default(),
+            }),
             multisample: wgpu::MultisampleState::default(),
             multiview: None,
         });
         // Done
-        Mesh {
+        GpuMesh {
             vertex_buffer,
             index_buffer,
             index_count: mesh_data.1.len(),
             bind_group,
-            // uniform_buffer,
             pipeline,
-            // transform,
+            model_buffer,
         }
-    }
-    #[must_use]
-    pub fn render(
-        &mut self,
-        view: &wgpu::TextureView,
-        device: &wgpu::Device,
-        //TODO depreciate texture::Texture
-        //TODO implement depth texture correctly.
-        _depth_texture: &depth_texture::DepthTexture,
-    ) -> CommandBuffer {
-        device.push_error_scope(wgpu::ErrorFilter::Validation);
-        let mut encoder =
-            device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
-        {
-            let mut rpass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                label: None,
-                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                    view,
-                    resolve_target: None,
-                    ops: wgpu::Operations {
-                        load: wgpu::LoadOp::Load,
-                        store: true,
-                    },
-                })],
-                depth_stencil_attachment: None,
-            });
-            rpass.push_debug_group("Prepare data for draw.");
-            rpass.set_pipeline(&self.pipeline);
-            rpass.set_bind_group(0, &self.bind_group, &[]);
-
-            #[cfg(feature="mesh_16bit")]
-            rpass.set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
-            #[cfg(not(feature="mesh_16bit"))]
-            rpass.set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint32);
-
-            rpass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
-            rpass.pop_debug_group();
-            rpass.insert_debug_marker("Draw!");
-            rpass.draw_indexed(0..self.index_count as u32, 0, 0..1);
-        }
-        encoder.finish()
     }
 }

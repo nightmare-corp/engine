@@ -1,8 +1,10 @@
 use std::path::PathBuf;
 
 use ne_math::Vec2;
-use winit::window::WindowId;
+use winit::{window::WindowId, event::MouseScrollDelta};
+pub use winit::event::{ElementState, ScanCode, VirtualKeyCode, MouseButton};
 
+//TODO honestly window id can be depreciated?
 
 /// ================================================================================================
 /// Events
@@ -24,17 +26,11 @@ pub struct OnWindowResized {
 pub struct OnWindowCreated {
     pub id: WindowId,
 }
+/// An event that is sent when winit eventloop is destroyed.
+#[derive(Debug, Clone)]
+pub struct ExitSequence;
 /// An event that is sent whenever the operating systems requests that a window
 /// be closed. This will be sent when the close button of the window is pressed.
-///
-/// If the default [`WindowPlugin`] is used, these events are handled
-/// by [closing] the corresponding [`Window`].  
-/// To disable this behaviour, set `close_when_requested` on the [`WindowPlugin`]
-/// to `false`.
-///
-/// [`WindowPlugin`]: crate::WindowPlugin
-/// [`Window`]: crate::Window
-/// [closing]: crate::Window::close
 #[derive(Debug, Clone)]
 pub struct OnWindowCloseRequested {
     pub id: WindowId,
@@ -49,14 +45,7 @@ pub struct OnWindowClosed {
     pub id: WindowId,
 }
 /// An event reporting that the mouse cursor has moved on a window.
-///
 /// The event is sent only if the cursor is over one of the application's windows.
-/// It is the translated version of [`WindowEvent::CursorMoved`] from the `winit` crate.
-///
-/// Not to be confused with the [`MouseMotion`] event from `bevy_input`.
-///
-/// [`WindowEvent::CursorMoved`]: https://docs.rs/winit/latest/winit/event/enum.WindowEvent.html#variant.CursorMoved
-/// [`MouseMotion`]: bevy_input::mouse::MouseMotion
 #[derive(Debug, Clone)]
 pub struct OnCursorMoved {
     /// The identifier of the window the cursor has moved on.
@@ -82,7 +71,6 @@ pub struct OnWindowFocused {
     pub id: WindowId,
     pub focused: bool,
 }
-
 /// Events related to files being dragged and dropped on a window.
 #[derive(Debug, Clone)]
 pub enum OnFileDragAndDrop {
@@ -117,6 +105,23 @@ pub struct OnWindowScaleFactorChanged {
     pub id: WindowId,
     pub scale_factor: f64,
 }
+
+//this?
+/*
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+ */
+pub struct OnKeyboardInput {
+    pub key: VirtualKeyCode,
+    pub state: ElementState,
+}
+//TODO is this alright?
+impl OnKeyboardInput {
+    pub fn new(key: VirtualKeyCode, state: ElementState) -> Self {
+        Self { key, state }
+    }
+}
+
 /* /// An event that indicates a window's OS-reported scale factor has changed.
 #[derive(Debug, Clone)]
 pub struct OnWindowBackendScaleFactorChanged {
@@ -125,7 +130,43 @@ pub struct OnWindowBackendScaleFactorChanged {
 } */
 // #[derive(Debug, Clone)]
 /// Reader in loop that will end the event loop.
-pub struct AppExit;
-/// An event that is sent when a frame has been rendered 
+pub struct ExitApp;
+/// An event that is sent when a frame has been rendered
 /// Inside of RedrawRequested in the eventloop
 pub struct OnRedrawRequested;
+
+/// An event reporting the change in physical position of a pointing device.
+///
+/// This represents raw, unfiltered physical motion.
+/// It is the translated version of [`DeviceEvent::MouseMotion`] from the `winit` crate.
+///
+/// All pointing devices connected to a single machine at the same time can emit the event independently.
+/// However, the event data does not make it possible to distinguish which device it is referring to.
+///
+/// [`DeviceEvent::MouseMotion`]: https://docs.rs/winit/latest/winit/event/enum.DeviceEvent.html#variant.MouseMotion
+#[derive(Debug, Clone)]
+pub struct OnMouseMotion {
+    /// The change in the position of the pointing device since the last event was sent.
+    pub delta: Vec2,
+}
+/// A mouse button input event.
+///
+/// ## Usage
+///
+/// The event is read inside of the [`mouse_button_input_system`](crate::mouse::mouse_button_input_system)
+/// to update the [`Input<MouseButton>`](crate::Input<MouseButton>) resource.
+#[derive(Debug, Clone)]
+pub struct OnMouseButton {
+    /// The pressed state of the button.
+    pub state: ElementState,
+    /// The mouse button assigned to the event.
+    pub button: MouseButton,
+}
+//TODO scroll...
+
+#[derive(Debug, Clone)]
+pub struct OnMouseWheel {
+    /// The pressed state of the button.
+    pub delta: MouseScrollDelta,
+}
+

@@ -1,5 +1,4 @@
 [features]
-first_frame_time = []
 start_time = []
 editor_ui = ["egui"]
 mesh_16bit = []
